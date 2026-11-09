@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/api/client";
 import { AppHeader } from "@/components/AppHeader";
-import { ChatDock } from "@/components/ChatDock";
+import { ChatBot } from "@/components/ChatBot";
 import { UploadDialog } from "@/components/UploadDialog";
 import { restrictionsFrom } from "@/lib/restrictions";
 import { DATE_KEY, ShellProvider, useShell } from "@/lib/shell";
@@ -46,9 +46,9 @@ function AppInner() {
   const [role, setRole] = useState<ViewerRole>(loadRole);
   const [notice, setNotice] = useState<string | null>(() => sessionStorage.getItem(NOTICE_KEY));
   const [retry, setRetry] = useState(0); // API 연결 실패 뒤 다시 부르기
-  // AI 챗봇의 '오늘'은 ChatDock 이 헤더 공통 날짜(useShell)로 넘긴다
 
   const contractor = role.kind === "contractor" ? role.contractor : undefined;
+  const roleValue = role.kind === "prime" ? "prime" : role.contractor; // 역할이 바뀌면 챗봇을 새로 만드는 key
 
   // 역할에 맞게 서버에서 걸러 받는다 (협력사는 자기 작업 + 원청이 공유한 충돌의 상대 작업만)
   const load = useCallback(async () => {
@@ -183,7 +183,9 @@ function AppInner() {
           />
         )}
       </main>
-      <ChatDock role={role} tasks={tasks} conflicts={conflicts} />
+      {/* F6 AI 챗봇: 보는 사람이 바뀌면 key 로 새로 만들어 앞 역할의 대화가 남지 않게 한다.
+          '오늘'은 헤더·화면이 같이 쓰는 날짜(ShellProvider). 모델 고르기(#72)는 챗봇 창 위쪽 */}
+      <ChatBot key={roleValue} contractor={contractor} today={shell.date} />
     </div>
   );
 }
