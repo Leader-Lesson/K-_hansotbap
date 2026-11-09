@@ -6,7 +6,13 @@ const dDate=d=>{const x=new Date(D0);x.setDate(x.getDate()+d-1);return x;};
 const md=d=>{const x=dDate(d);return `${x.getMonth()+1}/${x.getDate()}`;};
 const mdw=d=>{const x=dDate(d);return `${x.getMonth()+1}/${x.getDate()}(${WD[x.getDay()]})`;};
 const ymd=d=>{const x=dDate(d);return `${x.getFullYear()}.${z2(x.getMonth()+1)}.${z2(x.getDate())}(${WD[x.getDay()]})`;};
-const hh=h=>`${z2(Math.floor(h))}:${h%1?"30":"00"}`;
+/* 24시간 2교대 [팀 설정값]: 주간조 07:00–19:00, 야간조 19:00–다음 날 07:00. 시각은 작업일 기준 숫자 7..31 (24..31 = 다음 날 00:00–07:00)
+   인계 시간 = 각 조 마지막 30분 (18:30–19:00, 06:30–07:00) [팀 설정값] */
+const H0=7,HM=19,H1=31,HOV=.5;
+const hh=h=>`${z2(Math.floor(h)%24)}:${h%1?"30":"00"}`;
+const shiftOf=h=>h<HM?"day":"night";
+const shiftR=h=>h<HM?[H0,HM]:[HM,H1];
+const inHov=h=>(h>=HM-HOV&&h<HM)||(h>=H1-HOV&&h<H1);
 const hr=(a,b)=>`${hh(a)}–${hh(b)}`;
 const dayFromMD=(m,d)=>Math.round((new Date(m>=11?2026:2027,m-1,d)-D0)/864e5)+1;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -14,7 +20,8 @@ const $=s=>document.querySelector(s);
 const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
 const LV={"금지":"ban","조건부":"cond","결함":"def"}, LVC={"금지":"var(--red)","조건부":"var(--amber)","결함":"var(--violet)"}, LVO={"금지":0,"조건부":1,"결함":2};
 const TYPES=["화기","밀폐","고소","중량물","가스","가연물"];
-const NOW=10.5;
+let NOW=10.5; // 시연 시각 (기본 10:30). 상황판 시각 조절로 07:00–다음 날 06:30까지 바꾼다
+const DEF_NOW=10.5;
 
 const ZONES={
   Z1:{name:"노정",floor:"최상층",elev:75,col:true},
@@ -75,10 +82,16 @@ const BASE=[
  {id:"T12",p:"D",name:"노정 계장 교체",zone:"Z1",s:65,e:80,h0:13,h1:17,crew:4,types:["고소"],pre:[],std:"SOP-EL-01",sc:.88,tpl:"○ 노정 계장 교체: {s} ~ {e}, {h}, 노정 (고소작업)"},
  {id:"T18",p:"D",name:"풍구 계장 결선",zone:"Z5",s:91,e:100,h0:8,h1:17,crew:5,types:[],pre:[],std:"SOP-EL-01",sc:.87,tpl:"○ 풍구 계장 결선: {s} ~ {e}, {h}, 3층 풍구"},
  {id:"T08",p:"E",name:"링블록 인양",zone:"Z8",s:64,e:66,h0:10,h1:12,crew:9,types:["중량물"],pre:[],std:"SOP-LF-01",sc:.94,tpl:"링블록 인양 | {s}–{e} | {h} | 주상 인양경로 | 650t 크롤러, 인양계획서 첨부 | 중량물 / 인양 반경 출입통제"},
- {id:"T14",p:"E",name:"노 내부 비계 해체",zone:"Z3",s:101,e:104,h0:8,h1:17,crew:12,types:["고소"],pre:["T04"],std:"SOP-SC-01",sc:.94,tpl:"노 내부 비계 해체 | {s}–{e} | {h} | 노 내부 중부 | — | 고소 / 노흉 축조 완료 후"}
+ {id:"T14",p:"E",name:"노 내부 비계 해체",zone:"Z3",s:101,e:104,h0:8,h1:17,crew:12,types:["고소"],pre:["T04"],std:"SOP-SC-01",sc:.94,tpl:"노 내부 비계 해체 | {s}–{e} | {h} | 노 내부 중부 | — | 고소 / 노흉 축조 완료 후"},
+ /* 야간 작업계획서 (D65 야간조 19:00–다음 날 07:00, 합성). 시각 24 이상은 다음 날 새벽 */
+ {id:"N01",p:"A",name:"노저·노상 축조 (야간)",zone:"Z6",s:65,e:65,h0:19,h1:30.5,crew:22,types:["밀폐"],pre:[],std:"SOP-RF-02",sc:.95,night:true,tpl:"다-2. 노저·노상 축조 야간 연속 작업 — {s} {h}, 노 내부 바닥 밀폐공간. 야간조 22명."},
+ {id:"N02",p:"B",name:"노 하부 냉각판 설치",zone:"Z4",s:65,e:65,h0:20,h1:26,crew:10,types:["중량물","고소"],pre:[],std:"SOP-ME-03",sc:.9,night:true,tpl:"6 | 노 하부 냉각판 설치 (야간) | {s} | {h} | 노 내부 하부 EL.32 동측 | 체인블록 인양 | 하부 출입 통제"},
+ {id:"N03",p:"D",name:"풍구 계장 케이블 포설 (야간)",zone:"Z5",s:65,e:65,h0:19,h1:24,crew:5,types:[],pre:[],std:"SOP-EL-01",sc:.86,night:true,tpl:"○ 풍구 계장 케이블 포설(야간): {s}, {h}, 3층 풍구 남측 트레이"},
+ {id:"N04",p:"C",name:"열풍로 COG 배관 질소 퍼지",zone:"Z9",s:65,e:65,h0:19,h1:22,crew:5,types:["가스"],pre:[],std:"SOP-GP-01",sc:.9,night:true,tpl:"3.5 열풍로 COG 배관 질소 퍼지 (야간) · {s} · {h} · 열풍로 서측"},
+ {id:"N05",p:"A",name:"노흉 축조 (야간)",zone:"Z3",s:65,e:65,h0:23,h1:30.5,crew:18,types:["고소","밀폐"],pre:[],std:"SOP-RF-02",sc:.95,night:true,tpl:"라-2. 노흉 축조 야간 연속 작업 — {s} {h}, 노 내부 중부. 야간조 18명."}
 ];
 const SEC=["N","E","S","W"],SECN={N:"북측",E:"동측",S:"남측",W:"서측"},ADJS={N:["E","W"],E:["N","S"],S:["E","W"],W:["N","S"]};
-const POS={T05:{path:[[8,12,"N"],[12,16,"W"]]},T06:{path:[[9,10.5,"N"],[10.5,12,"E"]]},T08:{path:[[10,11,"S"],[11,12,"E"]]},T10:{pos:["S","E"]},T15:{pos:["S"]},T12:{pos:["W"]},T07:{pos:["E"]},T19:{pos:["W"]},T21:{pos:["W"]},T09:{pos:["W","S"]},T20:{pos:["S"]},T16:{pos:["N"]},T11:{pos:["N"]},T18:{pos:["S","E"]}};
+const POS={T05:{path:[[8,12,"N"],[12,16,"W"]]},T06:{path:[[9,10.5,"N"],[10.5,12,"E"]]},T08:{path:[[10,11,"S"],[11,12,"E"]]},T10:{pos:["S","E"]},T15:{pos:["S"]},T12:{pos:["W"]},T07:{pos:["E"]},T19:{pos:["W"]},T21:{pos:["W"]},T09:{pos:["W","S"]},T20:{pos:["S"]},T16:{pos:["N"]},T11:{pos:["N"]},T18:{pos:["S","E"]},N02:{pos:["E"]},N03:{pos:["S"]},N04:{pos:["W"]},N05:{pos:["N","E"]}};
 BASE.forEach(t=>{const q=POS[t.id]||{};t.path=q.path||null;t.pos=q.pos||SEC.slice();});
 const T11_V2="3.3 노흉 질소·가스 라인 연결 · 기간 {s}~{e} · {h} · 노 내부 중부 · 공기 단축을 위해 1/15로 앞당김 · 선행: 노흉 축조, 노내 비계 해체 완료";
 
@@ -134,7 +147,7 @@ function fresh(){
   return {tasks,ver:{A:1,B:1,C:1,D:1,E:1},fst:{A:"ok",B:"ok",C:"ok",D:"ok",E:"ok"},files:[],role:"HQ",day:65,sel:null,
     conflicts:[],mitig:{},seen:new Set(),newKeys:new Set(),log:[],adjusted:[],shared:new Set(),riskSent:new Set(),banner:null,lastMs:0,lastApply:null,undo:null,
     chat:[],chatOpen:false,heard:null,drawer:null,upOpen:null,mmode:"conf",mview:"3d",mzone:null,
-    tbm:{p:"C",sample:"A",text:"",rec:false,runs:{},key:null},hfilt:"전체",step:0,focus:null,ptab:"A",delays:{},urgent:[],useq:0,dform:{t:null,h1:null,why:""},events:[],holds:[],started:{},eseq:0,xseq:0,lvl:"hq",notes:[],notiOpen:false,mhour:10.5,extOpen:false,
+    tbm:{p:"C",sample:"A",text:"",rec:false,runs:{},key:null},hfilt:"전체",step:0,focus:null,ptab:"A",delays:{},urgent:[],useq:0,dform:{t:null,h1:null,why:""},events:[],holds:[],started:{},eseq:0,xseq:0,lvl:"hq",notes:[],notiOpen:false,mhour:10.5,extOpen:false,tlv:"day",hov:{},oform:{t:null,x:2,crew:null,why:"작업 지연",txt:""},
     eform:{tab:"job",p:"C",name:"노 내부 중부 가스 배관 누설 긴급 차단",zone:"Z3",h0:13,h1:15,crew:4,types:["가스"],vk:"wind",vz:"Z3",vh1:15,secs:["N"]},
     review:Object.fromEntries(PARTNERS.map(p=>[p.id,{v:1,st:"반영"}])),
     hist:Object.fromEntries(PARTNERS.map(p=>[p.id,[{v:1,time:UPT[p.id],by:p.lead,st:"반영",note:"첫 제출 · 구조화 완료"}]]))};
@@ -149,6 +162,7 @@ const visC=()=>S.role==="HQ"?S.conflicts:S.conflicts.filter(c=>involves(c,S.role
 const actOn=(t,d)=>t.s<=d&&d<=t.e;
 const fileName=p=>S.ver[p]>1?P(p).file.replace(/(\.[a-z]+)$/i,`_v${S.ver[p]}$1`):P(p).file;
 const iso=d=>{const x=dDate(d);return `${x.getFullYear()}-${z2(x.getMonth()+1)}-${z2(x.getDate())}`;};
+const isoHM=(d,h)=>`${iso(h>=24?d+1:d)}T${hh(h)}`; // 작업일 d의 시각 h (24 이상이면 다음 날짜로 넘김)
 const dayOfIso=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||"");if(!m)return null;return Math.round((new Date(+m[1],+m[2]-1,+m[3])-D0)/864e5)+1;};
 const own=t=>S.role==="HQ"||t.p===S.role;
 const isBase=t=>!t.delayOf;
@@ -171,7 +185,7 @@ function inScope(t){if(S.role==="HQ"||t.p===S.role)return true;const k=S.role+"|
   return _sc.set.has(t.id);}
 function guide(o,d){const bands=[];let cur=null;
   for(let h=o.h0;h<o.h1;h+=.5){const infl=[];
-    S.tasks.forEach(s=>{if(!actOn(s,d)||!(h>=s.h0&&h<s.h1))return;const r=hz(s,o);if(!r)return;const secs=r.all?SEC.slice():secAt(s,h);if(secs.length)infl.push({s,r,secs});});
+    S.tasks.forEach(s=>{if(s.otPend||!actOn(s,d)||!(h>=s.h0&&h<s.h1))return;const r=hz(s,o);if(!r)return;const secs=r.all?SEC.slice():secAt(s,h);if(secs.length)infl.push({s,r,secs});});
     const map={};SEC.forEach(k=>map[k]="safe");infl.forEach(i=>i.secs.forEach(k=>{map[k]="danger";}));
     infl.forEach(i=>{if(!i.r.all)i.secs.forEach(k=>ADJS[k].forEach(a=>{if(map[a]==="safe")map[a]="caution";}));});
     const sig=SEC.map(k=>map[k]).join(",")+"|"+infl.map(i=>i.s.id+":"+i.secs.join("")).join(",");
@@ -187,8 +201,8 @@ function secSvg(map,sz=56){const c=sz/2,r=sz/2-2,col={danger:"var(--red)",cautio
   return `<svg viewBox="0 0 ${sz} ${sz}" width="${sz}" height="${sz}" role="img" aria-label="${SEC.map(k=>SECN[k]+" "+({danger:"위험",caution:"주의",safe:"안전"}[map[k]])).join(", ")}">${SEC.map(k=>`<path d="${w(A[k][0],A[k][1])}" style="fill:${col[map[k]]};stroke:var(--surface)" stroke-width="1.5"/>`).join("")}<circle cx="${c}" cy="${c}" r="${(r*.32).toFixed(1)}" style="fill:var(--surface)"/><text x="${c}" y="10" text-anchor="middle" font-size="8" style="fill:var(--surface)">북</text></svg>`;}
 function guideHtml(o,bands){return `<div class="gtask"><div><b>${esc(o.name)}</b> · ${zn(o.zone)} · <span class="t">${hr(o.h0,o.h1)}</span>${own(o)?` · <b>${o.crew}명</b>`:""}</div><div class="gbands">${bands.map(b=>{const a=advice(b,o),now=NOW>=b.h0&&NOW<b.h1;
   return `<div class="gb ${now?"now":""}">${secSvg(b.map)}<div class="gtx"><div><span class="t">${hr(b.h0,b.h1)}</span>${now?` <span class="pill mute" style="color:var(--blue)">지금</span>`:""}</div><div class="gadv ${a.lv}">${a.txt}</div>${b.infl.map(i=>`<div class="sub">${esc(pn(i.s)+" "+tn(i.s))} · ${i.r.k} · ${zn(i.s.zone)} ${i.secs.length===4?"전체":i.secs.map(k=>SECN[k]).join("·")}</div>`).join("")}</div></div>`;}).join("")}</div></div>`;}
-function zoneMap(z,d,h){const tz=S.tasks.filter(t=>t.zone===z&&actOn(t,d)),o={id:"_z",p:"_z",zone:z,types:[...new Set(tz.flatMap(t=>t.types))],pos:SEC},map={},src=[];SEC.forEach(k=>map[k]="safe");
-  S.tasks.forEach(s=>{if(!actOn(s,d)||!(h>=s.h0&&h<s.h1))return;if(S.role!=="HQ"&&!inScope(s))return;const r=hz(s,o);if(!r)return;const secs=r.all?SEC.slice():secAt(s,h);if(secs.length)src.push({s,r,secs});});
+function zoneMap(z,d,h){const [r0,r1]=shiftR(h),tz=S.tasks.filter(t=>t.zone===z&&actOn(t,d)&&!t.otPend&&t.h0<r1&&t.h1>r0),o={id:"_z",p:"_z",zone:z,types:[...new Set(tz.flatMap(t=>t.types))],pos:SEC},map={},src=[];SEC.forEach(k=>map[k]="safe");
+  S.tasks.forEach(s=>{if(s.otPend||!actOn(s,d)||!(h>=s.h0&&h<s.h1))return;if(S.role!=="HQ"&&!inScope(s))return;const r=hz(s,o);if(!r)return;const secs=r.all?SEC.slice():secAt(s,h);if(secs.length)src.push({s,r,secs});});
   src.forEach(i=>i.secs.forEach(k=>map[k]="danger"));src.forEach(i=>{if(!i.r.all)i.secs.forEach(k=>ADJS[k].forEach(a=>{if(map[a]==="safe")map[a]="caution";}));});return {map,src};}
 const crewS=t=>own(t)?`<b>${t.crew}명</b>이`:"작업자가";
 const strip=s=>String(s).replace(/<[^>]+>/g,"");
@@ -200,6 +214,7 @@ function mask(s){if(S.role==="HQ"||s==null)return s;let o=String(s);
 /* ================= F8 표준서 매칭 · F2 규칙 엔진 ================= */
 function stdMissing(t){const s=STD[t.std];if(!s||!s.req)return [];return s.req.filter(r=>!r.re.test(t.src)).map(r=>r.name);}
 function evaluate(tasks,mitig){
+  tasks=tasks.filter(t=>!t.otPend); // 승인 전 잔업 계획은 판정에 넣지 않는다 (승인하면 다시 대조)
   const out=[],by=Object.fromEntries(tasks.map(t=>[t.id,t])),has=(t,k)=>t.types.includes(k);
   const ov=(a,b)=>{const f=Math.max(a.s,b.s),to=Math.min(a.e,b.e),h0=Math.max(a.h0,b.h0),h1=Math.min(a.h1,b.h1);return f<=to&&h0<h1?{f,to,h0,h1}:null;};
   const push=(rule,a,b,w,x)=>{const key=`${rule}:${a.id}${b?"-"+b.id:""}`;out.push({key,rule,level:RULES[rule].level,a:a.id,b:b?b.id:null,from:w.f,to:w.to,h0:w.h0,h1:w.h1,status:RULES[rule].level==="조건부"&&(mitig[key]||mitig[key.replace(/\+\d+/g,"")])?"met":"open",...(x||{})});};
@@ -212,7 +227,7 @@ function evaluate(tasks,mitig){
     if(a.zone===b.zone&&has(a,"가스")&&has(b,"밀폐"))push("R-CG-01",a,b,w);
   }
   for(const t of tasks){
-    if(t.delayOf)continue;
+    if(t.delayOf||t.ot)continue;
     for(const pid of t.pre){const q=by[pid];if(q&&t.s<=q.e)push("R-SQ-01",t,q,{f:t.s,to:Math.min(q.e,t.e),h0:t.h0,h1:t.h1});}
     if(has(t,"화기")&&t.fw!==true)push("R-DF-01",t,null,{f:t.s,to:t.e,h0:t.h0,h1:t.h1});
     const ms=stdMissing(t);if(ms.length)push("R-DF-03",t,null,{f:t.s,to:t.e,h0:t.h0,h1:t.h1},{missing:ms});
@@ -233,14 +248,14 @@ function labelOf(key){const [r,ids]=key.split(":");const [a,b]=ids.split("-");co
 
 /* ================= F9 위험 시간대 ================= */
 function riskSlots(day,role){
-  const s=new Array(24).fill(0),why=Array.from({length:24},()=>[]);
+  const N=(H1-H0)*2,s=new Array(N).fill(0),why=Array.from({length:N},()=>[]);
   S.conflicts.filter(c=>c.status==="open"&&c.b&&c.from<=day&&day<=c.to&&(!role||role==="HQ"||involves(c,role))).forEach(c=>{
-    const w=c.level==="금지"?3:2;for(let i=0;i<24;i++){const h=7+i*.5;if(h>=c.h0&&h<c.h1){s[i]+=w;why[i].push(c);}}});
+    const w=c.level==="금지"?3:2;for(let i=0;i<N;i++){const h=7+i*.5;if(h>=c.h0&&h<c.h1){s[i]+=w;why[i].push(c);}}});
   return {s,why};
 }
-function riskPeak(day,role){
-  const {s,why}=riskSlots(day,role);let best=0;s.forEach(v=>{if(v>best)best=v;});if(!best)return null;
-  let i0=s.indexOf(best),i1=i0;while(i1+1<24&&s[i1+1]===best)i1++;
+function riskPeak(day,role,r0=H0,r1=H1){
+  const {s,why}=riskSlots(day,role),a=(r0-H0)*2,b=(r1-H0)*2;let best=0;s.forEach((v,i)=>{if(i>=a&&i<b&&v>best)best=v;});if(!best)return null;
+  let i0=s.findIndex((v,i)=>i>=a&&v===best),i1=i0;while(i1+1<b&&s[i1+1]===best)i1++;
   return {h0:7+i0*.5,h1:7+(i1+1)*.5,score:best,cs:[...new Set(why[i0].map(c=>c.key))].map(k=>S.conflicts.find(c=>c.key===k))};
 }
 const rcls=v=>v>=5?"r3":v>=3?"r2":v>0?"r1":"";
@@ -270,7 +285,7 @@ function proposals(c){
   else if(B){
     if(R.level==="조건부")L.push({id:"mitig",kind:"조건부 허용",short:"안전 조건 후 동시 작업",text:R.mitig});
     const mv=A.h0>B.h0?A:B,ot=mv===A?B:A,dur=mv.h1-mv.h0;
-    if(ot.h1+dur<=19)L.push({id:"hour",task:mv.id,nh:ot.h1,kind:"시간대 분리",short:`${mv.name} ${hr(mv.h0,mv.h1)} → ${hr(ot.h1,ot.h1+dur)}`,text:`${P(mv.p).name}의 ${mv.name}을 ${hr(ot.h1,ot.h1+dur)}로 옮겨, 같은 날 시간이 겹치지 않게 합니다.`});
+    if(ot.h1+dur<=shiftR(mv.h0)[1])L.push({id:"hour",task:mv.id,nh:ot.h1,kind:"시간대 분리",short:`${mv.name} ${hr(mv.h0,mv.h1)} → ${hr(ot.h1,ot.h1+dur)}`,text:`${P(mv.p).name}의 ${mv.name}을 ${hr(ot.h1,ot.h1+dur)}로 옮겨, 같은 날 시간이 겹치지 않게 합니다.`});
     const md2=A.s>B.s?A:B,od=md2===A?B:A;
     L.push({id:"day",task:md2.id,ns:od.e+1,kind:"일정 이동",short:`${md2.name} ${md(md2.s)} → ${md(od.e+1)}`,text:`${P(md2.p).name}의 ${md2.name} 시작을 ${od.name}이 끝난 다음 날인 ${mdw(od.e+1)}로 옮깁니다.`});
   }
@@ -382,7 +397,7 @@ function raiseEvent(ev,aff){
   [...seen].forEach(k=>{const t=task(k.split("|")[0]);note(["HQ",t.p],`착수 보류 · ${t.name}`,"직영관리자 또는 파트장 승인 전 착수 불가","보류");});
   beep();return seen.size;
 }
-const HOPT=from=>{const a=[];for(let v=from;v<=19;v+=.5)a.push(v);return a;};
+const HOPT=from=>{const a=[];for(let v=from;v<=H1;v+=.5)a.push(v);return a;};
 const VARS=[{k:"wind",label:"강풍 경보",title:"강풍 경보 (순간 풍속 15m/s)",match:t=>t.types.includes("중량물")||t.types.includes("고소"),cond:"풍속 10m/s 이하 확인 후 착수"},
             {k:"gas",label:"가스 농도 이상",title:"가스 농도 이상",match:(t,f)=>dist(t.zone,f.vz)<=11,cond:"가스·산소 농도 재측정 정상 확인 후 착수"}];
 function jobTask(f,id){const ty=[...f.types];return {id,p:f.p,name:f.name||"긴급 작업",zone:f.zone,s:S.day,e:S.day,h0:f.h0,h1:f.h1,crew:Math.max(1,+f.crew||1),types:ty,pre:[],fw:ty.includes("화기")?true:null,
@@ -401,7 +416,56 @@ function registerJob(f,by){
 function registerVar(f,by){const v=VARS.find(x=>x.k===f.vk),h0=Math.ceil(NOW*2)/2,aff=varAffected(f);
   const n=raiseEvent({kind:"변수",title:`현장 변수 · ${v.title}${f.vk==="gas"?" · "+zn(f.vz):""}`,desc:`${hr(h0,f.vh1)} · 보고 ${by}`,by},aff);
   toast(`현장 변수 등록 · 전체 알림 · 위험 해당 공정 ${n}건 착수 보류`);}
-function approveHold(id,cond){const x=S.holds.find(v=>v.id===id);if(!x||!canApprove(x))return;x.st="승인";x.cond=cond||x.cond;x.by=byWho();x.atime=clock();const t=task(x.tid);note([t.p,"HQ"],`착수 승인 · ${t.name}`,`조건: ${x.cond} · 승인 ${x.by}`,"승인");
+/* ================= 잔업(연장) 계획 · 교대 인계 ================= */
+/* 잔업: 19:00 전에 끝나는 주간 작업을 +1~3시간 연장 [팀 설정값: 최대 3시간]. 긴급 작업과 같은 착수 승인 대기 흐름을 탄다 */
+const OTWHY=["작업 지연","자재 도착 지연","설비 이상","기타"];
+const otOpts=()=>S.tasks.filter(t=>isBase(t)&&!t.ot&&!t.night&&actOn(t,S.day)&&own(t)&&t.h0<HM&&t.h1<=HM&&!S.tasks.some(o=>o.otOf===t.id&&o.s===S.day)).sort((a,b)=>a.p.localeCompare(b.p)||a.h1-b.h1);
+const otWhy=f=>f.why==="기타"?(f.txt||"기타"):(f.txt?`${f.why} · ${f.txt}`:f.why);
+function otTask(t,f,id){const o=JSON.parse(JSON.stringify(t)),X=+f.x||1,last=t.path?[t.path[t.path.length-1][2]]:(t.pos||SEC.slice()),why=otWhy(f);
+  return {...o,id,ot:true,otOf:t.id,otPend:true,otWhy:why,name:t.name+" (잔업)",s:S.day,e:S.day,h0:t.h1,h1:t.h1+X,crew:Math.max(1,+f.crew||t.crew),pre:[],moved:null,ok:true,path:null,pos:[...last],
+    src:`잔업 계획서 ${md(S.day)} ${hr(t.h1,t.h1+X)} · ${t.name} 연장 · 사유: ${why}`};}
+function previewOT(f){const t=task(f.t);if(!t)return [];const X=otTask(t,f,"OP");X.otPend=false;const ts=S.tasks.concat([X]),by=Object.fromEntries(ts.map(x=>[x.id,x]));const open=new Set(S.conflicts.filter(c=>c.status==="open").map(c=>c.key));
+  return evaluate(ts,S.mitig).filter(c=>c.status==="open"&&c.b&&!open.has(c.key)&&(c.a==="OP"||c.b==="OP")).map(c=>({c,o:c.a==="OP"?by[c.b]:by[c.a]}));}
+function registerOT(f,by){const t=task(f.t);if(!t)return null;const o=otTask(t,f,`${t.id}o${++S.xseq}`);S.tasks.push(o);
+  S.holds.unshift({id:"h"+(++S.eseq),tid:o.id,day:S.day,h0:o.h0,h1:o.h1,ev:null,reason:`잔업 계획서 · ${o.otWhy} · 승인 전 착수 불가`,key:null,st:"대기",cond:"야간조 작업과 겹침 확인 · 조명·교대 인원 확인 후 착수",ot:true});
+  S.log.unshift({time:clock(),type:"잔업 계획",sum:`${P(t.p).name} ${o.name} ${hr(o.h0,o.h1)} · ${o.crew}명`,dec:`사유: ${o.otWhy} · 직영관리자 또는 ${P(t.p).name} 파트장 승인 전 착수 불가`,who:by,rule:"",law:LAW64,parties:[t.p]});
+  note(["HQ",t.p],`잔업 계획서 접수 · ${o.name}`,`${hr(o.h0,o.h1)} · ${o.crew}명 · 사유: ${o.otWhy} — 승인 전 착수 불가`,"잔업");
+  toast("잔업 계획서 접수 · 승인하면 야간 작업과 다시 대조합니다");return o;}
+function approveOT(x){const t=task(x.tid);t.otPend=false;const {added}=rejudge(),aff=affFromAdded(added,[t.id]);
+  note([t.p,"HQ"],`잔업 승인 · ${t.name}`,`${hr(t.h0,t.h1)} · ${t.crew}명 · 조건: ${x.cond} · 승인 ${x.by}`,"승인");
+  S.log.unshift({time:x.atime,type:"잔업 승인",sum:`${P(t.p).name} ${t.name} ${hr(t.h0,t.h1)} · ${t.crew}명`,dec:`조건: ${x.cond} · 자동 재대조 ${S.lastMs.toFixed(1)}ms · 새 겹침 ${added.length}건`,who:x.by,rule:"",law:LAW64,parties:[t.p]});
+  const n=added.length?raiseEvent({kind:"잔업",title:`잔업 승인 · ${t.name} ~${hh(t.h1)}`,desc:`${P(t.p).name} · ${hr(t.h0,t.h1)} · 다시 대조 · 새 겹침 ${added.length}건`,by:x.by},aff):0;
+  toast(added.length?`잔업 승인 · 다시 대조해 새 겹침 ${added.length}건 · 위험 해당 공정 ${n}건 착수 보류`:"잔업을 승인했습니다 · 새로 겹치는 작업은 없습니다");renderAll();}
+/* 교대 인계: 교대 시각 at(19 또는 31)에 넘길 내용 — 업체별 미완료·잔업·미조치 충돌·출입 제한·보류/시정·다음 조 2시간 안 착수 */
+const hovAt=h=>h<HM?HM:H1;
+const hovKey=(d,at)=>d+"|"+at;
+function hovDoc(d,at){const nd=at===H1?d+1:d,nh0=at===H1?H0:HM;
+  return (S.role==="HQ"?PARTNERS:PARTNERS.filter(p=>p.id===S.role)).map(p=>{const pid=p.id,mineT=S.tasks.filter(t=>t.p===pid);
+    const unf=mineT.filter(t=>!t.otPend&&actOn(t,d)&&t.h0<at&&t.h1>=at);
+    const ot=mineT.filter(t=>t.ot&&t.s===d).map(t=>({t,ok:!t.otPend}));
+    const conf=visC().filter(c=>c.status==="open"&&involves(c,pid)&&((c.from<=d&&d<=c.to&&c.h1>at-HOV&&c.h0<at+2)||(at===H1&&c.from<=nd&&nd<=c.to&&c.h0<H0+2)));
+    const next=mineT.filter(t=>!t.otPend&&actOn(t,nd)&&t.h0>=nh0&&t.h0<nh0+2);
+    const zs=[...new Set([...unf,...next].map(t=>t.zone))],rd=at===H1?nd:d,rh=at===H1?H0:HM;
+    const restr=zs.map(z=>{const {map,src}=zoneMap(z,rd,rh),bl=SEC.filter(k=>map[k]==="danger");return bl.length?{z,bl,src}:null;}).filter(Boolean);
+    const pend=S.holds.filter(x=>(x.day===d||x.day===nd)&&x.st!=="승인"&&task(x.tid)&&task(x.tid).p===pid).map(x=>({x,t:task(x.tid)}));
+    const corr=S.log.filter(l=>l.type==="시정 명령"&&l.parties&&l.parties.includes(pid)).slice(0,3);
+    return {p,unf,ot,conf,next,restr,pend,corr,n:unf.length+ot.length+conf.length+next.length+restr.length+pend.length+corr.length};});}
+function hovHtml(d,at){const L=hovDoc(d,at),k=S.hov[hovKey(d,at)],can=S.role==="HQ"||S.lvl==="lead",tot=L.reduce((a,x)=>a+x.n,0);
+  const li=(h,a)=>a.length?`<div class="hvs"><span class="h">${h} ${a.length}</span><ul>${a.join("")}</ul></div>`:"";
+  return `<div class="row2"><div class="seg" role="group" aria-label="교대 시각">${[[HM,"19:00 주간 → 야간"],[H1,"07:00 야간 → 주간"]].map(([v,l])=>`<button data-act="hovat" data-at="${v}" aria-pressed="${at===v}">${l}</button>`).join("")}</div><span class="sub">${ymd(d)} 작업일 · 인계 시간 <span class="t">${hr(at-HOV,at)}</span>${at===H1?" (다음 날)":""}</span></div>
+  ${L.map(x=>`<section class="hvc" style="--pc:${pc(x.p.id)}"><header><b>${x.p.name}</b><span class="sub">${esc(x.p.trade)} · ${esc(x.p.part)}</span><span class="grow"></span><span class="sub">인계 항목 <b>${x.n}</b></span></header>${x.n?[
+    li("교대 시각에 진행 중·미완료",x.unf.map(t=>`<li>${esc(t.name)} · ${zn(t.zone)} · <span class="t">${hr(t.h0,t.h1)}</span> · <b>${t.crew}명</b>${t.h1===at?` <span class="sub">교대 시각 종료 · 마감 확인</span>`:` <span class="kw">교대 뒤 ${hh(t.h1)}까지</span>`}</li>`)),
+    li("잔업",x.ot.map(({t,ok})=>`<li>${esc(t.name)} · <span class="t">${hr(t.h0,t.h1)}</span> · <b>${t.crew}명</b> · ${ok?`<span class="pill ok">승인</span>`:`<span class="pill ban">승인 대기</span>`}</li>`)),
+    li("미조치 충돌",x.conf.map(c=>`<li><span class="pill ${LV[c.level]}">${c.level}</span> ${esc(labelOf(c.key))} · <span class="t">${c.from===d?"":md(c.from)+" "}${hr(c.h0,c.h1)}</span> <button class="link" data-act="sel" data-key="${c.key}">상세</button></li>`)),
+    li(`출입 제한 방위 (${hh(at)} 기준)`,x.restr.map(r=>`<li>${zn(r.z)} · <span class="kw">${r.bl.map(k=>SECN[k]).join("·")} 출입 금지</span> · ${esc([...new Set(r.src.map(i=>pn(i.s)+" "+tn(i.s)))].join(", "))}</li>`)),
+    li("착수 보류·시정 명령",x.pend.map(({x:h,t})=>`<li>${esc(t.name)} · <span class="t">${hr(h.h0,h.h1)}</span> · ${h.st==="보류"?"보류 유지":"승인 대기"} · <span class="sub">${esc(mask(h.reason))}</span></li>`).concat(x.corr.map(l=>`<li>시정 명령 · ${esc(mask(l.sum))} <span class="sub">${esc(l.time)}</span></li>`))),
+    li("다음 조 2시간 안 착수",x.next.map(t=>`<li>${esc(t.name)} · ${zn(t.zone)} · <span class="t">${hr(t.h0,t.h1)}</span> · <b>${t.crew}명</b>${holdBadge(t,t.s)}</li>`))].join(""):`<div class="sub" style="padding:6px 0">인계할 사항이 없습니다</div>`}</section>`).join("")}
+  <div class="row2">${k?`<span class="pill ok">인계 확인</span><span>${esc(mask(k.by))} · ${esc(k.time)}</span>`:can?`<button class="btn pri" data-act="hovok" data-at="${at}">인계 확인</button><span class="note">들어오는 조의 파트장 또는 직영관리자가 확인합니다 · 이력에 '교대 인계'로 남습니다</span>`:`<span class="note">인계 확인은 파트장 또는 직영관리자가 합니다</span>`}<span class="grow"></span><span class="sub">인계 항목 ${tot}건</span></div>`;}
+function confirmHov(at){const d=S.day,key=hovKey(d,at);if(S.hov[key]||!(S.role==="HQ"||S.lvl==="lead"))return;const L=hovDoc(d,at),tot=L.reduce((a,x)=>a+x.n,0),by=byWho(),parties=S.role==="HQ"?PARTNERS.map(p=>p.id):[S.role];
+  S.hov[key]={by,time:clock(),n:tot};const dir=at===HM?"주간조 → 야간조":"야간조 → 다음 날 주간조";
+  S.log.unshift({time:clock(),type:"교대 인계",sum:`${md(d)} ${hh(at)} ${dir} 인계 · 항목 ${tot}건`,dec:L.filter(x=>x.n).map(x=>`${x.p.name} ${x.n}건 (미완료 ${x.unf.length} · 잔업 ${x.ot.length} · 충돌 ${x.conf.length} · 출입 제한 ${x.restr.length})`).join(" / ")||"인계 사항 없음",who:by,rule:"F5",law:LAW64,parties});
+  note(["HQ",...parties],`교대 인계 확인 · ${hh(at)}`,`${dir} · 인계 항목 ${tot}건 · 확인 ${by}`,"인계");toast("교대 인계를 확인했습니다 · 이력에 남겼습니다");renderAll();}
+function approveHold(id,cond){const x=S.holds.find(v=>v.id===id);if(!x||!canApprove(x))return;x.st="승인";x.cond=cond||x.cond;x.by=byWho();x.atime=clock();if(x.ot){approveOT(x);return;}const t=task(x.tid);note([t.p,"HQ"],`착수 승인 · ${t.name}`,`조건: ${x.cond} · 승인 ${x.by}`,"승인");
   S.log.unshift({time:x.atime,type:"착수 승인",sum:`${P(t.p).name} ${t.name} ${hr(x.h0,x.h1)}`,dec:`조건: ${x.cond}`,who:x.by,rule:"",law:LAW64,parties:[t.p]});toast(`${P(t.p).name} ${t.name} 착수를 조건부 승인했습니다 · ${x.by}`);renderAll();}
 function keepHold(id){const x=S.holds.find(v=>v.id===id);if(!x||!canApprove(x))return;x.st="보류";const t=task(x.tid);note([t.p,"HQ"],`보류 유지 · ${t.name}`,x.reason,"보류");
   S.log.unshift({time:clock(),type:"착수 보류",sum:`${P(t.p).name} ${t.name} 보류 유지`,dec:x.reason,who:byWho(),rule:"",law:LAW64,parties:[t.p]});toast("보류를 유지했습니다");renderAll();}
@@ -417,6 +481,7 @@ function renderUrgent(){
     return `<div class="urow"><span class="apill"><i class="blink"></i>전체 알림</span><span class="ut">${esc(e.time.split(" ")[1]||"")}</span><span class="utext">${esc(e.title)} <span class="ucause">${esc(mask(e.desc))} · 위험 해당 공정 <b>${hs.length}곳</b> 착수 보류${me==="HQ"?"":mineH.length?` · <span class="kw">우리 작업 ${mineH.length}건 포함</span>`:" · 우리 작업은 해당 없음"}</span></span><button class="ubtn" data-act="eack" data-id="${e.id}">확인</button></div>`;}).join("")}${evs.length>2?`<div class="urow ucause">외 ${evs.length-2}건</div>`:""}</div></div>`;
   const pend=S.holds.filter(x=>x.day===S.day&&x.st!=="승인"&&(me==="HQ"||task(x.tid).p===me));
   if(pend.length)h+=`<div class="urg"><div class="wrap"><div class="urow"><span class="upill"><i class="blink"></i>${me==="HQ"?"착수 승인 대기":"착수 보류"}</span><span class="utext">${me==="HQ"?`위험 해당 공정 <b>${pend.length}건</b>이 승인을 기다립니다. 직영관리자 또는 해당 파트장이 승인하기 전에는 착수할 수 없습니다.`:`우리 작업 <b>${pend.length}건</b>은 ${S.lvl==="lead"?"파트장 또는 직영관리자":"파트장·직영관리자"} 승인 전에는 착수할 수 없습니다: ${pend.map(x=>`${esc(task(x.tid).name)} <span class="t">${hh(x.h0)}~</span>`).join(", ")}`}</span><button class="ubtn" data-act="gohold">${canApprove(pend[0])?"승인하러 가기":"보기"}</button></div></div></div>`;
+  if(inHov(NOW)){const at=hovAt(NOW),k=S.hov[hovKey(S.day,at)];h+=`<div class="hovb"><div class="wrap"><div class="urow"><span class="upill" style="color:var(--amber)">교대 인계</span><span class="utext">${at===HM?"주간조 → 야간조":"야간조 → 다음 날 주간조"} 인계 시간 <span class="t">${hr(at-HOV,at)}</span>${k?` · 인계 확인 ${esc(mask(k.by))} ${esc(k.time.split(" ")[1]||"")}`:" · 미확인"}</span><button class="ubtn" data-act="openhov">인계 문서</button></div></div></div>`;}
   $("#urgentHost").innerHTML=h;
 }
 function evAck(d){const evs=S.events.filter(e=>e.day===d);if(!evs.length)return "";
@@ -426,10 +491,10 @@ function renderHolds(){
   if(me==="HQ"){const hs=S.holds.filter(x=>x.day===d);if(!hs.length){host.innerHTML="";return;}
     const pend=hs.filter(x=>x.st!=="승인"),done=hs.filter(x=>x.st==="승인");
     host.innerHTML=`<section class="card holdc" id="holdCard"><header><span class="hq">포스코 본청</span><h2>착수 승인 대기</h2><span class="big" style="font-size:22px;${pend.length?"color:var(--red)":""}">${pend.length}</span><span class="sub">건 · 직영관리자 또는 해당 협력사 파트장이 승인해야 착수할 수 있습니다</span></header><div class="hlist">
-      ${pend.map(x=>{const t=task(x.tid),e=S.events.find(v=>v.id===x.ev);return `<div class="hitem"><div class="hinfo"><div class="row2"><span class="pill ${x.st==="보류"?"mute":"ban"}">${x.st==="보류"?"보류 유지":"승인 대기"}</span><b>${P(t.p).name}</b><span>${esc(t.name)}</span><span>${zn(t.zone)}</span><span class="t">${hr(x.h0,x.h1)}</span></div><div class="sub">원인: ${esc(e?e.title:"")}</div><div>${esc(x.reason)}</div></div>
+      ${pend.map(x=>{const t=task(x.tid),e=S.events.find(v=>v.id===x.ev);return `<div class="hitem"><div class="hinfo"><div class="row2"><span class="pill ${x.st==="보류"?"mute":"ban"}">${x.st==="보류"?"보류 유지":"승인 대기"}</span><b>${P(t.p).name}</b><span>${esc(t.name)}</span><span>${zn(t.zone)}</span><span class="t">${hr(x.h0,x.h1)}</span></div><div class="sub">원인: ${esc(e?e.title:x.ot?"잔업 계획서 · "+(t.otWhy||""):"")}</div><div>${esc(x.reason)}</div></div>
         <div class="hact"><label class="sub" for="cond-${x.id}">승인 조건 (협력사에 함께 전달)</label><input type="text" id="cond-${x.id}" value="${esc(x.cond)}"><div class="row2"><button class="btn sm pri" data-act="happrove" data-id="${x.id}">조건부 승인</button>${x.st==="보류"?"":`<button class="btn sm rej" data-act="hkeep" data-id="${x.id}">보류 유지</button>`}${x.key&&S.conflicts.find(c=>c.key===x.key)?`<button class="link" data-act="sel" data-key="${x.key}">겹침 상세</button>`:""}</div></div></div>`;}).join("")||`<div class="sub" style="padding:10px 14px">대기 중인 공정이 없습니다</div>`}
       ${done.length?`<div class="sub" style="padding:8px 14px;border-top:1px solid var(--line-2)">승인 ${done.length}건 · ${done.map(x=>`${P(task(x.tid).p).name} ${esc(task(x.tid).name)} (${esc(x.cond)})${S.started[x.tid+"|"+d]?" · 착수함":""}`).join(" / ")}</div>`:""}${evAck(d)}</div></section>`;return;}
-  const mine=S.tasks.filter(t=>isBase(t)&&t.p===me&&actOn(t,d)).sort((a,b)=>a.h0-b.h0);if(!mine.length){host.innerHTML="";return;}
+  const mine=S.tasks.filter(t=>isBase(t)&&t.p===me&&actOn(t,d)&&inV(t.h0,t.h1)).sort((a,b)=>a.h0-b.h0);if(!mine.length){host.innerHTML="";return;}
   const lead=S.lvl==="lead";
   host.innerHTML=`<section class="card holdc" id="holdCard" style="${S.holds.some(x=>x.day===d&&task(x.tid).p===me&&x.st!=="승인")?"":"border-color:var(--line)"}"><header><h2>오늘 우리 작업 착수</h2><span class="sub">위험 해당 공정은 ${lead?"파트장(나) 또는 직영관리자":"파트장 또는 직영관리자"} 승인 후 착수</span></header><div class="hlist">${mine.map(t=>{const hs=holdsOf(t.id,d),pend=hs.filter(x=>x.st!=="승인"),ok=hs.filter(x=>x.st==="승인"),stt=S.started[t.id+"|"+d];
     return `<div class="hitem"><div class="hinfo"><div class="row2"><span class="t">${hr(t.h0,t.h1)}</span><span>${esc(t.name)}</span><span>${zn(t.zone)}</span><b>${t.crew}명</b>${t.emerg?`<span class="hb">긴급</span>`:""}${stt?`<span class="pill ok">착수 ${esc(stt.split(" ")[1]||"")}</span>`:pend.length?`<span class="pill ban">${pend.some(x=>x.st==="보류")?"보류 유지":"승인 대기"}</span>`:ok.length?`<span class="pill ok">승인</span>`:""}</div>
@@ -437,7 +502,7 @@ function renderHolds(){
       <div class="hact">${stt?`<span class="sub">착수 기록됨</span>`:pend.length&&lead?pend.map(x=>`<label class="sub" for="cond-${x.id}">승인 조건</label><input type="text" id="cond-${x.id}" value="${esc(mask(x.cond))}"><div class="row2"><button class="btn sm pri" data-act="happrove" data-id="${x.id}">파트장 승인</button>${x.st==="보류"?"":`<button class="btn sm rej" data-act="hkeep" data-id="${x.id}">보류 유지</button>`}</div>`).join(""):`<button class="btn ${pend.length?"":"pri"}" data-act="hstart" data-t="${t.id}" ${pend.length?"disabled":""}>${pend.length?"승인 대기 · 착수 불가":"작업 착수"}</button>`}</div></div>`;}).join("")}</div></section>`;
 }
 function renderGuide(){const host=$("#bGuide");if(S.role==="HQ"){host.innerHTML="";return;}const d=S.day;
-  const cards=S.tasks.filter(t=>isBase(t)&&t.p===S.role&&actOn(t,d)).map(o=>({o,b:guide(o,d)})).filter(x=>x.b.some(b=>b.infl.length));
+  const cards=S.tasks.filter(t=>isBase(t)&&!t.otPend&&t.p===S.role&&actOn(t,d)&&inV(t.h0,t.h1)).map(o=>({o,b:guide(o,d)})).filter(x=>x.b.some(b=>b.infl.length));
   host.innerHTML=`<section class="card gcard"><header><h2>안전 작업 가이드</h2><span class="sub">우리 작업에 영향을 주는 작업의 위치에 따라 시간별 위험·안전 구역 · 긴급 작업·지연이 생기면 다시 계산</span><span class="grow"></span><span class="glegend"><span><i class="sw" style="background:var(--red)"></i>위험</span><span><i class="sw" style="background:var(--amber)"></i>주의</span><span><i class="sw" style="background:var(--ok-soft);border:1px solid var(--ok)"></i>안전</span></span></header>${cards.length?`<div class="glist">${cards.map(({o,b})=>guideHtml(o,b)).join("")}</div>`:`<div class="pbody"><div class="sub">오늘 우리 작업에 영향을 주는 다른 작업이 없습니다.</div></div>`}</section>`;}
 
 /* ================= 화면 전환 ================= */
@@ -452,11 +517,11 @@ let tT;function toast(m){$("#toastHost").innerHTML=`<div class="toast" role="sta
 /* ================= 헤더 · 시연 ================= */
 const STEPS=[
  {n:1,t:"계획서 5건 올리기",f:()=>s1()},{n:2,t:"오늘 겹침 보기",f:()=>s2()},{n:3,t:"C사 변경본 도착",f:()=>s3()},{n:4,t:"포스코 본청 반려",f:()=>s4()},
- {n:5,t:"C사 수정본 재제출",f:()=>s5()},{n:6,t:"C사 화면",f:()=>s6()},{n:7,t:"3D에서 겹침 보기",f:()=>s7()},{n:8,t:"챗봇 음성 질문",f:()=>s8()},{n:9,t:"TBM 전달 확인",f:()=>s9()},{n:10,t:"작업 지연 → 전체 알림",f:()=>s10()},{n:11,t:"긴급 작업 → 착수 승인",f:()=>s11()}];
+ {n:5,t:"C사 수정본 재제출",f:()=>s5()},{n:6,t:"C사 화면",f:()=>s6()},{n:7,t:"3D에서 겹침 보기",f:()=>s7()},{n:8,t:"챗봇 음성 질문",f:()=>s8()},{n:9,t:"TBM 전달 확인",f:()=>s9()},{n:10,t:"작업 지연 → 전체 알림",f:()=>s10()},{n:11,t:"긴급 작업 → 착수 승인",f:()=>s11()},{n:12,t:"야간 교대 · 잔업",f:()=>s12()}];
 function renderHeader(){
   if(S.role==="HQ")S.lvl="hq";else if(S.lvl==="hq")S.lvl="lead";
   $("#role").innerHTML=`<option value="HQ">포스코 직영관리자 (본청)</option>`+PARTNERS.map(p=>`<optgroup label="${p.name} · ${p.trade}"><option value="${p.id}:lead">${p.name} 파트장</option><option value="${p.id}:worker">${p.name} 작업자</option></optgroup>`).join("");$("#role").value=S.role==="HQ"?"HQ":`${S.role}:${S.lvl}`;
-  $("#hClock").textContent=hh(NOW);$("#dateIn").value=iso(S.day);$("#hD").innerHTML=`D<b>${S.day}</b> / ${TOTAL} · ${WD[dDate(S.day).getDay()]}요일 · 날짜를 바꾸면 일차가 따라 바뀝니다`;
+  $("#hClock").innerHTML=`${hh(NOW)}${NOW>=24?`<small class="nd">다음 날</small>`:""}`;$("#dateIn").value=iso(S.day);$("#hD").innerHTML=`D<b>${S.day}</b> / ${TOTAL} · ${WD[dDate(S.day).getDay()]}요일 · 날짜를 바꾸면 일차가 따라 바뀝니다`;
   const need=S.tasks.filter(t=>!t.ok&&(S.role==="HQ"||t.p===S.role)).length;const b=$("#upBadge");b.hidden=!need;b.textContent=need;
   $("#scen").innerHTML=STEPS.map(s=>`<li><button class="step ${S.step>=s.n?"done":""}" data-act="step" data-n="${s.n}"><i>${s.n}</i>${s.t}</button></li>`).join("");
 }
@@ -474,6 +539,10 @@ function s4(){if(S.ver.C<2)s3();S.role="HQ";S.step=Math.max(S.step,4);go("board"
   if(S.review.C.st==="검토 중"){const k=["R-SQ-01:T11-T04","R-CG-01:T11-T04"].find(k=>S.conflicts.find(c=>c.key===k&&c.status==="open"));if(k){reject(k);return;}}renderAll();}
 function s10(){finishUp();S.role="HQ";S.day=65;S.drawer=null;S.chatOpen=false;S.step=Math.max(S.step,10);go("board");reportDelay("T06",13.5,"벨리스 탑 부품 반입 지연","B사 최도윤 소장");renderAll();}
 function s11(){finishUp();S.role="HQ";S.day=65;S.drawer=null;S.chatOpen=false;S.step=Math.max(S.step,11);go("board");registerJob(JSON.parse(JSON.stringify(fresh().eform)),HQ[0]);renderAll();}
+/* 시연 12 (선택): B사 열풍로 연결관 용접 잔업 17:00–20:00 접수 → 승인하면 C사 야간 COG 배관 퍼지(19:00–)와 화기×가스 금지 겹침 → 18:30 교대 인계 */
+function s12(){finishUp();S.role="HQ";S.day=65;S.drawer=null;S.chatOpen=false;S.step=Math.max(S.step,12);
+  if(!S.tasks.some(t=>t.otOf==="T19"&&t.s===65))registerOT({t:"T19",x:3,crew:6,why:"작업 지연",txt:"연결관 정렬 재작업"},`${P("B").name} ${P("B").part}`);
+  setNow(HM-HOV,false);S.tlv="all";go("board");renderAll();toast("B사 잔업 계획서 접수 · 착수 승인 대기에서 승인하면 야간 작업과 다시 대조합니다 · 인계 문서는 시간표 위 버튼");}
 function ensureFixed(){if(S.ver.C<2)s3();if(S.review.C.st==="검토 중")s4();if(S.review.C.st==="반려")resubmit("C");}
 function s5(){if(S.review.C.st!=="반려")s4();S.role="C";S.step=Math.max(S.step,5);S.drawer=null;go("board");resubmit("C");renderAll();}
 function s6(){ensureFixed();S.role="C";S.step=Math.max(S.step,6);S.drawer=null;go("board");renderAll();}
@@ -483,6 +552,18 @@ function s9(){ensureFixed();S.role="C";S.step=Math.max(S.step,9);S.day=105;S.tbm
 
 /* ================= 1. 현재 상황판 (시안4) ================= */
 function dayTasks(d){return S.tasks.filter(t=>actOn(t,d)&&own(t));}
+/* 시간표 보기 [팀 설정값]: 주간 07–19(기본) · 야간 19–07 · 24시간. 상황판 숫자·카드·착수·가이드도 보기 범위 기준 */
+const TLV={day:[H0,HM,"주간 07–19"],night:[HM,H1,"야간 19–07"],all:[H0,H1,"24시간"]};
+const tlR=()=>TLV[S.tlv]||TLV.day;
+const inV=(a,b)=>{const [v0,v1]=tlR();return a<v1&&b>v0;};
+const NOPT=(()=>{const a=[];for(let v=H0;v<H1;v+=.5)a.push(v);return a;})();
+function setNow(h,open){h=Math.max(H0,Math.min(H1-.5,h));const was=inHov(NOW);NOW=h;S.mhour=h;
+  if(S.tlv!=="all"&&!(h>=tlR()[0]&&h<tlR()[1]))S.tlv=shiftOf(h);
+  if(open!==false&&inHov(h)&&!was&&!S.hov[hovKey(S.day,hovAt(h))])S.drawer={kind:"handover",at:hovAt(h),anim:true};}
+function timeCtl(){const [v0,v1]=tlR();
+  return `<div class="seg" role="group" aria-label="시간표 보기">${Object.entries(TLV).map(([k,v])=>`<button data-act="tlv" data-v="${k}" aria-pressed="${S.tlv===k}">${v[2]}</button>`).join("")}</div>
+  <span class="tctl" role="group" aria-label="시연 시각"><button class="jump" data-act="tnow" data-dv="-0.5" aria-label="30분 전">◀</button><select id="nowSel" aria-label="시연 시각">${NOPT.map(v=>`<option value="${v}" ${v===NOW?"selected":""}>${hh(v)}${v>=24?" (다음 날)":""}</option>`).join("")}</select><button class="jump" data-act="tnow" data-dv="0.5" aria-label="30분 뒤">▶</button>${NOW!==DEF_NOW?`<button class="link" data-act="tnow" data-h="${DEF_NOW}">10:30로</button>`:""}</span>
+  <button class="btn sm ${inHov(NOW)?"pri":""}" data-act="openhov">인계 문서</button>`;}
 function bannerHtml(){
   let h="";const rv=S.review.C;
   if(S.role==="HQ"){
@@ -495,8 +576,9 @@ function bannerHtml(){
 function rejBanner(p){const rv=S.review[p];return `<div class="banner rejb"><span class="hq">포스코 본청 반려</span><span>${P(p).name} 계획서 v${rv.v}가 반려됐습니다. 사유: ${esc(mask(rv.reason))} · 수정 요구: <b>${esc(mask(rv.req))}</b></span><span class="grow"></span><button class="btn sm pri" data-act="resubmit" data-p="${p}">수정본 v${rv.v+1} 제출</button></div>`;}
 function dayConf(d){return visC().filter(c=>c.from<=d&&d<=c.to);}
 function renderBoard(){
-  const d=S.day,ts=dayTasks(d),cs=dayConf(d),open=cs.filter(c=>c.status==="open"),pair=open.filter(c=>c.b||c.rule==="R-SQ-01");
-  const ban=open.filter(c=>c.level==="금지").length,nowC=open.filter(c=>c.h0<=NOW&&NOW<c.h1),pk=riskPeak(d,S.role);
+  const d=S.day,[v0,v1]=tlR(),ts=dayTasks(d).filter(t=>inV(t.h0,t.h1)),cs=dayConf(d).filter(c=>inV(c.h0,c.h1)),open=cs.filter(c=>c.status==="open"),pair=open.filter(c=>c.b||c.rule==="R-SQ-01");
+  const ban=open.filter(c=>c.level==="금지").length,nowC=open.filter(c=>c.h0<=NOW&&NOW<c.h1),pk=riskPeak(d,S.role,v0,v1);
+  $("#bTime").innerHTML=timeCtl();$("#bTlSub").textContent=`${hh(v0)}–${hh(v1)}${v1>24?" (다음 날)":""} · 30분 칸 · 구역은 위층부터`;
   const tb0=ts.filter(isBase),firms=new Set(tb0.map(t=>t.p)),crew=tb0.reduce((a,t)=>a+t.crew,0);
   $("#bBanner").innerHTML=bannerHtml()+(S.role!=="HQ"?`<p class="note" style="margin:0 0 10px">우리 작업과, 우리 작업에 영향을 주는 다른 작업(빗금 막대)만 보입니다. 그 밖의 다른 회사 일정은 볼 수 없습니다.</p>`:"");
   const stat=(k,v,u,dd,red)=>`<div class="stat"><span class="k">${k}</span><span class="v"><span class="big" ${red?'style="color:var(--red)"':""}>${v}</span><small>${u}</small></span><span class="d">${dd}</span></div>`;
@@ -516,23 +598,25 @@ function renderBoard(){
 }
 function lanes(ts){const L=[];ts.slice().sort((a,b)=>a.h0-b.h0||b.crew-a.crew).forEach(t=>{let i=L.findIndex(l=>l[l.length-1].h1<=t.h0);if(i<0){L.push([t]);i=L.length-1;}else L[i].push(t);t._lane=i;});return L.length;}
 function renderTl(d,ts,cs){
-  const x=h=>((h-7)/12*100),{s:risk}=riskSlots(d,S.role),isHQ=S.role==="HQ";
+  const [v0,v1]=tlR(),span=v1-v0,x=h=>((h-v0)/span*100),w=(a,b)=>{const p=Math.max(a,v0),q=Math.min(b,v1);return `left:${x(p)}%;width:${(q-p)/span*100}%`;},risk=riskSlots(d,S.role).s.slice((v0-H0)*2,(v1-H0)*2),isHQ=S.role==="HQ",nowIn=NOW>=v0&&NOW<=v1;
+  const BANDS=[[H0,HM-HOV,"day"],[HM-HOV,HM,"hov"],[HM,H1-HOV,"night"],[H1-HOV,H1,"hov"]].filter(([a,b])=>inV(a,b)),bands=BANDS.map(([a,b,k])=>`<span class="sband ${k}" style="${w(a,b)}"></span>`).join("");
+  const ticks=[];for(let v=v0;v<=v1;v+=2)ticks.push(v);
   const selC=S.sel?S.conflicts.find(c=>c.key===S.sel):null,hit=new Set(selC?[selC.a,selC.b].filter(Boolean):[]);
-  let h=`<div class="tl ${selC?"sel":""}"><div class="tl-risk"><div class="lab">위험 시간대</div><div class="risk">${risk.map((v,i)=>`<span class="${rcls(v)}" title="${hh(7+i*.5)} 위험도 ${v}"></span>`).join("")}</div></div>`;
-  h+=`<div class="tl-scale"><div class="sub" style="padding:5px 12px">구역</div><div class="ticks">${[7,9,11,13,15,17,19].map(v=>`<span style="left:${x(v)}%">${hh(v)}</span>`).join("")}<span class="nowchip" style="left:${x(NOW)}%">지금 ${hh(NOW)}</span></div></div>`;
+  let h=`<div class="tl ${selC?"sel":""}"><div class="tl-risk"><div class="lab">위험 시간대</div><div class="risk" style="grid-template-columns:repeat(${risk.length},1fr)">${risk.map((v,i)=>`<span class="${rcls(v)}" title="${hh(v0+i*.5)} 위험도 ${v}"></span>`).join("")}</div></div>`;
+  h+=`<div class="tl-scale"><div class="sub" style="padding:5px 12px">구역</div><div class="ticks">${ticks.map(v=>`<span style="left:${x(v)}%">${hh(v)}</span>`).join("")}${[HM-HOV,H1-HOV].filter(v=>v>=v0&&v<v1).map(v=>`<span class="hovmk" style="left:${x(v)}%" title="교대 인계 ${hr(v,v+HOV)}">인계</span>`).join("")}${nowIn?`<span class="nowchip" style="left:${x(NOW)}%">지금 ${hh(NOW)}</span>`:""}</div></div>`;
   for(const z of ZORDER){
     const zt=ts.filter(t=>t.zone===z),n=lanes(zt);
     const zc=cs.filter(c=>(task(c.a).zone===z||(c.b&&task(c.b).zone===z))&&(c.b||c.rule==="R-SQ-01"));
-    const gh=isHQ?[]:S.tasks.filter(t=>!own(t)&&t.zone===z&&actOn(t,d)&&inScope(t)).map(o=>({o}));
+    const gh=isHQ?[]:S.tasks.filter(t=>!own(t)&&t.zone===z&&actOn(t,d)&&inScope(t)&&!t.otPend&&inV(t.h0,t.h1)).map(o=>({o}));
     const crew=zt.filter(isBase).reduce((a,t)=>a+t.crew,0),nowRisk=zc.find(c=>c.status==="open"&&c.h0<=NOW&&NOW<c.h1);
     const L=Math.max(1,n+gh.length),rowH=L*30+8+zc.length*8;
-    h+=`<div class="tl-row" style="height:${rowH}px"><div class="lab"><span class="z">${zn(z)}${nowRisk?`<span class="rk">● ${nowRisk.level==="금지"?"작업 금지":"위험 높음"}</span>`:""}</span><span class="sub">${ZONES[z].floor} · ${crew?`<b style="color:var(--ink)">${crew}명</b>`:gh.length?"타사 작업 (우리 작업에 영향)":"작업 없음"}</span></div><div class="track">`;
-    zt.forEach(t=>{h+=`<button class="tb ${t.moved?"moved":""} ${t.delayOf?"late":""} ${t.emerg?"emerg":""} ${holdsOf(t.id,d).some(x=>x.st!=="승인")?"held":""} ${hit.has(t.id)?"hit":""}" style="--pc:${pc(t.p)};left:${x(t.h0)}%;width:${(t.h1-t.h0)/12*100}%;top:${t._lane*30+4}px" data-act="task" data-t="${t.id}" title="${esc(`${P(t.p).name} ${t.name} ${hr(t.h0,t.h1)} · ${t.crew}명`)}">${t.delayOf?`<span class="who">${P(t.p).name}</span>지연 ~<span class="t">${hh(t.h1)}</span>`:`<span class="who">${P(t.p).name}</span>${esc(t.name)}<b>${t.crew}명</b>${holdBadge(t,d)}`}</button>`;});
-    gh.forEach((g,i)=>{const o=g.o;h+=`<button class="tb ghost ${hit.has(o.id)?"hit":""}" style="left:${x(o.h0)}%;width:${(o.h1-o.h0)/12*100}%;top:${(n+i)*30+4}px" data-act="task" data-t="${o.id}" title="우리 작업에 영향을 주는 타사 작업">타사 ${esc(o.name.replace(" (지연)",""))}${o.delayOf?" 지연":""} · ${HZ(o)}${o.path?" · "+o.path.map(q=>SECN[q[2]]).join("→"):o.pos.length<4?" · "+o.pos.map(k=>SECN[k]).join("·"):""}</button>`;});
-    zc.forEach((c,i)=>{h+=`<span class="ov ${c.status==="met"?"met":""}" style="--c:${LVC[c.level]};left:${x(c.h0)}%;width:${(c.h1-c.h0)/12*100}%;top:${L*30+4+i*8}px" data-act="sel" data-key="${c.key}" title="${esc(labelOf(c.key))}"></span>`;});
+    h+=`<div class="tl-row" style="height:${rowH}px"><div class="lab"><span class="z">${zn(z)}${nowRisk?`<span class="rk">● ${nowRisk.level==="금지"?"작업 금지":"위험 높음"}</span>`:""}</span><span class="sub">${ZONES[z].floor} · ${crew?`<b style="color:var(--ink)">${crew}명</b>`:gh.length?"타사 작업 (우리 작업에 영향)":"작업 없음"}</span></div><div class="track">${bands}`;
+    zt.forEach(t=>{h+=`<button class="tb ${t.ot?"ot":""} ${t.moved?"moved":""} ${t.delayOf?"late":""} ${t.emerg?"emerg":""} ${holdsOf(t.id,d).some(x=>x.st!=="승인")?"held":""} ${hit.has(t.id)?"hit":""}" style="--pc:${pc(t.p)};${w(t.h0,t.h1)};top:${t._lane*30+4}px" data-act="task" data-t="${t.id}" title="${esc(`${P(t.p).name} ${t.name} ${hr(t.h0,t.h1)} · ${t.crew}명`)}">${t.delayOf?`<span class="who">${P(t.p).name}</span>지연 ~<span class="t">${hh(t.h1)}</span>`:`<span class="who">${P(t.p).name}</span>${esc(t.name)}<b>${t.crew}명</b>${holdBadge(t,d)}`}</button>`;});
+    gh.forEach((g,i)=>{const o=g.o;h+=`<button class="tb ghost ${hit.has(o.id)?"hit":""}" style="${w(o.h0,o.h1)};top:${(n+i)*30+4}px" data-act="task" data-t="${o.id}" title="우리 작업에 영향을 주는 타사 작업">타사 ${esc(o.name.replace(" (지연)",""))}${o.delayOf?" 지연":""} · ${HZ(o)}${o.path?" · "+o.path.map(q=>SECN[q[2]]).join("→"):o.pos.length<4?" · "+o.pos.map(k=>SECN[k]).join("·"):""}</button>`;});
+    zc.forEach((c,i)=>{h+=`<span class="ov ${c.status==="met"?"met":""}" style="--c:${LVC[c.level]};${w(c.h0,c.h1)};top:${L*30+4+i*8}px" data-act="sel" data-key="${c.key}" title="${esc(labelOf(c.key))}"></span>`;});
     h+=`</div></div>`;
   }
-  h+=`<div class="tl-lines">${Array.from({length:12},(_,i)=>`<span class="h" style="left:${x(8+i)}%"></span>`).join("")}<span class="now" style="left:${x(NOW)}%"></span></div></div>`;
+  h+=`<div class="tl-lines">${Array.from({length:span-1},(_,i)=>`<span class="h" style="left:${x(v0+1+i)}%"></span>`).join("")}${[HM-HOV,H1-HOV].filter(v=>v>=v0&&v<v1).map(v=>`<span class="hovl" style="left:${x(v)}%"></span>`).join("")}${nowIn?`<span class="now" style="left:${x(NOW)}%"></span>`:""}</div></div>`;
   return h;
 }
 function whenTxt(c){if(c.h1<=NOW)return "오늘 종료";if(c.h0<=NOW)return `<span class="kw">진행 중</span>`;const m=Math.round((c.h0-NOW)*60);return `<span class="t">${m>=60?Math.floor(m/60)+"시간 "+(m%60?m%60+"분":""):m+"분"}</span> 후 시작`;}
@@ -552,7 +636,7 @@ function renderActs(d,cs){
 }
 
 /* ================= 서랍: 충돌 상세(F2·F4) / 업로드(F1·F8) ================= */
-function etabs(cur){return `<div class="seg" role="group" aria-label="종류">${[["job","긴급 작업"],["delay","작업 지연"],["var","현장 변수"]].map(([k,l])=>`<button data-act="etab" data-t="${k}" aria-pressed="${cur===k}">${l}</button>`).join("")}</div>`;}
+function etabs(cur){return `<div class="seg" role="group" aria-label="종류">${[["job","긴급 작업"],["delay","작업 지연"],["ot","잔업"],["var","현장 변수"]].map(([k,l])=>`<button data-act="etab" data-t="${k}" aria-pressed="${cur===k}">${l}</button>`).join("")}</div>`;}
 function renderDrawer(){
   const host=$("#drawerHost");const d=S.drawer;if(!d){host.innerHTML="";return;}
   const an=!!d.anim;d.anim=false;const prevBody=host.querySelector(".body"),keep=prevBody&&!an?prevBody.scrollTop:0;
@@ -564,7 +648,7 @@ function renderDrawer(){
         <label>업체<select id="ejP" ${S.role!=="HQ"?"disabled":""}>${PARTNERS.map(x=>`<option value="${x.id}" ${x.id===f.p?"selected":""}>${x.name} (${x.trade})</option>`).join("")}</select></label>
         <label class="wide">작업명<input type="text" id="ejN" value="${esc(f.name)}"></label>
         <label>구역<select id="ejZ">${ZORDER.map(z=>`<option value="${z}" ${z===f.zone?"selected":""}>${zn(z)}</option>`).join("")}</select></label>
-        <label>시작<select id="ejH0">${HOPT(7).filter(v=>v<19).map(v=>`<option value="${v}" ${v===f.h0?"selected":""}>${hh(v)}</option>`).join("")}</select></label>
+        <label>시작<select id="ejH0">${HOPT(H0).filter(v=>v<H1).map(v=>`<option value="${v}" ${v===f.h0?"selected":""}>${hh(v)}</option>`).join("")}</select></label>
         <label>종료<select id="ejH1">${HOPT(f.h0+.5).map(v=>`<option value="${v}" ${v===f.h1?"selected":""}>${hh(v)}</option>`).join("")}</select></label>
         <label>인원<input type="number" id="ejC" min="1" max="99" value="${f.crew}"></label></div>
         <div class="chips">${TYPES.map(k=>`<button class="jump" data-act="ejT" data-k="${k}" aria-pressed="${f.types.includes(k)}">${k}</button>`).join("")}</div><div class="row2"><span class="sub">위치</span>${SEC.map(k=>`<button class="jump" data-act="ejS" data-k="${k}" aria-pressed="${f.secs.includes(k)}">${SECN[k]}</button>`).join("")}</div></div>
@@ -576,9 +660,22 @@ function renderDrawer(){
         <div class="sec"><span class="h">위험 해당 공정 ${aff.length}건 · 포스코 본청 승인 전 착수 보류</span>${aff.map(a=>{const t=task(a.tid);return `<div class="pnote" style="--c:var(--red)">${esc(pn(t)+" "+tn(t))} · ${zn(t.zone)} · <span class="t">${hr(a.h0,a.h1)}</span></div>`;}).join("")||`<div class="sub">해당 공정 없음</div>`}</div>
         <div class="row2"><button class="btn pri" data-act="esubmit" data-t="var">등록하고 전체 알림</button></div>`;}
     host.innerHTML=`<div class="scrim" data-act="closedrawer"></div><div class="modal ${an?"pop":""}" role="dialog" aria-modal="true" aria-labelledby="eT" style="width:min(660px,calc(100% - 32px))"><header><span class="pill ban">긴급</span><h2 id="eT">긴급·변수 등록</h2>${etabs(tab)}<span class="grow"></span><button class="x" data-act="closedrawer" aria-label="닫기">×</button></header><div class="body">${body}<p class="note">등록하면 모든 협력사와 포스코 본청에 전체 알림이 가고, 위험 해당 공정은 포스코 본청이 승인해야 착수할 수 있습니다.</p></div></div>`;restore();return;}
-  if(d.kind==="delay"){const f=S.dform,opts=S.tasks.filter(t=>isBase(t)&&actOn(t,S.day)&&own(t)&&t.h1<19).sort((a,b)=>a.h1-b.h1);
+  if(d.kind==="ot"){const f=S.oform,opts=otOpts();if(!opts.find(t=>t.id===f.t)){f.t=opts[0]?opts[0].id:null;f.crew=null;}const t=f.t?task(f.t):null;if(t&&!f.crew)f.crew=t.crew;
+    const pv=t?previewOT(f):[];
+    host.innerHTML=`<div class="scrim" data-act="closedrawer"></div><div class="modal ${an?"pop":""}" role="dialog" aria-modal="true" aria-labelledby="oT" style="width:min(620px,calc(100% - 32px))"><header><span class="pill ban">긴급</span><h2 id="oT">긴급·변수 등록</h2>${etabs("ot")}<span class="sub">${ymd(S.day)}</span><span class="grow"></span><button class="x" data-act="closedrawer" aria-label="닫기">×</button></header><div class="body">
+      ${!t?`<div class="empty">${md(S.day)}에 잔업할 ${S.role==="HQ"?"":"우리 회사 "}주간 작업이 없습니다 (19:00 전에 끝나는 작업만)</div>`:`
+      <label class="sec" for="oTask"><span class="h">잔업할 주간 작업 · 19:00 전에 끝나는 ${S.role==="HQ"?"작업":"우리 작업"}</span><select id="oTask">${opts.map(o=>`<option value="${o.id}" ${o.id===t.id?"selected":""}>${esc(P(o.p).name+" "+o.name)} · ${hr(o.h0,o.h1)}</option>`).join("")}</select></label>
+      <div class="sec"><span class="h">연장 시간</span><div class="row2">${[1,2,3].map(v=>`<button class="jump" data-act="oX" data-x="${v}" aria-pressed="${f.x===v}">+${v}시간</button>`).join("")}<span>잔업 <span class="t">${hr(t.h1,t.h1+f.x)}</span>${t.h1+f.x>HM?` · <span class="kw">야간조 시간과 겹침</span>`:""}</span></div></div>
+      <div class="sec"><span class="h">잔업 인원</span><div class="row2"><input type="number" id="oCrew" min="1" max="99" value="${f.crew}" style="width:90px" aria-label="잔업 인원"><span>명 · 계획 ${t.crew}명</span></div></div>
+      <div class="sec"><span class="h">사유</span><div class="chips">${OTWHY.map(r=>`<button class="jump" data-act="owhy" data-r="${r}" aria-pressed="${f.why===r}">${r}</button>`).join("")}</div><input type="text" id="oTxt" value="${esc(f.txt||"")}" placeholder="${f.why==="기타"?"사유 직접 입력":"덧붙일 말 (선택)"}" aria-label="잔업 사유"></div>
+      <div class="sec"><span class="h">승인하면 새로 겹치는 작업 ${pv.length}건</span>${pv.length?pv.map(({c,o})=>`<div class="pnote" style="--c:${LVC[c.level]}"><span class="pill ${LV[c.level]}">${c.level}</span> ${RULES[c.rule].kind} · ${esc(pn(o)+" "+tn(o))} · ${zn(o.zone)} · <span class="t">${hr(c.h0,c.h1)}</span>${o.night?` · <span class="sub">야간조</span>`:""}</div>`).join(""):`<div class="sub">새로 겹치는 작업이 없습니다.</div>`}</div>
+      <div class="row2"><button class="btn pri" data-act="osubmit">잔업 계획서 제출</button><span class="note">직영관리자 또는 ${P(t.p).name} 파트장이 승인해야 착수할 수 있습니다. 승인하면 다시 대조합니다.</span></div>`}
+    </div></div>`;restore();return;}
+  if(d.kind==="handover"){const at=d.at||hovAt(NOW);d.at=at;
+    host.innerHTML=`<aside class="drawer ${an?"pop":""}" aria-label="인계 문서"><header><span class="pill" style="background:var(--amber);color:var(--surface)">교대 인계</span><h2>인계 문서</h2><span class="sub">${S.role==="HQ"?"전체 협력사":P(S.role).name}</span><span class="grow"></span><button class="x" data-act="closedrawer" aria-label="닫기">×</button></header><div class="body">${hovHtml(S.day,at)}</div></aside>`;restore();return;}
+  if(d.kind==="delay"){const f=S.dform,opts=S.tasks.filter(t=>isBase(t)&&!t.otPend&&actOn(t,S.day)&&own(t)&&t.h1<shiftR(t.h0)[1]).sort((a,b)=>a.h1-b.h1);
     if(!opts.find(t=>t.id===f.t))f.t=opts[0]?opts[0].id:null;const t=f.t?task(f.t):null;
-    if(t&&!(f.h1>t.h1))f.h1=Math.min(19,t.h1+1.5);const ends=[];if(t)for(let v=t.h1+.5;v<=19;v+=.5)ends.push(v);
+    const se=t?shiftR(t.h0)[1]:HM;if(t&&!(f.h1>t.h1&&f.h1<=se))f.h1=Math.min(se,t.h1+1.5);const ends=[];if(t)for(let v=t.h1+.5;v<=se;v+=.5)ends.push(v);
     const pv=t?previewDelay(t.id,f.h1):[];
     host.innerHTML=`<div class="scrim" data-act="closedrawer"></div><div class="modal ${an?"pop":""}" role="dialog" aria-modal="true" aria-labelledby="dT" style="width:min(580px,calc(100% - 32px))"><header><span class="pill ban">긴급</span><h2 id="dT">긴급·변수 등록</h2>${etabs("delay")}<span class="sub">${ymd(S.day)}</span><span class="grow"></span><button class="x" data-act="closedrawer" aria-label="닫기">×</button></header><div class="body">
       ${!t?`<div class="empty">${md(S.day)}에 지연 보고할 ${S.role==="HQ"?"":"우리 회사 "}작업이 없습니다</div>`:`
@@ -633,13 +730,13 @@ function upBody(){
     ${isHQ||S.role==="C"?`<button class="link" data-act="v2" ${S.ver.C>1?"disabled":""}>${S.ver.C>1?"C사 변경본(v2) 반영됨":"시연: C사 변경본(v2) 올리기"}</button>`:""}</div>`;
   const rows=[];
   S.files.filter(f=>!f.p||isHQ||f.p===S.role).forEach(f=>rows.push(`<${f.p?`button data-act="upfile" data-p="${f.p}" aria-expanded="${S.upOpen===f.p}"`:"div"} class="fr"><span class="nm">${ficon(f.fmt)}<span>${esc(f.name)}${f.note?`<br><span class="sub">${esc(f.note)}</span>`:""}</span></span><span class="c2">${f.p?P(f.p).name:"—"}</span><span class="c3 t">${esc(f.time)}</span><span>${f.st==="ok"?`<span class="fst ok">v${f.ver} 반영</span>`:`<span class="fst wait">시연판은 보관만</span>`}</span></${f.p?"button":"div"}>`));
-  plist.forEach(p=>{const n=S.tasks.filter(t=>isBase(t)&&!t.emerg&&t.p===p.id).length,need=S.tasks.filter(t=>isBase(t)&&!t.emerg&&t.p===p.id&&!t.ok).length,ms=S.tasks.filter(t=>isBase(t)&&!t.emerg&&t.p===p.id&&stdMissing(t).length).length;
+  plist.forEach(p=>{const n=S.tasks.filter(t=>isBase(t)&&!t.emerg&&!t.ot&&t.p===p.id).length,need=S.tasks.filter(t=>isBase(t)&&!t.emerg&&!t.ot&&t.p===p.id&&!t.ok).length,ms=S.tasks.filter(t=>isBase(t)&&!t.emerg&&!t.ot&&t.p===p.id&&stdMissing(t).length).length;
     rows.push(`<button class="fr" data-act="upfile" data-p="${p.id}" aria-expanded="${S.upOpen===p.id}"><span class="nm">${ficon(p.fmt)}<span>${esc(fileName(p.id))}<br><span class="sub">v${S.ver[p.id]} · 제출 ${S.hist[p.id].length}회 · 작업 ${n}건${need?` · <span style="color:var(--amber)">확인 필요 ${need}</span>`:""}${ms?` · <span style="color:var(--red)">표준서 누락 ${ms}</span>`:""}</span></span></span><span class="c2">${p.name}</span><span class="c3 t">${esc(S.hist[p.id][S.hist[p.id].length-1].time)}</span><span>${S.fst[p.id]==="ok"?revSt(p.id):st(S.fst[p.id])}</span></button>`);});
   h+=`<div class="sec"><div class="flh"><span>올린 파일</span><b>${rows.length}</b><span class="sub">개 · 파일을 누르면 추출 결과가 펼쳐집니다</span></div><div class="fl2"><div class="fr hd"><span>이름</span><span class="c2">업체</span><span class="c3">올린 시각</span><span>상태</span></div>${rows.join("")}</div></div>`;
   const p=S.upOpen&&plist.find(x=>x.id===S.upOpen);
   if(p&&S.fst[p.id]==="ok"){
     h+=histHtml(p.id);
-    const ts=S.tasks.filter(t=>isBase(t)&&!t.emerg&&t.p===p.id).sort((a,b)=>a.s-b.s);
+    const ts=S.tasks.filter(t=>isBase(t)&&!t.emerg&&!t.ot&&t.p===p.id).sort((a,b)=>a.s-b.s);
     const zo=z=>Object.entries(ZONES).map(([k,v])=>`<option value="${k}" ${k===z?"selected":""}>${v.name}</option>`).join("");
     h+=`<div class="sec"><span class="h">${p.name} 추출 결과 <span class="ai">AI 추출</span> 값을 고치면 바로 다시 대조합니다</span><div class="xt-wrap"><table class="xt"><thead><tr><th>확인</th><th>작업</th><th>기간 (날짜 입력 · 일차 자동)</th><th>시간</th><th>위치</th><th>유형</th><th>작업표준서 매칭</th></tr></thead><tbody>${ts.map(t=>{const ms=stdMissing(t);return `<tr>
       <td><input type="checkbox" data-f="ok" data-t="${t.id}" ${t.ok?"checked":""} aria-label="${t.id} 확인">${!t.ok&&t.conf?`<div class="flag">${t.conf.f} ${t.conf.v.toFixed(2)}</div>`:""}</td>
@@ -674,10 +771,10 @@ const S3ZONE={Z1:"TOP",Z2:"STACK",Z3:"STACK",Z4:"BELLY_BOSH",Z5:"TUYERE",Z6:"HEA
 const S3HZ={"화기":"hot_work","밀폐":"confined","고소":"height","중량물":"heavy_lift","가스":"gas"};
 const S3TYPE={"R-SZ-01":"same_time_zone","R-CG-01":"same_time_zone","R-VT-01":"vertical","R-HF-01":"hot_gas","R-HG-01":"hot_gas","R-SQ-01":"sequence","R-DF-01":"sop_missing","R-DF-03":"sop_missing"};
 const s3Contractor=p=>`가상-${P(p).name}`;
-function s3Payload(){const d=S.day,ds=iso(d),at=h=>`${ds}T${hh(h)}:00`;
-  const ts=S.tasks.filter(t=>actOn(t,d)&&inScope(t)),ids=new Set(ts.map(t=>t.id));
+function s3Payload(){const d=S.day,at=h=>isoHM(d,h)+":00";
+  const ts=S.tasks.filter(t=>actOn(t,d)&&!t.otPend&&inScope(t)),ids=new Set(ts.map(t=>t.id));
   const tasks=ts.map(t=>({id:t.id,contractor:s3Contractor(t.p),name:(t.emerg?"[긴급] ":"")+tn(t),trade:own(t)?P(t.p).trade:null,zone_id:S3ZONE[t.zone],
-    start:at(t.h0),end:at(t.h1),shift:"day",hazards:t.types.map(k=>S3HZ[k]).filter(Boolean),risk_codes:[],predecessors:t.pre.filter(id=>ids.has(id)),
+    start:at(t.h0),end:at(t.h1),shift:t.ot?"overtime":shiftOf(t.h0),hazards:t.types.map(k=>S3HZ[k]).filter(Boolean),risk_codes:[],predecessors:t.pre.filter(id=>ids.has(id)),
     source:own(t)?{file:fileName(t.p),locator:t.id,text:t.src}:null,crew:own(t)?t.crew:null,sectors:(t.pos||t.path)?s3Sectors(t,d):null}));
   const conflicts=visC().filter(c=>c.status==="open"&&c.from<=d&&d<=c.to).map(c=>({id:c.key,type:S3TYPE[c.rule]||"same_time_zone",grade:c.level,
     task_ids:[c.a,c.b].filter(x=>x&&ids.has(x)),rule_id:c.rule,legal_basis:RULES[c.rule].law.join(" / "),window_start:at(c.h0),window_end:at(c.h1),
@@ -686,14 +783,14 @@ function s3Payload(){const d=S.day,ds=iso(d),at=h=>`${ds}T${hh(h)}:00`;
   const role=S.role==="HQ"?{kind:"prime"}:{kind:"contractor",contractor:s3Contractor(S.role),level:S.lvl==="worker"?"worker":"lead"};
   return {tasks,conflicts,role,restrictions:s3Restrictions(d)};}
 /* 작업 방위(북·동·남·서)를 30분 단위로 묶음 → scene3d가 작업자를 그 방위에 세우고, 출입 제한 방위와 겹치면 긴급 알림 */
-function s3Sectors(t,d){const at=h=>`${iso(d)}T${hh(h)}:00`,out=[];
+function s3Sectors(t,d){const at=h=>isoHM(d,h)+":00",out=[];
   for(let h=t.h0;h<t.h1;h+=0.5){const dirs=secAt(t,h),k=dirs.join(""),l=out[out.length-1];if(l&&l.k===k){l.end=at(h+0.5);continue;}out.push({k,start:at(h),end:at(h+0.5),dirs});}
   return out.filter(x=>x.dirs.length).map(({k,...r})=>r);}
 /* 방위별 출입 제한: 구역·30분마다 zoneMap의 위험 방위(북·동·남·서) → scene3d가 허용·금지 방위 경계에 안전띠·러버콘을 세운다
-   (경고 문구를 여러 개 띄우는 대신 현장 조치를 3D로 보여 준다). 07~19시, 같은 상태가 이어지면 한 구간으로 묶는다 */
-function s3Restrictions(d){const at=h=>`${iso(d)}T${hh(h)}:00`,out=[];
+   (경고 문구를 여러 개 띄우는 대신 현장 조치를 3D로 보여 준다). 07시~다음 날 07시(주간·야간조), 같은 상태가 이어지면 한 구간으로 묶는다 */
+function s3Restrictions(d){const at=h=>isoHM(d,h)+":00",out=[];
   Object.keys(ZONES).forEach(z=>{let cur=null;
-    for(let h=7;h<19;h+=0.5){const {map,src}=zoneMap(z,d,h),blocked=SEC.filter(k=>map[k]==="danger"),key=blocked.join("");
+    for(let h=H0;h<H1;h+=0.5){const {map,src}=zoneMap(z,d,h),blocked=SEC.filter(k=>map[k]==="danger"),key=blocked.join("");
       if(cur&&cur.key===key){cur.end=at(h+0.5);src.forEach(i=>cur.source_ids.includes(i.s.id)||cur.source_ids.push(i.s.id));continue;}
       if(cur&&cur.key)out.push(cur);
       cur={key,zone_id:S3ZONE[z],start:at(h),end:at(h+0.5),blocked,source_ids:[...new Set(src.map(i=>i.s.id))],reason:[...new Set(src.map(i=>own(i.s)?`${P(i.s.p).name} ${tn(i.s)}`:tn(i.s)))].join(" · ")};}
@@ -709,12 +806,12 @@ function s3Sync(force){
   if(location.protocol==="file:"){s3Fail("파일을 직접 열면 scene3d와 통신할 수 없습니다. 레포 루트에서 npm run dev로 열어 주세요.");return;}
   if(S3.src!==ds||!host.querySelector("iframe")){
     S3.ready=false;S3.sig="";S3.hour=S.mhour;S3.src=ds;$("#s3info").textContent="불러오는 중…";
-    host.innerHTML=`<iframe src="/scene3d/index.html?embed=1&date=${ds}&now=${ds}T${hh(S.mhour)}" title="고로 3D · 충돌 (scene3d)"></iframe>`;
+    host.innerHTML=`<iframe src="/scene3d/index.html?embed=1&date=${ds}&now=${isoHM(S.day,S.mhour)}" title="고로 3D · 충돌 (scene3d)"></iframe>`;
     clearTimeout(S3.timer);S3.timer=setTimeout(()=>{if(!S3.ready)s3Slow();},20000);return;}
   if(!S3.ready)return;
   const p=s3Payload(),sig=JSON.stringify(p);
   if(force||sig!==S3.sig){S3.sig=sig;s3Post({type:"data",tasks:p.tasks,conflicts:p.conflicts,restrictions:p.restrictions});s3Post({type:"role",role:p.role});}
-  if(S3.hour!==S.mhour){S3.hour=S.mhour;s3Post({type:"time",iso:`${ds}T${hh(S.mhour)}`});}
+  if(S3.hour!==S.mhour){S3.hour=S.mhour;s3Post({type:"time",iso:isoHM(S.day,S.mhour)});}
   if(S3.pendingSelect&&p.tasks.some(t=>t.id===S3.pendingSelect)){s3Post({type:"selectTask",taskId:S3.pendingSelect});S3.pendingSelect=null;}
   $("#s3info").textContent=`${ymd(S.day)} · ${S.role==="HQ"?"포스코 직영관리자":`${P(S.role).name} ${S.lvl==="worker"?"작업자":"파트장"}`} · 작업 ${p.tasks.length}건 · 충돌 ${p.conflicts.length}건`;
 }
@@ -736,10 +833,10 @@ addEventListener("message",e=>{const m=e.data;if(e.origin!==location.origin||!m|
 /* ================= 3. TBM 확인 (F7) ================= */
 function tbmItems(p,d){
   const items=[],add=(it,src,rule)=>{if(!items.find(x=>x.label===it.label))items.push({...it,src,rule});};
-  const act=S.tasks.filter(t=>t.p===p&&actOn(t,d)),ids=new Set(act.map(t=>t.id)),hit=(a,b)=>ids.has(a)||(b&&ids.has(b));
+  const act=S.tasks.filter(t=>t.p===p&&actOn(t,d)&&!t.otPend&&shiftOf(t.h0)===shiftOf(NOW)),ids=new Set(act.map(t=>t.id)),hit=(a,b)=>ids.has(a)||(b&&ids.has(b));
   S.adjusted.filter(a=>a.parties.includes(p)&&hit(a.a,a.b)).forEach(a=>a.rules.forEach(r=>RULES[r].tbm.forEach(it=>add(it,`원청 조정 · ${a.short}`,r))));
   S.conflicts.filter(c=>c.from<=d&&d<=c.to&&hit(c.a,c.b)).forEach(c=>RULES[c.rule].tbm.forEach(it=>add(it,`${c.status==="met"?"조건부 허용":"충돌"} · ${labelOf(c.key)}`,c.rule)));
-  const pk=riskPeak(d,p);if(pk){const H=Math.floor(pk.h0),pat=new RegExp(`${H}\\s?시|${H}:|오후\\s?${H>12?H-12:H}\\s?시|${H>12?H-12:H}\\s?시`);add({label:`${hr(pk.h0,pk.h1)} 위험 시간대 안내`,all:[pat],say:`${H}시부터 ${Math.ceil(pk.h1)}시까지는 겹치는 작업이 몰리는 위험 시간대라 특히 조심합니다.`},"위험 시간대 예보 F9","F9");}
+  const pk=riskPeak(d,p,...shiftR(NOW));if(pk){const H=Math.floor(pk.h0)%24,pat=new RegExp(`${H}\\s?시|${H}:|오후\\s?${H>12?H-12:H}\\s?시|${H>12?H-12:H}\\s?시`);add({label:`${hr(pk.h0,pk.h1)} 위험 시간대 안내`,all:[pat],say:`${H}시부터 ${Math.ceil(pk.h1)}시까지는 겹치는 작업이 몰리는 위험 시간대라 특히 조심합니다.`},"위험 시간대 예보 F9","F9");}
   act.forEach(t=>STD[t.std].tbm.forEach(it=>add(it,`작업표준서 ${t.std} · ${t.name}`,"F8")));
   return {items,act};
 }
@@ -816,12 +913,12 @@ function renderTbm(){
 }
 
 /* ================= 4. 이력 (F5) ================= */
-const HTYPES=["전체","전체 알림","착수 보류","착수 승인","착수","긴급 작업","지연 보고","TBM 확인","계획 변경","반려","재제출","조정","공유","위험 공지","알림","판정","계획 수정","되돌림","구조화"];
+const HTYPES=["전체","전체 알림","착수 보류","착수 승인","착수","긴급 작업","지연 보고","잔업 계획","잔업 승인","교대 인계","TBM 확인","계획 변경","반려","재제출","조정","공유","위험 공지","알림","판정","계획 수정","되돌림","구조화"];
 function csv(){return [["시각","구분","내용","결정","책임자","규칙","근거"]].concat(S.log.map(l=>[l.time,l.type,l.sum,l.dec,l.who,l.rule,l.law])).map(r=>r.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(",")).join("\n");}
 function renderHistory(){
   const isHQ=S.role==="HQ";let logs=isHQ?S.log:S.log.filter(l=>l.parties&&l.parties.includes(S.role));
   if(S.hfilt!=="전체")logs=logs.filter(l=>l.type===S.hfilt);
-  const tc={"전체 알림":"var(--red)","착수 보류":"var(--red)","긴급 작업":"var(--red)","착수 승인":"var(--ok)","착수":"var(--blue)","TBM 확인":"var(--blue)","긴급 알림":"var(--red)","지연 보고":"var(--red)","조정":"var(--blue)","공유":"var(--ok)","계획 변경":"var(--red)","반려":"var(--red)","재제출":"var(--ok)","알림":"var(--red)","위험 공지":"var(--amber)","되돌림":"var(--amber)"};
+  const tc={"잔업 계획":"var(--amber)","잔업 승인":"var(--ok)","교대 인계":"var(--amber)","전체 알림":"var(--red)","착수 보류":"var(--red)","긴급 작업":"var(--red)","착수 승인":"var(--ok)","착수":"var(--blue)","TBM 확인":"var(--blue)","긴급 알림":"var(--red)","지연 보고":"var(--red)","조정":"var(--blue)","공유":"var(--ok)","계획 변경":"var(--red)","반려":"var(--red)","재제출":"var(--ok)","알림":"var(--red)","위험 공지":"var(--amber)","되돌림":"var(--amber)"};
   const st=(k,v,u)=>`<div class="stat"><span class="k">${k}</span><span class="v"><span class="big">${v}</span><small>${u}</small></span></div>`;
   let h=`<div class="hgrid">${st("착수 전 찾아낸 충돌 누계",S.seen.size,"건")}${st("조정 결정",S.adjusted.length,"건")}${st("미조치",visC().filter(c=>c.status==="open").length,"건")}${st("이행 기록",S.log.length,"건")}</div>
   <div class="two"><section class="card"><header><h2>이행 기록</h2><span class="sub">산안법 제64조 혼재작업 확인·조정 기록</span><span class="grow"></span><button class="btn sm" data-act="copycsv">CSV 복사</button></header>
@@ -873,8 +970,8 @@ function renderChat(){
 function renderAll(){renderUrgent();renderNoti();renderHeader();renderBoard();renderDrawer();renderModel();renderTbm();renderHistory();renderChat();}
 document.addEventListener("click",e=>{
   const el=e.target.closest("[data-act]");if(!el)return;const a=el.dataset.act;
-  if(a==="step"){STEPS.find(s=>s.n===+el.dataset.n).f();return;}
-  if(a==="reset"){if(upTimer)clearTimeout(upTimer);upTimer=null;S=fresh();initialJudge();go("board");renderAll();toast("처음 상태로 돌렸습니다");return;}
+  if(a==="step"){const n=+el.dataset.n;if(n<=11){NOW=DEF_NOW;S.mhour=DEF_NOW;S.tlv="day";}STEPS.find(s=>s.n===n).f();return;}
+  if(a==="reset"){if(upTimer)clearTimeout(upTimer);upTimer=null;NOW=DEF_NOW;S=fresh();initialJudge();go("board");renderAll();toast("처음 상태로 돌렸습니다");return;}
   if(a==="openup"){S.drawer={kind:"up",anim:true};S.upOpen=el.dataset.p||(S.role==="HQ"?(S.upOpen||null):S.role);renderDrawer();return;}
   if(a==="closedrawer"){S.drawer=null;S.sel=null;renderAll();return;}
   if(a==="upfile"){S.upOpen=S.upOpen===el.dataset.p?null:el.dataset.p;renderDrawer();return;}
@@ -890,7 +987,16 @@ document.addEventListener("click",e=>{
   if(a==="mhour"){S.mhour=+el.dataset.h;renderModel();return;}
   if(a==="s3retry"){S3.src="";renderModel();return;}
   if(a==="openevent"){S.eform.tab="job";S.drawer={kind:"event",anim:true};renderDrawer();return;}
-  if(a==="etab"){const t=el.dataset.t;if(t==="delay"){S.dform={t:null,h1:null,why:""};S.drawer={kind:"delay"};}else{S.eform.tab=t;S.drawer={kind:"event"};}renderDrawer();return;}
+  if(a==="etab"){const t=el.dataset.t;if(t==="delay"){S.dform={t:null,h1:null,why:""};S.drawer={kind:"delay"};}else if(t==="ot"){S.oform={t:null,x:2,crew:null,why:"작업 지연",txt:""};S.drawer={kind:"ot"};}else{S.eform.tab=t;S.drawer={kind:"event"};}renderDrawer();return;}
+  if(a==="tlv"){S.tlv=el.dataset.v;renderBoard();return;}
+  if(a==="tnow"){setNow(el.dataset.h?+el.dataset.h:NOW+(+el.dataset.dv));renderAll();return;}
+  if(a==="openhov"){S.drawer={kind:"handover",at:hovAt(NOW),anim:true};renderDrawer();return;}
+  if(a==="hovat"){if(S.drawer)S.drawer.at=+el.dataset.at;renderDrawer();return;}
+  if(a==="hovok"){confirmHov(+el.dataset.at);return;}
+  if(a==="oX"){S.oform.x=+el.dataset.x;renderDrawer();return;}
+  if(a==="owhy"){const i=$("#oTxt");if(i)S.oform.txt=i.value;S.oform.why=el.dataset.r;renderDrawer();return;}
+  if(a==="osubmit"){const f=S.oform;if(!f.t)return;const i=$("#oTxt"),c=$("#oCrew");if(i)f.txt=i.value;if(c)f.crew=Math.max(1,+c.value||1);const t=task(f.t);
+    registerOT({...f},S.role==="HQ"?`${HQ[0]} (대리 등록)`:S.lvl==="lead"?`${P(t.p).name} ${P(t.p).part}`:`${P(t.p).name} 작업자`);S.drawer=null;renderAll();return;}
   if(a==="ejT"){const k=el.dataset.k,f=S.eform;f.types=f.types.includes(k)?f.types.filter(x=>x!==k):[...f.types,k];renderDrawer();return;}
   if(a==="ejS"){const k=el.dataset.k,f=S.eform;f.secs=f.secs.includes(k)?f.secs.filter(x=>x!==k):[...f.secs,k];renderDrawer();return;}
   if(a==="evK"){S.eform.vk=el.dataset.k;renderDrawer();return;}
@@ -937,11 +1043,14 @@ document.addEventListener("change",e=>{const el=e.target;
   const ef=S.eform;
   if(el.id==="ejP"){ef.p=el.value;renderDrawer();return;}
   if(el.id==="ejZ"){ef.zone=el.value;renderDrawer();return;}
-  if(el.id==="ejH0"){ef.h0=+el.value;if(ef.h1<=ef.h0)ef.h1=Math.min(19,ef.h0+1);renderDrawer();return;}
+  if(el.id==="ejH0"){ef.h0=+el.value;if(ef.h1<=ef.h0)ef.h1=Math.min(H1,ef.h0+1);renderDrawer();return;}
   if(el.id==="ejH1"){ef.h1=+el.value;renderDrawer();return;}
   if(el.id==="ejC"){ef.crew=Math.max(1,+el.value||1);renderDrawer();return;}
   if(el.id==="evZ"){ef.vz=el.value;renderDrawer();return;}
   if(el.id==="evH1"){ef.vh1=+el.value;renderDrawer();return;}
+  if(el.id==="nowSel"){setNow(+el.value);renderAll();return;}
+  if(el.id==="oTask"){S.oform.t=el.value;S.oform.crew=null;renderDrawer();return;}
+  if(el.id==="oCrew"){S.oform.crew=Math.max(1,+el.value||1);renderDrawer();return;}
   if(el.id==="dTask"){S.dform.t=el.value;S.dform.h1=null;renderDrawer();return;}
   if(el.id==="dEnd"){S.dform.h1=+el.value;renderDrawer();return;}
   if(el.id==="dateIn"){const n=dayOfIso(el.value);if(n){S.day=Math.max(1,Math.min(TOTAL,n));renderAll();}return;}
@@ -952,7 +1061,7 @@ document.addEventListener("change",e=>{const el=e.target;
   if(el.id==="tbmText"){S.tbm.text=el.value;return;}
   if(el.id==="audioIn"&&el.files[0]){toast(`${el.files[0].name} 수신 · 음성 인식은 Whisper 연동 단계에서 붙습니다`);el.value="";return;}
 });
-document.addEventListener("input",e=>{if(e.target.id==="dWhy"){S.dform.why=e.target.value;return;}if(e.target.id==="ejN"){S.eform.name=e.target.value;return;}if(e.target.id==="mday"){S.day=+e.target.value;renderHeader();renderModel();}});
+document.addEventListener("input",e=>{if(e.target.id==="dWhy"){S.dform.why=e.target.value;return;}if(e.target.id==="ejN"){S.eform.name=e.target.value;return;}if(e.target.id==="oTxt"){S.oform.txt=e.target.value;return;}if(e.target.id==="mday"){S.day=+e.target.value;renderHeader();renderModel();}});
 function addFiles(fl){[...fl].forEach(f=>S.files.unshift({p:S.role==="HQ"?null:S.role,name:f.name,fmt:(f.name.split(".").pop()||"").toUpperCase().slice(0,4),time:clock(),ver:1,st:"keep"}));toast(`${fl.length}개 파일을 받았습니다`);renderDrawer();}
 document.addEventListener("dragover",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d){e.preventDefault();d.classList.add("over");}});
 document.addEventListener("dragleave",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d)d.classList.remove("over");});
