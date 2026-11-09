@@ -56,8 +56,12 @@ export function PlanUpload({ contractor, zones, onSubmitted }: Props) {
   };
 
   const setZone = (id: string, zone_id: string) => setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, zone_id } : t)));
+  // 투입 인원은 사람이 확인·수정한다 (빈칸이면 null)
+  const setCrew = (id: string, v: string) => setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, crew: v.trim() === "" ? null : Math.max(0, Math.round(Number(v)) || 0) } : t)));
   const reviewOf = (id: string): ExtractedTask | undefined => extraction?.tasks.find((t) => t.task.id === id);
   const needsReview = extraction?.tasks.filter((t) => t.needs_review).length ?? 0;
+  // 계획서의 업체와 지금 보는 협력사가 다르면 제출할 수 없다 (서버가 422로 막는다)
+  const otherCompany = [...new Set(tasks.map((t) => t.contractor))].filter((c) => c && c !== contractor);
   const primaryMissing = extraction?.sop_matches.filter((m) => m.primary && m.missing_steps.length > 0) ?? [];
 
   return (
@@ -66,7 +70,7 @@ export function PlanUpload({ contractor, zones, onSubmitted }: Props) {
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="file"
-          accept=".hwpx,.xlsx,.xls,.pdf"
+          accept=".hwpx,.xlsx,.xls,.pdf,.docx"
           onChange={(e) => {
             setFile(e.target.files?.[0] ?? null);
             setExtraction(null);
@@ -77,7 +81,7 @@ export function PlanUpload({ contractor, zones, onSubmitted }: Props) {
           type="button"
           onClick={upload}
           disabled={!file || busy !== null}
-          className="rounded bg-sky-700 px-3 py-1.5 font-medium text-white disabled:opacity-40"
+          className="rounded bg-brand px-3 py-1.5 font-medium text-white disabled:opacity-40"
         >
           {busy === "upload" ? "읽는 중…" : "구조화 (F1)"}
         </button>
@@ -85,6 +89,12 @@ export function PlanUpload({ contractor, zones, onSubmitted }: Props) {
       </div>
 
       {error && <pre className="mt-3 whitespace-pre-wrap rounded bg-red-50 p-2 text-xs text-red-700">{error}</pre>}
+      {extraction && otherCompany.length > 0 && (
+        <p className="mt-3 rounded border border-red-300 bg-red-50 p-2 text-xs text-red-700">
+          이 계획서의 업체는 <b>{otherCompany.join(", ")}</b>입니다. 지금 <b>{contractor}</b>로 보고 있어 제출할 수 없습니다 — 오른쪽 위 "보는 사람"을{" "}
+          <b>{otherCompany[0]}</b>로 바꾼 뒤 다시 올려 주세요.
+        </p>
+      )}
 
       {extraction && (
         <div className="mt-4 grid gap-4">
@@ -109,6 +119,7 @@ export function PlanUpload({ contractor, zones, onSubmitted }: Props) {
                   <th className="p-2">작업</th>
                   <th className="p-2">구역</th>
                   <th className="p-2">기간</th>
+                  <th className="p-2">투입 인원</th>
                   <th className="p-2">위험작업</th>
                   <th className="p-2">선행</th>
                   <th className="p-2">신뢰도</th>
@@ -133,6 +144,17 @@ export function PlanUpload({ contractor, zones, onSubmitted }: Props) {
                         </select>
                       </td>
                       <td className="whitespace-nowrap p-2">{fmtRange(t.start, t.end)}</td>
+                      <td className="p-2">
+                        <input
+                          type="number"
+                          min={0}
+                          value={t.crew ?? ""}
+                          onChange={(e) => setCrew(t.id, e.target.value)}
+                          className={`w-16 rounded border px-1 py-0.5 ${t.crew == null ? "border-amber-400 bg-amber-50" : "border-stone-300"}`}
+                          title={r?.raw.crew ? `원문: ${r.raw.crew}` : "계획서에 인원이 없습니다"}
+                        />{" "}
+                        명
+                      </td>
                       <td className="p-2">{t.hazards.map((h) => HAZARD_LABEL[h]).join(", ") || "—"}</td>
                       <td className="p-2">{t.predecessors.join(", ") || "—"}</td>
                       <td className="p-2">{r ? `${Math.round(r.confidence * 100)}%` : ""}</td>
@@ -172,7 +194,7 @@ export function PlanUpload({ contractor, zones, onSubmitted }: Props) {
               type="button"
               onClick={submit}
               disabled={busy !== null}
-              className="rounded bg-emerald-700 px-3 py-1.5 font-medium text-white disabled:opacity-40"
+              className="rounded bg-ok px-3 py-1.5 font-medium text-white disabled:opacity-40"
             >
               {busy === "submit" ? "판정 중…" : "제출 → 충돌 판정 (F2)"}
             </button>

@@ -11,7 +11,7 @@ from config import settings
 from llm.provider import LMStudioProvider
 from main import app
 from parsers import parse_document
-from rules.data_loader import load_rules, load_zones
+from rules.data_loader import load_rules, load_wbs_tasks, load_zones
 from rules.engine import detect_conflicts
 from schemas import ConflictType, Grade, Hazard, SourceLine, Task
 from search import sop_index, sop_match
@@ -52,12 +52,48 @@ def task(name: str, task_id: str = "U-1", hazards=()) -> Task:
 
 
 def test_critical_steps_are_read_from_sop_documents():
-    assert {s.id: sorted(s.critical) for s in load_sops()} == {
+    crit = {s.id: sorted(s.critical) for s in load_sops()}
+    # 공통 표준서 4종 (작업 유형별)
+    assert {k: v for k, v in crit.items() if not k.startswith("SOP-P")} == {
         "SOP-01": [2, 4, 7],
         "SOP-02": [2, 3, 5],
         "SOP-03": [3, 4, 5],
         "SOP-04": [4, 5],
     }
+    # 작업별 표준서 37종: 핵심 단계(빠지면 결함) 2~3개씩, 필수 단계 6~10개
+    per_task = [s for s in load_sops() if s.per_task]
+    assert len(per_task) == 37
+    assert all(2 <= len(s.critical) <= 3 and s.critical <= set(range(1, len(s.steps) + 1)) for s in per_task)
+    assert all(6 <= len(s.steps) <= 10 for s in per_task)
+
+
+def test_every_wbs_task_has_its_own_sop():
+    """기준 일정 작업 37개마다 작업별 표준서 SOP-P<작업ID>가 하나씩 있고, 그 작업 하나에만 적용된다."""
+    sops = {s.id: s for s in load_sops()}
+    wbs = load_wbs_tasks()
+    assert len(wbs) == 37
+    for t in wbs:
+        s = sops[f"SOP-{t.id}"]
+        assert s.wbs_examples == {t.id}
+        assert s.name_keywords and all(k in t.name for k in s.name_keywords)
+        assert (s.text().splitlines()[0]).startswith(f"# SOP-{t.id} ") and "합성" in s.text()
+        assert "## 작업 금지·출입 제한" in s.text()
+
+
+@pytest.mark.parametrize("wbs_task", load_wbs_tasks(), ids=lambda t: t.id)
+def test_wbs_task_matches_its_own_sop_as_primary(wbs_task):
+    """기준 일정 작업을 그대로 넣으면 자기 작업별 표준서가 주 표준서로 1위에 온다 (원문 없이도)."""
+    m = match_plan([wbs_task], [], "x", use_default_embedder=False)
+    assert m and (m[0].sop_id, m[0].primary) == (f"SOP-{wbs_task.id}", True)
+    assert "wbs_example" in m[0].basis
+    # 원문이 없으니 핵심 단계가 모두 빠진 것으로 보인다 — 제출 때는 draft 원문으로 다시 계산한다
+    assert len(m[0].missing_steps) == len([s for s in m[0].steps if s.critical])
+
+
+def test_per_task_sop_never_attaches_to_other_tasks():
+    """작업별 표준서는 유형·낱말이 비슷해도 다른 작업(기준 일정 ID가 아닌 작업)의 참고로 나오지 않는다."""
+    m = match_plan([task("질소·가스·송풍 라인 복구 연결", "U-9", [Hazard.GAS, Hazard.HOT_WORK])], [], "x", use_default_embedder=False)
+    assert m and not any(x.sop_id.startswith("SOP-P") for x in m)
 
 
 @pytest.mark.parametrize("answer_path", ANSWERS, ids=lambda p: p.stem.split("_")[0])
@@ -71,7 +107,13 @@ def test_defects_match_answer_set(answer_path):
 def test_pipe_plan_misses_gas_measurement_and_inside_work_check():
     """완료 기준: 배관 계획서의 '작업 전 가스 측정' 누락이 결함으로 표시된다."""
     a, tasks, lines = sample(next(p for p in ANSWERS if "배관O" in p.name))
-    m = next(m for m in match_plan(tasks, lines, a["file"], use_default_embedder=False) if m.missing_steps)
+    matches = match_plan(tasks, lines, a["file"], use_default_embedder=False)
+    # 공통 표준서(SOP-04)와 작업별 표준서(SOP-P34)가 둘 다 주 표준서로 같은 핵심 단계 누락을 낸다. P33 은 결함 없음
+    assert [(m.task_id, m.sop_id) for m in matches if m.missing_steps] == [("P34", "SOP-P34"), ("P34", "SOP-04")]
+    own = next(m for m in matches if m.sop_id == "SOP-P34")
+    assert own.primary and [s.no for s in own.steps if s.critical and not s.found] == [4, 5]
+    assert {s.no for s in own.steps if s.found} == {7, 8, 10}  # 볼트 체결·용접, 질소 가압 기밀시험, 허가서 반납은 적혀 있다
+    m = next(m for m in matches if m.sop_id == "SOP-04")
     assert (m.task_id, m.sop_id, m.primary) == ("P34", "SOP-04", True)
     assert m.basis == ["wbs_example", "name", "hazard"]
     assert any("작업 전 가스 측정" in s for s in m.missing_steps)
@@ -116,7 +158,7 @@ def test_embedding_server_down_falls_back_to_rules():
         raise ConnectionError("노트북 꺼짐")
 
     a, tasks, lines = sample(next(p for p in ANSWERS if "배관O" in p.name))
-    assert [m.sop_id for m in match_plan(tasks, lines, a["file"], embedder=broken) if m.missing_steps] == ["SOP-04"]
+    assert [m.sop_id for m in match_plan(tasks, lines, a["file"], embedder=broken) if m.missing_steps] == ["SOP-P34", "SOP-04"]
 
 
 def _embedding_env(monkeypatch, provider: str, *, unsloth: str = "", lmstudio: str = "", unsloth_key: str = ""):
@@ -158,8 +200,9 @@ def test_defect_conflict_points_to_plan_and_sop():
 
 def test_sop_api():
     listed = client.get("/api/sops").json()
-    assert [s["id"] for s in listed] == ["SOP-01", "SOP-02", "SOP-03", "SOP-04"]
+    assert [s["id"] for s in listed] == ["SOP-01", "SOP-02", "SOP-03", "SOP-04"] + [f"SOP-P{n:02d}" for n in range(1, 38)]
     assert listed[3]["critical_steps"] == [4, 5] and listed[3]["text"] is None
+    assert listed[4]["wbs_examples"] == ["P01"] and listed[4]["hazards"] == ["general"]
     assert "## 필수 단계" in client.get("/api/sops/SOP-04").json()["text"]
     assert client.get("/api/sops/SOP-99").status_code == 404
 
@@ -168,17 +211,18 @@ def test_upload_submit_stores_sop_defect():
     """시연 흐름: 배관O 계획서 업로드 → 확인 화면에 누락 단계 → 제출 순간 결함 저장 (새로고침 뒤에도 남음)."""
     name = "가상-배관O_가스라인_복구_작업계획서.hwpx"
     ext = client.post("/api/plans", files={"file": (name, (SAMPLES / name).read_bytes(), HWPX)}).json()
-    primary = [m for m in ext["sop_matches"] if m["primary"]]
-    assert [(m["task_id"], m["sop_id"]) for m in primary] == [("P34", "SOP-04")]
-    assert any("가스 측정" in s for s in primary[0]["missing_steps"])
+    primary = [m for m in ext["sop_matches"] if m["primary"] and m["missing_steps"]]
+    assert [(m["task_id"], m["sop_id"]) for m in primary] == [("P34", "SOP-P34"), ("P34", "SOP-04")]
+    assert all(any("가스 측정" in s for s in m["missing_steps"]) for m in primary)
 
-    res = client.post(
+    client.post(
         "/api/plans/submit",
         json={"contractor": "가상-배관O", "file": name, "tasks": [t["task"] for t in ext["tasks"]], "draft_id": ext["draft_id"]},
-    ).json()
-    assert "SOP:P34:SOP-04" in {c["id"] for c in res["conflicts"]}
+    )
     stored = {r["conflict"]["id"]: r for r in client.get("/api/conflicts").json()}  # 원청 화면
     assert stored["SOP:P34:SOP-04"]["conflict"]["grade"] == "결함"
+    assert stored["SOP:P34:SOP-P34"]["conflict"]["grade"] == "결함"
+    assert not [k for k in stored if k.startswith("SOP:P33:")]  # 압력시험 계획은 작업별 표준서 핵심 단계가 다 적혀 있다
 
     # F5: 협력사는 원청이 확인·공유한 뒤에 받는다. 표준서 근거는 어느 업체 원문도 아니라 그대로 남는다
     mine = lambda: {r["conflict"]["id"]: r for r in client.get("/api/conflicts", params={"contractor": "가상-배관O"}).json()}
@@ -208,8 +252,9 @@ def test_applying_f4_adjustment_keeps_sop_defect_open():
 def test_submit_without_document_skips_sop():
     """원문 없이(draft_id 없이) 낸 계획은 표준서 결함을 판정하지 않는다 — 없는 단계를 추측하지 않는다."""
     t = task("질소·가스·송풍 라인 복구 연결", "P34", [Hazard.GAS]).model_dump(mode="json") | {"contractor": "가상-배관O"}
-    res = client.post("/api/plans/submit", json={"contractor": "가상-배관O", "file": "x.xlsx", "tasks": [t]}).json()
-    assert not [c for c in res["conflicts"] if c["type"] == "sop_missing"]
+    res = client.post("/api/plans/submit", json={"contractor": "가상-배관O", "file": "x.xlsx", "tasks": [t]})
+    assert res.status_code == 200, res.text  # 거절된 제출이면 아래 확인이 저절로 통과한다
+    assert not [r for r in client.get("/api/conflicts").json() if r["conflict"]["type"] == "sop_missing"]
 
 
 def test_sop_matches_api_follows_current_schedule_and_filters_by_contractor():
@@ -223,7 +268,8 @@ def test_sop_matches_api_follows_current_schedule_and_filters_by_contractor():
     )
     all_matches = client.get("/api/sop-matches").json()
     primary = [m for m in all_matches if m["primary"]]
-    assert [(m["task_id"], m["sop_id"]) for m in primary] == [("P34", "SOP-04")]
-    assert any("가스 측정" in s for s in primary[0]["missing_steps"])
+    assert [(m["task_id"], m["sop_id"]) for m in primary] == [("P33", "SOP-P33"), ("P34", "SOP-P34"), ("P34", "SOP-04")]
+    assert [(m["task_id"], m["sop_id"]) for m in primary if m["missing_steps"]] == [("P34", "SOP-P34"), ("P34", "SOP-04")]
+    assert any("가스 측정" in s for s in primary[1]["missing_steps"])
     assert client.get("/api/sop-matches", params={"contractor": "가상-배관O"}).json() == all_matches
     assert client.get("/api/sop-matches", params={"contractor": "가상-축로I"}).json() == []

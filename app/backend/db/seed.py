@@ -13,18 +13,26 @@ DB 파일은 공유하지 않는다 (.gitignore 의 *.db). 바이너리라 merge
 from __future__ import annotations
 
 import argparse
+import json
+from datetime import date, datetime, time, timedelta
 
-from rules.data_loader import load_wbs_tasks
+from config import REPO_ROOT
+from rules.data_loader import load_rules, load_wbs_tasks
+from rules.engine import MIXED_WORK_LAW, legal_basis
 from schemas import PlanRecord, PlanSubmission, SourceRef, Task
 
 from .database import session
+from .history import FieldRecord, add_field_records
 from .plans import list_plans, submit_plan
+
+# 시연 전 6일치 현장 기록 (합성). 프론트 시안 이력 탭의 기록을 백엔드 업체·규칙·일정으로 옮긴 것
+HISTORY_SEED = REPO_ROOT / "app" / "samples" / "history_seed.json"
 
 # 지우는 순서: tasks 가 plans 를 참조하므로 자식부터.
 # database.py 에 표를 더하면 여기에도 더한다 — 빠지면 리허설 기록(TBM 공지·전달 확인 등)이 시연에 남는다
 TABLES = (
     "tasks", "plans", "shares", "conflicts", "decisions", "adjustments", "extraction_cache",
-    "plan_documents", "tbm_notices", "tbm_checks",
+    "plan_documents", "tbm_notices", "tbm_checks", "history_records",
 )
 
 # 시연 시작 상태: 협력사 두 곳이 기준 일정대로 이미 제출해 둔 상태.
@@ -58,8 +66,33 @@ def _tasks(filename: str, task_ids: list[str]) -> list[Task]:
     ]
 
 
+def field_records(today: date | None = None) -> list[FieldRecord]:
+    """시연 전 6일치 현장 기록. 남긴 시각은 seed 를 돌린 날 기준 1~6일 전, 내용 속 날짜는 공정 일정 날짜(S1 직전 6일)."""
+    today = today or date.today()
+    rules = {r.id: r for r in load_rules()}
+    out = []
+    for r in json.loads(HISTORY_SEED.read_text(encoding="utf-8"))["records"]:
+        hour, minute = map(int, r["time"].split(":"))
+        if r["rule_id"]:
+            basis = legal_basis(rules[r["rule_id"]])
+        else:
+            basis = MIXED_WORK_LAW if r["law"] == "mixed" else None
+        out.append(
+            FieldRecord(
+                at=datetime.combine(today - timedelta(days=r["days_ago"]), time(hour, minute)),
+                label=r["label"],
+                detail=f"{r['summary']} — {r['detail']}",
+                contractors=tuple(r["contractors"]),
+                actor=r["actor"],
+                rule_id=r["rule_id"],
+                legal_basis=basis,
+            )
+        )
+    return out
+
+
 def seed_demo() -> list[PlanRecord]:
-    """비우고 시연용 제출 이력을 넣는다. 먼저 비우기 때문에 여러 번 돌려도 결과가 같다."""
+    """비우고 시연용 제출 이력과 지난 6일치 현장 기록을 넣는다. 먼저 비우기 때문에 여러 번 돌려도 결과가 같다."""
     reset_db()
     for contractor, filename, task_ids, submitted_by in DEMO:
         submit_plan(
@@ -70,6 +103,7 @@ def seed_demo() -> list[PlanRecord]:
                 submitted_by=submitted_by,
             )
         )
+    add_field_records(field_records())
     return list_plans()
 
 
@@ -84,7 +118,7 @@ def main() -> None:
         return
 
     plans = seed_demo()
-    print(f"DB 를 비우고 시연용 제출 이력 {len(plans)}건을 넣었습니다 (모두 합성 데이터).")
+    print(f"DB 를 비우고 시연용 제출 이력 {len(plans)}건과 지난 6일치 현장 기록 {len(field_records())}건을 넣었습니다 (모두 합성 데이터).")
     for p in plans:
         print(f"  #{p.id} {p.contractor} v{p.version} — {p.file} (작업 {p.task_count}개)")
 

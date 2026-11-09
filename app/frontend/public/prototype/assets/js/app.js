@@ -185,7 +185,7 @@ function fresh(){
   return {tasks,ver:{A:1,B:1,C:1,D:1,E:1},fst:{A:"ok",B:"ok",C:"ok",D:"ok",E:"ok"},files:[],role:"HQ",day:65,sel:null,
     conflicts:[],mitig:{},seen:new Set(),newKeys:new Set(),log:seedLog(),adjusted:[],shared:new Set(),riskSent:new Set(),banner:null,lastMs:0,lastApply:null,undo:null,
     chat:[],chatOpen:false,heard:null,drawer:null,upOpen:null,mmode:"conf",mview:"3d",mzone:null,
-    tbm:{p:"C",sample:"A",text:"",rec:false,runs:{},key:null},hfilt:"전체",step:0,focus:null,ptab:"A",delays:{},urgent:[],useq:0,dform:{t:null,h1:null,why:""},events:[],holds:[],started:{},eseq:0,xseq:0,lvl:"hq",notes:[],notiOpen:false,mhour:10.5,extOpen:false,tlv:"day",hov:{},oform:{t:null,x:2,crew:null,why:"작업 지연",txt:""},
+    tbm:{p:"C",sample:"A",text:"",rec:false,runs:{},key:null},hfilt:"전체",step:0,focus:null,ptab:"A",delays:{},urgent:[],useq:0,dform:{t:null,h1:null,why:""},events:[],holds:[],started:{},eseq:0,xseq:0,lvl:"hq",notes:[],notiOpen:false,mhour:10.5,extOpen:false,tlv:"day",tlAll:false,tlKey:"",hov:{},oform:{t:null,x:2,crew:null,why:"작업 지연",txt:""},
     eform:{tab:"job",p:"C",name:"노 내부 중부 가스 배관 누설 긴급 차단",zone:"Z3",h0:13,h1:15,crew:4,types:["가스"],vk:"wind",vz:"Z3",vh1:15,secs:["N"]},
     review:Object.fromEntries(PARTNERS.map(p=>[p.id,{v:1,st:"반영"}])),
     hist:Object.fromEntries(PARTNERS.map(p=>[p.id,[{v:1,time:UPT[p.id],by:p.lead,st:"반영",note:"첫 제출 · 구조화 완료"}]]))};
@@ -423,7 +423,9 @@ function renderNoti(){const L=myNotes(),un=L.filter(n=>!n.read.has(S.role)).leng
   const nst=typeof Notification==="undefined"?"이 환경은 브라우저 알림을 지원하지 않습니다":Notification.permission==="granted"?"브라우저 알림 켜짐":"화면 안 알림은 항상 표시됩니다";
   host.innerHTML=`<div class="npanel" role="dialog" aria-label="알림"><header><b>알림</b><span class="sub">${un}개 안 읽음</span><span class="grow"></span><button class="link" data-act="nall">모두 읽음</button><button class="x" data-act="bell" aria-label="닫기">×</button></header>
     <div class="nlist">${L.map(n=>`<button class="ni ${n.read.has(S.role)?"":"un"}" data-act="nread" data-id="${n.id}"><span class="nk ${n.kind}">${n.kind}</span><span class="nb"><span>${esc(mask(n.title))}</span><span class="sub">${esc(mask(strip(n.body||"")))}</span></span><span class="t" style="font-size:12px">${esc(n.time.split(" ")[1]||"")}</span></button>`).join("")||`<div class="empty">알림이 없습니다</div>`}</div>
-    <footer><button class="btn sm" data-act="nperm">브라우저 알림 켜기</button><span class="sub">${nst}</span></footer></div>`;}
+    <footer><button class="btn sm" data-act="nperm">브라우저 알림 켜기</button><span class="sub">${nst}</span></footer></div>`;
+  /* 헤더가 두 줄로 내려가도(좁은 화면) 종 아래에 붙게: CSS 기본 top(64px) 대신 종 위치 기준 */
+  const np=host.firstElementChild,bl=$(".bell");if(np&&bl&&bl.offsetParent)np.style.top=Math.round(bl.getBoundingClientRect().bottom+8)+"px";}
 function raiseEvent(ev,aff){
   ev.id="e"+(++S.eseq);ev.time=clock();ev.day=S.day;ev.ack=new Set();S.events.unshift(ev);
   const seen=new Set();aff.forEach(a=>{const k=a.tid+"|"+ev.day;if(seen.has(k))return;seen.add(k);
@@ -548,7 +550,7 @@ const VIEWS=["board","model","tbm","history"];let cur="board";
 function go(v){if(location.hash!=="#"+v)location.hash=v;else show(v);}
 function show(v){cur=VIEWS.includes(v)?v:"board";VIEWS.forEach(x=>$("#view-"+x).hidden=x!==cur);
   document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-current",b.dataset.view===cur?"page":"false"));
-  if(cur==="model")renderModel();}
+  if(cur==="model")renderModel();if(cur==="board")tlScroll();}
 addEventListener("hashchange",()=>show(location.hash.slice(1)));
 let tT;function toast(m){$("#toastHost").innerHTML=`<div class="toast" role="status">${esc(m)}</div>`;clearTimeout(tT);tT=setTimeout(()=>$("#toastHost").innerHTML="",3400);}
 
@@ -561,7 +563,17 @@ function renderHeader(){
   $("#role").innerHTML=`<option value="HQ">포스코 직영관리자 (본청)</option>`+PARTNERS.map(p=>`<optgroup label="${p.name} · ${p.trade}"><option value="${p.id}:lead">${p.name} 파트장</option><option value="${p.id}:worker">${p.name} 작업자</option></optgroup>`).join("");$("#role").value=S.role==="HQ"?"HQ":`${S.role}:${S.lvl}`;
   $("#hClock").innerHTML=`${hh(NOW)}${NOW>=24?`<small class="nd">다음 날</small>`:""}`;$("#dateIn").value=iso(S.day);$("#hD").innerHTML=`D<b>${S.day}</b> / ${TOTAL} · ${WD[dDate(S.day).getDay()]}요일 · 날짜를 바꾸면 일차가 따라 바뀝니다`;
   const need=S.tasks.filter(t=>!t.ok&&(S.role==="HQ"||t.p===S.role)).length;const b=$("#upBadge");b.hidden=!need;b.textContent=need;
+  renderScen();
+}
+/* 시연 띠 서랍: 기본은 접힌 한 줄("시연 n/12 · 단계 이름" + 다음 단계 버튼), 펼치면 12단계 버튼. 열림 상태는 탭을 닫을 때까지 sessionStorage에 기억 */
+const SCEN_KEY="hansotbap.scenOpen";
+let scenOpen=false;try{scenOpen=sessionStorage.getItem(SCEN_KEY)==="1";}catch(_){}
+function renderScen(){
+  const cur=STEPS.find(s=>s.n===S.step),nx=STEPS.find(s=>s.n===S.step+1),sum=$("#scenSum"),tg=$("#scenTg");
   $("#scen").innerHTML=STEPS.map(s=>`<li><button class="step ${S.step>=s.n?"done":""}" data-act="step" data-n="${s.n}"><i>${s.n}</i>${s.t}</button></li>`).join("");
+  $("#scen").hidden=!scenOpen;sum.hidden=scenOpen;
+  sum.innerHTML=`<span class="num">${S.step}/${STEPS.length}</span> · ${cur?esc(cur.t):"시작 전"}${nx?`<span class="sub">다음</span><button class="step" data-act="step" data-n="${nx.n}"><i>${nx.n}</i>${esc(nx.t)}</button>`:""}`;
+  tg.textContent=scenOpen?"접기 ▴":"펼치기 ▾";tg.setAttribute("aria-expanded",String(scenOpen));
 }
 function initialJudge(){S.conflicts=[];rejudge();S.newKeys.clear();S.conflicts.forEach(c=>S.seen.add(c.key));
   S.log.unshift({time:clock(),type:"구조화",sum:`계획서 5건 → 작업 ${S.tasks.length}건`,dec:`확인 필요 ${S.tasks.filter(t=>!t.ok).length}건 · 표준서 매칭 ${S.tasks.length}건`,who:"시스템",rule:"F1·F8",law:"",parties:[]});
@@ -616,7 +628,7 @@ function dayConf(d){return visC().filter(c=>c.from<=d&&d<=c.to);}
 function renderBoard(){
   const d=S.day,[v0,v1]=tlR(),ts=dayTasks(d).filter(t=>inV(t.h0,t.h1)),cs=dayConf(d).filter(c=>inV(c.h0,c.h1)),open=cs.filter(c=>c.status==="open"),pair=open.filter(c=>c.b||c.rule==="R-SQ-01");
   const ban=open.filter(c=>c.level==="금지").length,nowC=open.filter(c=>c.h0<=NOW&&NOW<c.h1),pk=riskPeak(d,S.role,v0,v1);
-  $("#bTime").innerHTML=timeCtl();$("#bTlSub").textContent=`${hh(v0)}–${hh(v1)}${v1>24?" (다음 날)":""} · 30분 칸 · 구역은 위층부터`;
+  $("#bTime").innerHTML=timeCtl();
   const tb0=ts.filter(isBase),firms=new Set(tb0.map(t=>t.p)),crew=tb0.reduce((a,t)=>a+t.crew,0);
   $("#bBanner").innerHTML=bannerHtml()+(S.role!=="HQ"?`<p class="note" style="margin:0 0 10px">우리 작업과, 우리 작업에 영향을 주는 다른 작업(빗금 막대)만 보입니다. 그 밖의 다른 회사 일정은 볼 수 없습니다.</p>`:"");
   const stat=(k,v,u,dd,red)=>`<div class="stat"><span class="k">${k}</span><span class="v"><span class="big" ${red?'style="color:var(--red)"':""}>${v}</span><small>${u}</small></span><span class="d">${dd}</span></div>`;
@@ -632,9 +644,14 @@ function renderBoard(){
   const days=[...new Set(visC().filter(c=>c.status==="open").map(c=>c.from))].sort((a,b)=>a-b).slice(0,6);
   $("#bJumps").innerHTML=`<button class="btn sm rej" data-act="openevent">긴급·변수 등록</button><span class="sub">충돌 있는 날</span>`+[...new Set([65,...days])].sort((a,b)=>a-b).map(x=>`<button class="jump" data-act="day" data-d="${x}" aria-pressed="${x===d}">${md(x)}</button>`).join("");
   $("#bTl").innerHTML=renderTl(d,ts,cs);
+  $("#bTlSub").innerHTML=`${hh(v0)}–${hh(v1)}${v1>24?" (다음 날)":""} · 30분 칸 · 구역은 위층부터${tlHid?` · 작업 없는 구역 ${tlHid}곳 ${S.tlAll?"포함":"숨김"} · <button class="link" data-act="tlall" aria-pressed="${S.tlAll}" style="padding:0">${S.tlAll?"숨기기":"모두 보기"}</button>`:""}`;
+  tlScroll();
   renderActs(d,cs);renderHolds();renderGuide();
 }
 function lanes(ts){const L=[];ts.slice().sort((a,b)=>a.h0-b.h0||b.crew-a.crew).forEach(t=>{let i=L.findIndex(l=>l[l.length-1].h1<=t.h0);if(i<0){L.push([t]);i=L.length-1;}else L[i].push(t);t._lane=i;});return L.length;}
+/* 작업 없는 구역 행 숨김: 보기 범위에 그 구역 작업(자사·우리 작업에 영향 주는 타사)도, 겹침 띠·위험 표시도 없으면 행을 그리지 않는다.
+   숨긴 수는 tlHid → 시간표 부제의 "모두 보기"(S.tlAll)로 전부 그린다 */
+let tlHid=0;
 function renderTl(d,ts,cs){
   const [v0,v1]=tlR(),span=v1-v0,x=h=>((h-v0)/span*100),w=(a,b)=>{const p=Math.max(a,v0),q=Math.min(b,v1);return `left:${x(p)}%;width:${(q-p)/span*100}%`;},risk=riskSlots(d,S.role).s.slice((v0-H0)*2,(v1-H0)*2),isHQ=S.role==="HQ",nowIn=NOW>=v0&&NOW<=v1;
   const BANDS=[[H0,HM-HOV,"day"],[HM-HOV,HM,"hov"],[HM,H1-HOV,"night"],[H1-HOV,H1,"hov"]].filter(([a,b])=>inV(a,b)),bands=BANDS.map(([a,b,k])=>`<span class="sband ${k}" style="${w(a,b)}"></span>`).join("");
@@ -642,10 +659,12 @@ function renderTl(d,ts,cs){
   const selC=S.sel?S.conflicts.find(c=>c.key===S.sel):null,hit=new Set(selC?[selC.a,selC.b].filter(Boolean):[]);
   let h=`<div class="tl ${selC?"sel":""}"><div class="tl-risk"><div class="lab">위험 시간대</div><div class="risk" style="grid-template-columns:repeat(${risk.length},1fr)">${risk.map((v,i)=>`<span class="${rcls(v)}" title="${hh(v0+i*.5)} 위험도 ${v}"></span>`).join("")}</div></div>`;
   h+=`<div class="tl-scale"><div class="sub" style="padding:5px 12px">구역</div><div class="ticks">${ticks.filter(v=>!nowIn||Math.abs(v-NOW)>=.75).map(v=>`<span style="left:${x(v)}%${v===v1?";transform:translateX(-100%);padding-right:4px":v===v0?";transform:none;padding-left:4px":""}">${hh(v)}</span>`).join("")}${[HM-HOV,H1-HOV].filter(v=>v>=v0&&v<v1).map(v=>`<span class="hovmk" style="left:${x(v)}%" title="교대 인계 ${hr(v,v+HOV)}">인계</span>`).join("")}${nowIn?`<span class="nowchip" style="left:${x(NOW)}%">지금 ${hh(NOW)}</span>`:""}</div></div>`;
+  let hid=0,shown=0;
   for(const z of ZORDER){
     const zt=ts.filter(t=>t.zone===z),n=lanes(zt);
     const zc=cs.filter(c=>(task(c.a).zone===z||(c.b&&task(c.b).zone===z))&&(c.b||c.rule==="R-SQ-01"));
     const gh=isHQ?[]:S.tasks.filter(t=>!own(t)&&t.zone===z&&actOn(t,d)&&inScope(t)&&!t.otPend&&inV(t.h0,t.h1)).map(o=>({o}));
+    if(!zt.length&&!gh.length&&!zc.length){hid++;if(!S.tlAll)continue;}shown++;
     const crew=zt.filter(isBase).reduce((a,t)=>a+t.crew,0),nowRisk=zc.find(c=>c.status==="open"&&c.h0<=NOW&&NOW<c.h1);
     const L=Math.max(1,n+gh.length),rowH=Math.max(52,L*30+8+zc.length*8);
     h+=`<div class="tl-row" style="height:${rowH}px"><div class="lab"><span class="z">${zn(z)}${nowRisk?`<span class="rk">● ${nowRisk.level==="금지"?"작업 금지":"위험 높음"}</span>`:""}</span><span class="sub">${ZONES[z].floor} · ${crew?`<b style="color:var(--ink)">${crew}명</b>`:gh.length?"타사 작업 (우리 작업에 영향)":"작업 없음"}</span></div><div class="track">${bands}`;
@@ -654,9 +673,18 @@ function renderTl(d,ts,cs){
     zc.forEach((c,i)=>{h+=`<span class="ov ${c.status==="met"?"met":""}" style="--c:${LVC[c.level]};${w(c.h0,c.h1)};top:${L*30+4+i*8}px" data-act="sel" data-key="${c.key}" title="${esc(labelOf(c.key))}"></span>`;});
     h+=`</div></div>`;
   }
+  tlHid=hid;if(!shown)h+=`<div class="tl-row"><div class="lab"><span class="sub">작업 있는 구역 없음</span></div><div class="track"></div></div>`;
   h+=`<div class="tl-lines">${Array.from({length:span-1},(_,i)=>`<span class="h" style="left:${x(v0+1+i)}%"></span>`).join("")}${[HM-HOV,H1-HOV].filter(v=>v>=v0&&v<v1).map(v=>`<span class="hovl" style="left:${x(v)}%"></span>`).join("")}${nowIn?`<span class="now" style="left:${x(NOW)}%"></span>`:""}</div></div>`;
   return h;
 }
+/* 시간표가 가로로 넘칠 때(.tl min-width 860px) "지금" 선을 보이는 시간 영역(고정된 구역 칸 오른쪽)의 왼쪽 1/3에 맞춘다.
+   날짜·시각·보기 범위(S.day·NOW/S.mhour·S.tlv)가 바뀐 경우에만 맞추고, 같은 상태로 다시 그릴 때는 손으로 옮긴 스크롤을 그대로 둔다.
+   상황판이 숨겨져 있으면(폭 0) 표시만 미뤘다가 show("board")에서 맞춘다 */
+function tlScroll(){const w=$("#bTl");if(!w||!w.clientWidth)return;
+  const k=`${S.day}|${NOW}|${S.mhour}|${S.tlv}`;if(S.tlKey===k)return;S.tlKey=k;
+  const ln=w.querySelector(".tl-lines .now");if(!ln||w.scrollWidth<=w.clientWidth)return;
+  const lab=w.querySelector(".tl-row>.lab"),lw=lab?lab.offsetWidth:0,x=ln.getBoundingClientRect().left-w.getBoundingClientRect().left+w.scrollLeft;
+  w.scrollLeft=Math.max(0,Math.min(w.scrollWidth-w.clientWidth,Math.round(x-lw-(w.clientWidth-lw)/3)));}
 function whenTxt(c){if(c.h1<=NOW)return "오늘 종료";if(c.h0<=NOW)return `<span class="kw">진행 중</span>`;const m=Math.round((c.h0-NOW)*60);return `<span class="t">${m>=60?Math.floor(m/60)+"시간 "+(m%60?m%60+"분":""):m+"분"}</span> 후 시작`;}
 function renderActs(d,cs){
   const open=cs.filter(c=>c.status==="open").sort((a,b)=>LVO[a.level]-LVO[b.level]||((a.h1<=NOW)-(b.h1<=NOW))||a.h0-b.h0);
@@ -829,10 +857,10 @@ function editTask(id,f,val){const t=task(id);if(!t)return;
   toast(`다시 대조했습니다 · 해소 ${resolved.length}건 · 새 충돌 ${added.length}건`);renderAll();}
 
 /* ================= 2. 3D · 충돌 (F3) ================= */
-/* 3D · 충돌 탭은 scene3d(app/frontend/public/scene3d) 하나만 쓴다. 데이터·역할·시각은 아래 s3Sync가 postMessage로 넘긴다 */
+/* 3D · 충돌 탭은 scene3d(app/frontend/scene3d) 하나만 쓴다. 데이터·역할·시각은 아래 s3Sync가 postMessage로 넘긴다 */
 function renderModel(){$("#s3card").hidden=false;s3Sync();}
 
-/* ================= scene3d 연동 (app/frontend/public/scene3d, 같은 출처 iframe + postMessage) =================
+/* ================= scene3d 연동 (app/frontend/scene3d, 같은 출처 iframe + postMessage) =================
    보내는 것: data{tasks, conflicts} (src/types.ts 모양) · role(ViewerRole + level) · time · selectTask
    받는 것: ready · select{taskId, zoneId} · decision{changeId, taskId, decision, by}
    협력사로 보면 권한 범위(자기 작업 + 영향을 주는 작업) 안의 작업만 넘긴다. 서버 권한 필터를 대신하지 않는다 */
@@ -1041,6 +1069,8 @@ function renderAll(){renderUrgent();renderNoti();renderHeader();renderBoard();re
 document.addEventListener("click",e=>{
   const el=e.target.closest("[data-act]");if(!el)return;const a=el.dataset.act;
   if(a==="step"){const n=+el.dataset.n;if(n<=11){NOW=DEF_NOW;S.mhour=DEF_NOW;S.tlv="day";}STEPS.find(s=>s.n===n).f();return;}
+  if(a==="scen"){scenOpen=!scenOpen;try{sessionStorage.setItem(SCEN_KEY,scenOpen?"1":"0");}catch(_){}renderScen();return;}
+  if(a==="tlall"){S.tlAll=!S.tlAll;renderBoard();return;}
   if(a==="reset"){if(upTimer)clearTimeout(upTimer);upTimer=null;NOW=DEF_NOW;S=fresh();initialJudge();go("board");renderAll();toast("처음 상태로 돌렸습니다");return;}
   if(a==="openup"){S.drawer={kind:"up",anim:true};S.upOpen=el.dataset.p||(S.role==="HQ"?(S.upOpen||null):S.role);renderDrawer();return;}
   if(a==="closedrawer"){S.drawer=null;S.sel=null;renderAll();return;}

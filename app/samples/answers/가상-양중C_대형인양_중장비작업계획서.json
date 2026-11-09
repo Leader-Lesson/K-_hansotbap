@@ -1,0 +1,93 @@
+{
+  "file": "가상-양중C_대형인양_중장비작업계획서.pdf",
+  "contractor": "가상-양중C",
+  "format": "pdf",
+  "tasks": [
+    {
+      "wbs_id": "P02",
+      "name": "대형 크레인 기초 파일·크레인 조립",
+      "zone_id": "CRANE_PAD",
+      "start": "2026-09-28",
+      "end": "2026-11-09",
+      "shift": "day",
+      "headcount": 16,
+      "equipment": [
+        "크롤러 크레인 1,600t",
+        "보조 크레인 250t",
+        "트레일러 6대"
+      ],
+      "hazards": [
+        "heavy_lift",
+        "height"
+      ],
+      "predecessors": [
+        "P01"
+      ]
+    },
+    {
+      "wbs_id": "P17",
+      "name": "신 철피 링블록 반입·설치(대형 인양)",
+      "zone_id": "SHELL",
+      "start": "2026-12-27",
+      "end": "2027-01-03",
+      "shift": "day",
+      "headcount": 20,
+      "equipment": [
+        "크롤러 크레인 1,600t",
+        "보조 크레인 250t",
+        "다축 트레일러 2대"
+      ],
+      "hazards": [
+        "heavy_lift",
+        "height"
+      ],
+      "predecessors": [
+        "P15",
+        "P02",
+        "P03"
+      ]
+    },
+    {
+      "wbs_id": "P31",
+      "name": "공사용 호이스트·승강설비 운영",
+      "zone_id": "STACK",
+      "start": "2026-11-27",
+      "end": "2027-03-02",
+      "shift": "day",
+      "headcount": 4,
+      "equipment": [
+        "노내 호이스트 2기(2t)",
+        "체인블록 3t"
+      ],
+      "hazards": [
+        "heavy_lift",
+        "height"
+      ],
+      "predecessors": [
+        "P12"
+      ]
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S3",
+      "type": "same_time_zone",
+      "rule_ids": [
+        "R18"
+      ],
+      "with": "가상-주상K P24 출선장 개조 (CASTHOUSE, 2026-11-22~2027-03-07)",
+      "note": "링블록 인양 경로 아래 출선장 작업 — 인양 시간대 분리·출입통제 (기준 일정 그대로여도 걸린다)"
+    },
+    {
+      "scenario": "S3-변형",
+      "type": "same_time_zone",
+      "rule_ids": [
+        "R18",
+        "R20"
+      ],
+      "with": "가상-비계N 노체 철피 외부 비계 설치 (SHELL, 2026-12-28~2027-01-05)",
+      "note": "비계N 계획서가 올라와 있을 때만. 인양 중 같은 철피 외부 고소 작업"
+    }
+  ],
+  "note": "기준 일정 그대로. 3D에 필요한 칸(세부 위치·시간·인원·장비)과 비용 표를 모두 갖춘 예시. 작업별 표준서 핵심 단계가 절차에 다 적혀 있어 결함 없음"
+}

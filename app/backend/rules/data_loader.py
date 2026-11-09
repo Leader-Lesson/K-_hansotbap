@@ -77,6 +77,7 @@ def load_wbs_tasks() -> list[Task]:
                 zone_id=r["구역"],
                 start=start,
                 end=end,
+                crew=int(r["투입인원(가정)"]) if r.get("투입인원(가정)", "").strip() else None,  # 합성 가정값
                 hazards=[h for col, h in HAZARD_COLUMNS.items() if r.get(col, "0").strip() == "1"],
                 risk_codes=[c for c in r["위험코드(시행령53조의2)"].split(",") if c.strip()],
                 predecessors=_split(r.get("선행 작업", "")),

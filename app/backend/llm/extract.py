@@ -33,6 +33,7 @@ from parsers.normalize import (
     iso_time,
     match_wbs,
     name_similarity,
+    parse_crew,
     parse_dates,
     parse_shift,
     parse_times,
@@ -50,7 +51,7 @@ from .provider import LLMProvider, get_provider
 log = logging.getLogger(__name__)
 
 # 결과 캐시 키에 들어간다. 프롬프트·규칙·출력 모양을 바꾸면 올린다
-EXTRACTOR_VERSION = "f1-v1"
+EXTRACTOR_VERSION = "f1-v2"  # v2: 투입 인원(crew) 추가 — 예전 캐시는 쓰지 않는다
 
 Mode = Literal["auto", "llm", "rules"]
 
@@ -69,6 +70,7 @@ PENALTY = {
     "bad_evidence": 0.1,
     "no_evidence": 0.3,
     "no_contractor": 0.2,
+    "crew_from_wbs": 0.05,
 }
 
 
@@ -98,6 +100,7 @@ class LLMTask(BaseModel):
     start_time: str | None = Field(description="HH:MM 24시간")
     end_time: str | None = Field(description="HH:MM 24시간")
     shift: Literal["day", "night"] | None
+    headcount: int | None = Field(description="투입 인원(명). 문서에 적힌 숫자만, 없으면 null")
     hazards: list[HazardName]
     hazard_text: str | None = Field(description="위험작업·허가 관련 원문 그대로")
     precondition_text: str | None = Field(description="문서에 적힌 선행 조건 원문 그대로")
@@ -136,6 +139,7 @@ def system_prompt() -> str:
 - start_date, end_date: YYYY-MM-DD. 연도가 없으면 공사 기간({start}~{end}) 안의 날짜로 본다. "D+N"은 D0({start})부터 N일 뒤다. 하루짜리면 둘을 같게.
 - start_time, end_time: HH:MM(24시간). 주간·야간만 적혀 있으면 null 로 두고 shift 만 채운다.
 - shift: 주간 day, 야간 night, 알 수 없으면 null.
+- headcount: 그 작업의 투입 인원(명). 문서에 숫자로 적혀 있을 때만 채운다. 추측하지 않는다.
 - hazards: 작업 내용으로 판단되는 작업 유형. hot_work(용접·용단·절단 등 화기), gas(가스·질소·산소 배관이나 계통을 다룸), confined(노 내부·탱크 등 밀폐공간), height(고소·비계), heavy_lift(크레인·인양 등 중량물).
 - precondition_text, predecessor_wbs_ids: 문서에 선행 조건("○○ 완료 후")이 적혀 있을 때만 채운다. 기준 일정의 선행 관계를 추측해 넣지 않는다.
 - wbs_id: 아래 원청 기준 일정에서 같은 작업(업체·작업 내용·구역이 맞는 것)이 있으면 그 ID, 없으면 null.
@@ -170,22 +174,27 @@ class Candidate:
     start_time_value: Any = None
     end_time_value: Any = None
     shift_text: str | None = None
+    crew_text: str | None = None  # 표의 인원 칸 원문
     hazard_text: str | None = None
     precondition_text: str | None = None
     evidence_locs: list[str] = field(default_factory=list)
     llm: LLMTask | None = None  # LLM 해석 (규칙 결과와 대조한다)
 
 
-_CONTRACTOR_LINE = re.compile(r"(?:업체명|업체|협력사|협력업체|회사명|시공사)\s*[:：]\s*(?P<v>[^\s|,]+)")
+_CONTRACTOR_LINE = re.compile(r"(?:업체명|업체|협력사|협력업체|회사명|시공사)\s*[:：|]\s*(?P<v>[^\s|,]+)")  # "업체명: X" 또는 표 칸 "업체명 | X"
 _VIRTUAL_NAME = re.compile(r"(?:가상|원청)-[0-9A-Za-z가-힣]+")
 
 
 def detect_contractor(doc: ParsedDocument) -> str | None:
     """문서 머리(앞 15줄)에 적힌 업체명."""
     for s in doc.segments[:15]:
+        m = _CONTRACTOR_LINE.search(s.text)
+        # 표 행은 데이터 행의 '업체' 칸을 잘못 잡지 않게, 첫 칸이 라벨인 "업체명 | 값" 꼴(Word·HWPX 머리 표)만 받는다
         if s.kind == "row":
+            if m and m.start() == 0:
+                return m.group("v")
             continue
-        if m := _CONTRACTOR_LINE.search(s.text):
+        if m:
             return m.group("v")
         if m := _VIRTUAL_NAME.search(s.text):
             return m.group(0)
@@ -220,6 +229,7 @@ def candidates_from_tables(doc: ParsedDocument) -> list[Candidate]:
                     start_time_value=value("start_time"),
                     end_time_value=value("end_time"),
                     shift_text=text("shift"),
+                    crew_text=text("headcount"),
                     hazard_text=text("hazards"),
                     precondition_text=text("precondition"),
                     evidence_locs=[rr.row.loc],
@@ -361,6 +371,17 @@ def finalize(
     base = set(wbs_by_id[wbs_id].predecessors) if wbs_id else set()
     predecessors = sorted((explicit | base) - {wbs_id})
 
+    # 투입 인원: 계획서 인원 칸(규칙) → LLM → 기준 일정 값(합성 가정값, 확인 필요) 순
+    crew = parse_crew(c.crew_text)
+    llm_crew = llm.headcount if llm else None
+    if crew is None:
+        crew = llm_crew
+    elif llm_crew is not None and llm_crew != crew:
+        warnings.append(f"투입 인원 해석이 다릅니다 (규칙 {crew}명, LLM {llm_crew}명) — 규칙 값을 씀")
+    if crew is None and wbs_id and wbs_by_id[wbs_id].crew is not None:
+        crew = wbs_by_id[wbs_id].crew
+        flag("crew_from_wbs", f"계획서에 투입 인원이 없어 기준 일정 값({crew}명, 가정값)을 넣었습니다 — 확인해 주세요")
+
     # 작업 ID: 기준 일정과 같은 작업이면 그 ID (제출 시 기준 일정을 대체), 아니면 안정적인 새 ID
     task_id = wbs_id if wbs_id and wbs_id not in used_ids else _stable_id(contractor, c.name, zone or "")
     while task_id in used_ids:
@@ -376,6 +397,7 @@ def finalize(
             "period": c.period_text or " ~ ".join(str(x) for x in (c.start_value, c.end_value) if x),
             "time": c.time_text,
             "shift": c.shift_text,
+            "crew": c.crew_text,
             "hazards": c.hazard_text,
             "precondition": c.precondition_text,
         }.items()
@@ -391,6 +413,7 @@ def finalize(
         start=start,
         end=end,
         shift=shift,
+        crew=crew,
         hazards=sorted(hazards, key=lambda h: h.value),
         predecessors=predecessors,
         source=sources[0] if sources else None,

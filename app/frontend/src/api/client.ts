@@ -20,6 +20,12 @@ import type {
   SopInfo,
   SopMatch,
   Task,
+  TbmCheckRecord,
+  TbmCheckRequest,
+  TbmChecklist,
+  TbmNotice,
+  TbmNoticeCreate,
+  TbmTranscript,
   Zone,
 } from "@/types";
 
@@ -67,6 +73,8 @@ export const CHAT_CLIENT_TIMEOUT_MS = 60_000;
 export const api = {
   zones: () => get<Zone[]>("/zones"),
   rules: () => get<Rule[]>("/rules"),
+  // '보는 사람'에서 고를 협력사 (일정과 따로 — 기준 일정을 꺼도 고를 수 있게)
+  contractors: () => get<string[]>("/contractors"),
   // 협력사로 보면 자기 작업 + 공유된 충돌의 상대 작업만 (상대 작업의 source 는 null). 원청은 비워 둔다
   tasks: (contractor?: string) => get<Task[]>(`/tasks${qs({ contractor })}`),
   overlaps: (contractor?: string) => get<OverlapCandidate[]>(`/overlaps${qs({ contractor })}`),
@@ -143,4 +151,22 @@ export const api = {
     }
   },
   chatStatus: () => get<ChatStatus>("/chat/status"),
+
+  // ── F7 TBM 전달 확인 ───────────────────────────────────────────────
+  // 그 업체·날짜에 전달할 항목. 서버가 공유된 조정·위험 시간대·원청 공지로 만든다 (contractor 는 항상 필수)
+  tbmChecklist: (contractor: string, on: string) => get<TbmChecklist>(`/tbm/checklist${qs({ contractor, on })}`),
+  // 원청 전용 — 협력사로 부르면 서버가 403. 같은 업체·날짜·문장은 처음 기록을 돌려준다
+  addTbmNotice: (body: TbmNoticeCreate) => json<TbmNotice>("/tbm/notices", "POST", body),
+  // 녹음 → 전사문. 원본은 서버가 받아쓴 뒤 지운다. CPU판 음성 서버는 녹음 길이의 2~3배 걸린다
+  transcribeTbm: async (file: File, consent: boolean) => {
+    const body = new FormData();
+    body.append("file", file);
+    body.append("consent", consent ? "true" : "false");
+    const res = await fetch("/api/tbm/transcribe", { method: "POST", body });
+    if (!res.ok) throw new Error(await errorMessage(res));
+    return res.json() as Promise<TbmTranscript>;
+  },
+  // viewer: 보는 협력사(원청은 비움). 협력사는 자기 업체 TBM만 확인할 수 있다
+  checkTbm: (body: TbmCheckRequest, viewer?: string) => json<TbmCheckRecord>(`/tbm/checks${qs({ contractor: viewer })}`, "POST", body),
+  tbmChecks: (contractor?: string) => get<TbmCheckRecord[]>(`/tbm/checks${qs({ contractor })}`),
 };

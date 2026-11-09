@@ -1,0 +1,107 @@
+{
+  "file": "가상-제관F_v3_PDF_두자리연도_머리업체.pdf",
+  "contractor": "가상-제관F",
+  "format": "pdf",
+  "tasks": [
+    {
+      "wbs_id": "P10",
+      "name": "상승관·하강관 가스 배관 절단·보수",
+      "zone_id": "DOWNCOMER",
+      "start": "2026-11-15",
+      "end": "2027-01-11",
+      "shift": "day",
+      "headcount": 10,
+      "hazards": [
+        "gas",
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P05"
+      ]
+    },
+    {
+      "wbs_id": "P25",
+      "name": "제진기·가스청정설비 보수·교체",
+      "zone_id": "GCP",
+      "start": "2026-11-22",
+      "end": "2027-02-20",
+      "shift": null,
+      "headcount": 14,
+      "hazards": [
+        "confined",
+        "gas",
+        "heavy_lift",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P05"
+      ]
+    },
+    {
+      "wbs_id": null,
+      "name": "보수 자재 가공(야드)",
+      "zone_id": "YARD",
+      "start": "2026-11-12",
+      "end": "2026-12-31",
+      "shift": "day",
+      "headcount": 5,
+      "hazards": [
+        "hot_work"
+      ],
+      "predecessors": []
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S4",
+      "type": "hot_gas",
+      "rule_ids": [
+        "R04"
+      ],
+      "with": "원청-정비 P05 가스 계통 차단·블리더 방산·질소 퍼지 (DOWNCOMER, 2026-11-13~11-15)",
+      "note": "하강관 절단을 기준(11-17)보다 이틀 앞당겨 퍼지 중 화기 — 금지"
+    }
+  ],
+  "note": "원본 가상-제관F_하강관_가스청정_보수계획.pdf 과 같은 작업을 다른 양식으로 다시 그린 합성 변형",
+  "variant": {
+    "source": "가상-제관F_하강관_가스청정_보수계획.pdf",
+    "version": 3,
+    "layout": "table",
+    "header_synonym_set": "S4",
+    "headers": [
+      "세부작업",
+      "작업구역",
+      "개시일",
+      "종료일자",
+      "근무",
+      "인원",
+      "작업구분",
+      "전제조건",
+      "담당자",
+      "특이사항"
+    ],
+    "column_order": [
+      "name",
+      "loc",
+      "start",
+      "end",
+      "shift",
+      "headcount",
+      "hazards",
+      "pre",
+      "owner",
+      "note"
+    ],
+    "date_style": "시작/종료 칸: 27.1.15 (두 자리 연도)",
+    "contractor_position": "문서 머리에만",
+    "shift_style": "주야간 칸: 주 / 주/야",
+    "zone_style": "원본 계획서 표현",
+    "predecessor_style": "원본 선행조건 문장",
+    "hazard_style": "다른 낱말(용접·용단·가스 계통·밀폐·추락위험·양중)",
+    "noise_columns": [
+      "담당자",
+      "특이사항"
+    ]
+  }
+}

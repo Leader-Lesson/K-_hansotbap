@@ -91,6 +91,7 @@ class Task(BaseModel):
     start: datetime
     end: datetime
     shift: Shift | None = None
+    crew: int | None = Field(default=None, ge=0, description="투입 인원(명). 계획서의 인원 칸, 없으면 기준 일정 값")
     hazards: list[Hazard] = []
     risk_codes: list[str] = Field(default=[], description="시행령 제53조의2 1~8호, 기타는 X")
     predecessors: list[str] = []
@@ -261,6 +262,7 @@ class HistoryEventKind(str, Enum):
     ADJUSTMENT_REVERTED = "adjustment_reverted"  # 조정 되돌림
     ADJUSTMENT_STALE = "adjustment_stale"  # 재제출로 조정이 무효가 됨
     TBM_CHECKED = "tbm_checked"  # TBM 전달 확인
+    FIELD_RECORD = "field_record"  # 현장 기록: 교대 인계·착수 승인·잔업 등 사람이 남긴 기록 (구분 이름은 label)
 
 
 class HistoryEvent(BaseModel):
@@ -268,7 +270,8 @@ class HistoryEvent(BaseModel):
 
     at: datetime
     kind: HistoryEventKind
-    target_id: str = Field(description="plan-<번호>, tbm-<번호> 또는 충돌 ID")
+    label: str | None = Field(default=None, description="현장 기록의 구분 이름 (교대 인계, 착수 승인 …). 다른 기록은 null")
+    target_id: str = Field(description="plan-<번호>, tbm-<번호>, rec-<번호>(현장 기록) 또는 충돌 ID")
     actor: str | None = Field(default=None, description="책임자. 시스템이 남긴 기록은 null")
     contractors: list[str] = []
     detail: str
@@ -499,9 +502,9 @@ class PlanRecord(BaseModel):
 
 class PlanSubmitResult(BaseModel):
     plan: PlanRecord
-    conflicts: list[Conflict]
+    conflicts: list[Conflict] = Field(description="제출한 협력사에게 공유된 현재 충돌")
     refresh: bool = Field(default=True, description="판정 후 화면을 한 번 강제 새로고침한다")
-    diff: ConflictDiff | None = Field(default=None, description="이 제출로 사라지거나 새로 생긴 충돌 (새 충돌 알림)")
+    diff: ConflictDiff | None = Field(default=None, description="이 제출로 달라진 충돌 중 제출한 협력사에게 공유된 것")
     recheck_ms: float | None = Field(default=None, description="재판정에 걸린 시간(밀리초)")
 
 

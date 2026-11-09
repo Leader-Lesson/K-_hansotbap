@@ -1,0 +1,100 @@
+/* 상황판(BoardView): 시안(public/prototype/assets/css/styles.css)의 시간표·숫자 띠·조치 카드 규칙을 .pb 아래로 옮긴 것.
+   색 토큰(--blue·--red·--amber·--violet·--ok·--line·--ink …)은 src/index.css 에 시안과 같은 값으로 있다 */
+.pb{--blue-ink:#FFFFFF;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;font-size:14px;line-height:1.55}
+.pb h2{margin:0;font-size:14px;font-weight:500}
+.pb button{font:inherit;color:inherit}
+.pb .mono{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink-3)}
+.pb .kw{color:var(--red);font-weight:500}
+.pb b,.pb .b{font-weight:700}
+.pb .t{color:var(--blue);font-variant-numeric:tabular-nums}
+.pb .big{font-size:26px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.pb .sub{font-size:12px;color:var(--ink-3)}
+.pb .link{appearance:none;background:none;border:0;color:var(--blue);padding:3px 6px;white-space:nowrap}
+.pb .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;min-width:0}
+.pb .card>header{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:10px 14px;border-bottom:1px solid var(--line-2)}
+.pb .grow{flex:1}
+.pb .fx{font-family:var(--mono);font-size:11px;color:var(--ink-3);border:1px solid var(--line);border-radius:3px;padding:0 4px}
+.pb .pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;padding:0 8px;border-radius:999px;white-space:nowrap;line-height:20px}
+.pb .pill.ban{background:var(--red-soft);color:var(--red)}
+.pb .pill.cond{background:var(--amber-soft);color:var(--amber)}
+.pb .pill.def{background:var(--violet-soft);color:var(--violet)}
+.pb .pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pb .pill.mute{background:var(--surface-2);color:var(--ink-3)}
+.pb .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.pb .btn{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 12px;white-space:nowrap}
+.pb .btn:hover{border-color:var(--ink-3)}
+.pb .btn.pri{background:var(--blue);border-color:var(--blue);color:var(--blue-ink)}
+.pb .btn.sm{padding:3px 9px;font-size:12.5px}
+.pb .btn:disabled{opacity:.45;cursor:not-allowed}
+.pb .empty{padding:26px 16px;text-align:center;color:var(--ink-3)}
+.pb .note{font-size:12px;color:var(--ink-3);margin:0}
+.pb .stats{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--line-2);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px}
+.pb .stat{background:var(--surface);padding:10px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.pb .stat .k{font-size:12px;color:var(--ink-3)}
+.pb .stat .v{display:flex;align-items:baseline;gap:4px}
+.pb .stat .v small{font-size:13px;color:var(--ink-2)}
+.pb .stat .d{font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:900px){.pb .stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:560px){.pb .stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pb .banner{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:9px 14px;border:1px solid var(--red);border-radius:8px;background:var(--surface);margin-bottom:12px}
+.pb .jumps{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pb .jump{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:1px 10px;font-size:12.5px}
+.pb .jump[aria-pressed="true"]{border-color:var(--blue);color:var(--blue)}
+.pb .tl-wrap{overflow-x:auto}
+.pb .tl{--lab:178px;min-width:860px;position:relative}
+.pb .tl-risk,.pb .tl-scale,.pb .tl-row{display:grid;grid-template-columns:var(--lab) minmax(0,1fr)}
+.pb .tl-risk{border-bottom:1px solid var(--line-2)}
+.pb .tl-risk .lab{padding:6px 12px;font-size:12px;color:var(--ink-2)}
+.pb .risk{position:relative;display:grid;grid-template-columns:repeat(24,1fr);gap:1px;padding:6px 0}
+.pb .risk span{height:14px;border-radius:2px;background:var(--surface-2)}
+.pb .risk span.r1{background:var(--amber-soft)}
+.pb .risk span.r2{background:var(--amber)}
+.pb .risk span.r3{background:var(--red)}
+.pb .tl-scale{height:28px;border-bottom:1px solid var(--line)}
+.pb .tl-scale .ticks{position:relative}
+.pb .tl-scale .ticks span{position:absolute;top:6px;transform:translateX(-50%);font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.pb .nowchip{position:absolute;top:3px;transform:translateX(-50%);background:var(--blue);color:var(--blue-ink);font-size:11.5px;border-radius:4px;padding:0 6px;z-index:3;white-space:nowrap}
+.pb .tl-row{border-bottom:1px solid var(--line-2);min-height:40px}
+.pb .tl-row .lab{padding:7px 12px;display:flex;flex-direction:column;justify-content:center;min-width:0;border-right:1px solid var(--line-2)}
+.pb .tl-row .lab .z{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pb .tl-row .lab .rk{font-size:11.5px;color:var(--red)}
+.pb .tl-risk>.lab,.pb .tl-scale>:first-child,.pb .tl-row>.lab{position:sticky;left:0;z-index:4;background:var(--surface)}
+.pb .track{position:relative}
+.pb .tb{position:absolute;height:26px;border-radius:4px;border-left:3px solid var(--pc);background:color-mix(in srgb,var(--pc) 15%,var(--surface));padding:0 7px;display:flex;align-items:center;gap:6px;font-size:12.5px;white-space:nowrap;overflow:hidden;cursor:pointer;min-width:0}
+.pb .tb:hover{background:color-mix(in srgb,var(--pc) 24%,var(--surface))}
+.pb .tb.other{opacity:.55}
+.pb .tb.moved{outline:1.5px dashed var(--blue);outline-offset:1px}
+.pb .tb .who{font-weight:500;color:var(--pc)}
+.pb .ov{position:absolute;height:6px;border-radius:2px;background:var(--c);cursor:pointer}
+.pb .ov.met{opacity:.35}
+.pb .tl-lines{position:absolute;top:0;bottom:0;left:var(--lab);right:0;pointer-events:none}
+.pb .tl-lines .h{position:absolute;top:0;bottom:0;border-left:1px solid var(--line-2)}
+.pb .tl-lines .now{position:absolute;top:0;bottom:0;border-left:2px solid var(--blue);z-index:2}
+.pb .tl.sel .tb:not(.hit){opacity:.3}
+.pb .tl-legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:8px 14px;font-size:12px;color:var(--ink-2);border-top:1px solid var(--line-2)}
+.pb .sw{display:inline-block;width:14px;height:8px;border-radius:2px;vertical-align:0;margin-right:5px}
+.pb .acts{margin-top:12px}
+.pb .acts-h{display:flex;align-items:baseline;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.pb .acts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.pb .ac{appearance:none;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:11px 14px;display:flex;flex-direction:column;gap:6px;border-top:3px solid var(--c)}
+.pb .ac:hover{border-color:var(--ink-3);border-top-color:var(--c)}
+.pb .ac[aria-pressed="true"]{box-shadow:0 0 0 2px var(--blue)}
+.pb .ac .top2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pb .ac .when{margin-left:auto;font-size:12px;color:var(--ink-3);white-space:nowrap}
+.pb .ac p{margin:0}
+.pb .ac .ev{font-size:12px;color:var(--ink-3)}
+.pb .tb.ghost{border-left:3px dashed var(--ink-3);background:repeating-linear-gradient(135deg,var(--surface-2) 0 6px,var(--line-2) 6px 12px);color:var(--ink-2)}
+.pb .tb.late{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--pc) 24%,var(--surface)) 0 6px,var(--surface) 6px 12px);border-left:3px solid var(--red)}
+.pb .tb.held{outline:2px solid var(--red);outline-offset:1px}
+.pb .tb.emerg{border-left-color:var(--red)}
+.pb .tlbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 14px;border-bottom:1px solid var(--line-2)}
+.pb .tctl{display:inline-flex;align-items:center;gap:4px}
+.pb .tctl select{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:2px 6px;font-variant-numeric:tabular-nums}
+.pb .sband{position:absolute;top:0;bottom:0;pointer-events:none}
+.pb .sband.day{background:color-mix(in srgb,var(--amber) 4%,transparent)}
+.pb .sband.night{background:color-mix(in srgb,var(--blue) 10%,transparent)}
+.pb .sband.hov{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--amber) 30%,transparent) 0 4px,transparent 4px 8px)}
+.pb .sw.sband{position:static;border:1px solid var(--line)}
+.pb .tl-scale .ticks .hovmk{top:7px;transform:translateX(-100%);font-size:10.5px;font-weight:700;color:var(--amber);padding-right:3px}
+.pb .tl-lines .hovl{position:absolute;top:0;bottom:0;border-left:1.5px dashed var(--amber)}
+.pb .tb.ot{border-left-style:dashed}

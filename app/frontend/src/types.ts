@@ -27,6 +27,7 @@ export interface Task {
   start: string; // ISO datetime
   end: string;
   shift: Shift | null;
+  crew: number | null; // 투입 인원(명). 계획서 인원 칸, 없으면 기준 일정 값(가정). 협력사에게 타사 인원은 null
   hazards: Hazard[];
   risk_codes: string[];
   predecessors: string[];
@@ -198,18 +199,94 @@ export type HistoryEventKind =
   | "adjustment_applied"
   | "conflict_resolved"
   | "adjustment_reverted"
-  | "adjustment_stale";
+  | "adjustment_stale"
+  | "tbm_checked" // TBM 전달 확인
+  | "field_record"; // 현장 기록: 교대 인계·착수 승인·잔업 등 사람이 남긴 기록 (구분 이름은 label)
 
 /** GET /api/history: 이행 기록 한 줄 (제64조) */
 export interface HistoryEvent {
   at: string;
   kind: HistoryEventKind;
-  target_id: string; // plan-<번호> 또는 충돌 ID
+  label: string | null; // 현장 기록의 구분 이름 (교대 인계, 착수 승인 …). 다른 기록은 null
+  target_id: string; // plan-<번호>, tbm-<번호>, rec-<번호>(현장 기록) 또는 충돌 ID
   actor: string | null; // 책임자 (시스템이 남긴 기록은 null)
   contractors: string[];
   detail: string;
   rule_id: string | null;
   legal_basis: string | null;
+}
+
+// ── F7 TBM 전달 확인 ──────────────────────────────────────────────────
+
+export type TbmItemKind = "adjustment" | "risk_window" | "notice";
+
+/** TBM에서 작업자에게 전달해야 할 항목 하나. 서버가 규칙으로 만든다 */
+export interface TbmItem {
+  id: string;
+  kind: TbmItemKind;
+  text: string;
+  rule_ids: string[];
+  legal_basis: string[];
+  conflict_ids: string[];
+}
+
+/** GET /api/tbm/checklist */
+export interface TbmChecklist {
+  contractor: string;
+  date: string; // YYYY-MM-DD
+  items: TbmItem[];
+}
+
+/** POST /api/tbm/notices 본문: 원청이 업체·날짜를 정해 추가하는 공지 */
+export interface TbmNoticeCreate {
+  contractor: string;
+  date: string; // YYYY-MM-DD
+  text: string;
+  created_by: string;
+}
+
+export interface TbmNotice {
+  id: number;
+  contractor: string;
+  date: string; // YYYY-MM-DD
+  text: string;
+  created_by: string;
+  created_at: string;
+}
+
+/** POST /api/tbm/transcribe 응답. 원본 녹음은 받아쓴 뒤 지운다 */
+export interface TbmTranscript {
+  transcript: string;
+  model: string;
+}
+
+/** POST /api/tbm/checks 본문. 전달 항목은 보내지 않는다 (서버가 만든다) */
+export interface TbmCheckRequest {
+  contractor: string;
+  date: string; // YYYY-MM-DD
+  transcript: string;
+  checked_by: string;
+}
+
+export interface TbmItemResult {
+  item: TbmItem;
+  mentioned: boolean;
+  quote: string | null; // 전달을 뒷받침하는 전사문의 문장
+  note: string | null; // LLM 답을 규칙이 뒤집은 까닭
+}
+
+/** 저장된 TBM 전달 확인 한 건 (F5 이행 기록에도 남는다) */
+export interface TbmCheckRecord {
+  id: number;
+  contractor: string;
+  date: string; // YYYY-MM-DD
+  checked_by: string;
+  checked_at: string;
+  transcript: string;
+  results: TbmItemResult[];
+  missing_ids: string[]; // 전달이 확인되지 않은 항목
+  provider: string;
+  model: string;
 }
 
 // ── F9 위험 시간대 ────────────────────────────────────────────────────
@@ -326,9 +403,9 @@ export interface PlanRecord {
 
 export interface PlanSubmitResult {
   plan: PlanRecord;
-  conflicts: Conflict[];
+  conflicts: Conflict[]; // 제출한 협력사에게 공유된 현재 충돌 (원청 확인 전이면 보통 빈 목록)
   refresh: boolean; // 판정 후 화면을 한 번 강제 새로고침
-  diff: ConflictDiff | null; // 이 제출로 사라지거나 새로 생긴 충돌 (새 충돌 알림)
+  diff: ConflictDiff | null; // 이 제출로 달라진 충돌 중 제출한 협력사에게 공유된 것. 원청은 GET /api/conflicts 의 plan_id 로 이 제출이 드러낸 충돌을 본다
   recheck_ms: number | null;
 }
 

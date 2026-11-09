@@ -90,7 +90,7 @@ def list_shared(contractor: str | None = None) -> list[SharedItem]:
 
 
 def visible_tasks(contractor: str) -> list[Task]:
-    """협력사가 볼 수 있는 일정: 자기 작업 + 공유된 충돌의 상대 작업(원문 위치는 뺀다)."""
+    """협력사가 볼 수 있는 일정: 자기 작업 + 공유된 충돌의 상대 작업(원문 위치·투입 인원은 뺀다)."""
     schedule = current_schedule()
     shared_ids = {t for r in list_conflicts(contractor, include_resolved=True) for t in r.conflict.task_ids}
     out = []
@@ -98,5 +98,5 @@ def visible_tasks(contractor: str) -> list[Task]:
         if t.contractor == contractor:
             out.append(t)
         elif t.id in shared_ids:
-            out.append(t.model_copy(update={"source": None}))
+            out.append(t.model_copy(update={"source": None, "crew": None}))  # 상대 업체의 원문 위치·투입 인원은 비공개
     return out

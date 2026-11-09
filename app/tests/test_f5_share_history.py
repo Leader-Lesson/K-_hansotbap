@@ -146,3 +146,12 @@ def test_all_zone_owner_keeps_whole_bundle():
     bundle = next(r.conflict for r in list_conflicts() if r.conflict.id.endswith(">ALL"))
     owner = next(t.contractor for t in schedule if t.id == bundle.task_ids[0])
     assert scope_all_zone_conflict(bundle, schedule, owner) == bundle
+
+
+def test_contractor_does_not_see_other_companies_crew():
+    """협력사는 공유된 상대 작업의 일정·위치는 보지만 투입 인원은 보지 못한다 (원청은 전부)."""
+    _submit_s1()
+    assert _share(TARGET).status_code == 200
+    by_id = {t["id"]: t for t in _get("/api/tasks", PIPE)}
+    assert by_id["P34"]["crew"] and by_id["P22"]["crew"] is None
+    assert next(t for t in _get("/api/tasks") if t["id"] == "P22")["crew"]
