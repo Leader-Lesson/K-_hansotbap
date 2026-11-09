@@ -1,19 +1,40 @@
-"""계획서 파일 → 텍스트. 원문 근거 표시를 위해 위치 표식(페이지·시트!셀·문단)을 줄 앞에 붙인다."""
+"""계획서 파일 → ParsedDocument(줄·표 행 + 위치 표식). 원문 근거 표시를 위해 위치 표식(페이지·시트!셀·문단)을 붙인다."""
 
-from .hwpx import hwpx_to_text
-from .pdf import pdf_to_text
-from .xlsx import xlsx_to_text
+from .document import ParsedDocument, Segment, Table, TableRow
+from .hwpx import hwpx_to_text, parse_hwpx
+from .pdf import parse_pdf, pdf_to_text
+from .xlsx import parse_xlsx, xlsx_to_text
+
+SUPPORTED = (".pdf", ".xlsx", ".hwpx")
 
 
-def extract_text(filename: str, data: bytes) -> str:
+def parse_document(filename: str, data: bytes) -> ParsedDocument:
     lower = filename.lower()
     if lower.endswith(".pdf"):
-        return pdf_to_text(data)
+        return parse_pdf(data, filename)
     if lower.endswith(".xlsx"):
-        return xlsx_to_text(data)
+        return parse_xlsx(data, filename)
     if lower.endswith(".hwpx"):
-        return hwpx_to_text(data)
+        return parse_hwpx(data, filename)
     raise ValueError(f"지원하지 않는 형식: {filename}")
 
 
-__all__ = ["extract_text", "pdf_to_text", "xlsx_to_text", "hwpx_to_text"]
+def extract_text(filename: str, data: bytes) -> str:
+    return parse_document(filename, data).text()
+
+
+__all__ = [
+    "SUPPORTED",
+    "ParsedDocument",
+    "Segment",
+    "Table",
+    "TableRow",
+    "parse_document",
+    "extract_text",
+    "parse_pdf",
+    "parse_xlsx",
+    "parse_hwpx",
+    "pdf_to_text",
+    "xlsx_to_text",
+    "hwpx_to_text",
+]
