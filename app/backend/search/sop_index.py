@@ -1,8 +1,10 @@
 """F8 작업표준서 임베딩 인덱스 (담당: 백엔드·규칙).
 
-FAISS 내적 인덱스(정규화 벡터 → 코사인 유사도). 임베딩은 Unsloth Studio(/v1/embeddings)에서 받는다.
-- .env UNSLOTH_EMBEDDING_MODEL 이 비어 있으면 쓰지 않는다. 노트북 서버의 기본 임베딩(384차원)은 한국어 작업과
-  표준서를 구분하지 못했다(합성 작업 6건 중 2건만 맞음). 다국어 임베딩 모델(bge-m3 등)을 띄우고 이름을 넣으면 켜진다.
+FAISS 내적 인덱스(정규화 벡터 → 코사인 유사도). 임베딩은 .env EMBEDDING_PROVIDER 로 고른 로컬 서버
+(Unsloth Studio·LM Studio, /v1/embeddings)에서 받는다.
+- 그 서버의 임베딩 모델(UNSLOTH_EMBEDDING_MODEL / LMSTUDIO_EMBEDDING_MODEL)이 비어 있으면 쓰지 않는다. 노트북 서버의
+  기본 임베딩(384차원)은 한국어 작업과 표준서를 구분하지 못했다(합성 작업 6건 중 2건만 맞음). 다국어 임베딩 모델
+  (bge-m3 등)을 띄우고 이름을 넣으면 켜진다.
 - 임베딩은 매칭 순위·이유를 보강하는 데만 쓴다. 결함(필수 단계 누락) 판정은 rules/sop_steps.py 규칙이 한다.
 """
 
@@ -48,15 +50,15 @@ class SopIndex:
 
 
 def default_embedder() -> Embedder | None:
-    """임베딩 모델 이름이 설정돼 있을 때만 Unsloth 임베딩을 쓴다."""
-    if not settings.unsloth_embedding_model:
-        return None
-    from llm.provider import UnslothProvider
+    """EMBEDDING_PROVIDER 쪽 임베딩 모델 이름이 설정돼 있을 때만 그 서버의 임베딩을 쓴다 (다른 서버로 넘어가지 않는다)."""
+    from llm.provider import embedding_model, get_embedding_provider
 
+    if not embedding_model():
+        return None
     try:
-        return UnslothProvider().embed
+        return get_embedding_provider().embed
     except Exception as e:  # 키·주소 없음
-        log.warning("임베딩 사용 안 함: %s: %s", type(e).__name__, e)
+        log.warning("임베딩 사용 안 함 (%s): %s: %s", settings.embedding_provider, type(e).__name__, e)
         return None
 
 
