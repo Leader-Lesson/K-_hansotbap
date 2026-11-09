@@ -147,8 +147,12 @@ function ensureFfmpeg() {
   if (which("ffmpeg")) return true;
   log("ffmpeg 가 없어 설치를 시도합니다 (m4a·webm·mp3 변환용)");
   if (IS_MAC && which("brew")) run("brew", ["install", "ffmpeg"]);
-  else if (IS_WIN && which("winget")) run("winget", ["install", "-e", "--id", "Gyan.FFmpeg", "--accept-source-agreements", "--accept-package-agreements"]);
-  else if (which("apt-get")) run("sudo", ["apt-get", "install", "-y", "ffmpeg"]);
+  else if (IS_WIN && which("winget")) {
+    run("winget", ["install", "-e", "--id", "Gyan.FFmpeg", "--accept-source-agreements", "--accept-package-agreements"]);
+    // winget 은 PATH 를 레지스트리에만 고친다 → 이번 실행(과 whisper-server --convert)에도 보이게 다시 읽어 붙인다
+    const reg = spawnSync("powershell", ["-NoProfile", "-Command", "[Console]::OutputEncoding=[Text.Encoding]::UTF8; [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')"], { encoding: "utf8" });
+    if (reg.status === 0 && reg.stdout.trim()) process.env.PATH = `${reg.stdout.trim()};${process.env.PATH}`;
+  } else if (which("apt-get")) run("sudo", ["apt-get", "install", "-y", "ffmpeg"]);
   if (which("ffmpeg")) return true;
   log("ffmpeg 를 쓸 수 없습니다. wav 파일만 받습니다 (Windows는 winget 설치 후 터미널을 새로 열면 잡힙니다)");
   return false;

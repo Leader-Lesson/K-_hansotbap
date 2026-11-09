@@ -7,12 +7,22 @@
 
 from __future__ import annotations
 
+import sqlite3
 import threading
 from datetime import datetime
 
 from rules.data_loader import load_rules, load_wbs_tasks, load_zones
 from rules.engine import detect_conflicts, detect_sequence_violations
-from schemas import Conflict, PlanExtraction, PlanRecord, PlanSubmission, PlanSubmitResult, Task
+from schemas import (
+    Conflict,
+    ConflictRecord,
+    ConflictStatus,
+    PlanExtraction,
+    PlanRecord,
+    PlanSubmission,
+    PlanSubmitResult,
+    Task,
+)
 
 from .database import session
 
@@ -82,6 +92,76 @@ def judge(tasks: list[Task]) -> list[Conflict]:
     return list(unique.values())
 
 
+# ── 판정 결과 저장·조회 ────────────────────────────────────────────────
+# 판정 결과를 제출 응답에만 두면 화면을 새로고침할 때 사라진다. 기획서가 "판정 후 화면을 한 번 강제
+# 새로고침"하라고 하므로 DB에 남긴다. F4 재판정·F5 이행 기록도 이 표를 쓴다.
+_CONFLICT_UPSERT = """
+INSERT INTO conflicts (id, plan_id, judged_at, payload, status, resolved_at)
+VALUES (?, ?, ?, ?, 'open', NULL)
+ON CONFLICT(id) DO UPDATE SET
+    plan_id = excluded.plan_id,
+    judged_at = excluded.judged_at,
+    payload = excluded.payload,
+    resolved_at = NULL,
+    -- 사람이 적용한 조정(adjusted)은 그대로 둔다. 해소됐다 다시 나타나면 open 으로 되돌린다
+    status = CASE WHEN conflicts.status = 'resolved' THEN 'open' ELSE conflicts.status END
+"""
+
+
+def save_conflicts(
+    conn: sqlite3.Connection, plan_id: int | None, conflicts: list[Conflict], judged_at: str
+) -> None:
+    """판정 결과를 지금 상태로 맞춘다.
+
+    판정은 일정 전체를 다시 보기 때문에, 이번 판정에 없는 충돌은 해소된 것으로 적는다(지우지 않는다 —
+    없어졌다는 사실 자체가 F5 이행 기록이다).
+    """
+    conn.executemany(
+        _CONFLICT_UPSERT, [(c.id, plan_id, judged_at, c.model_dump_json()) for c in conflicts]
+    )
+    ids = [c.id for c in conflicts]
+    if ids:
+        marks = ",".join("?" * len(ids))
+        conn.execute(
+            "UPDATE conflicts SET status = 'resolved', resolved_at = ?"
+            f" WHERE status != 'resolved' AND id NOT IN ({marks})",
+            (judged_at, *ids),
+        )
+    else:
+        conn.execute(
+            "UPDATE conflicts SET status = 'resolved', resolved_at = ? WHERE status != 'resolved'",
+            (judged_at,),
+        )
+
+
+def _conflict_record(row) -> ConflictRecord:
+    return ConflictRecord(
+        conflict=Conflict.model_validate_json(row["payload"]),
+        status=ConflictStatus(row["status"]),
+        plan_id=row["plan_id"],
+        judged_at=datetime.fromisoformat(row["judged_at"]),
+        resolved_at=datetime.fromisoformat(row["resolved_at"]) if row["resolved_at"] else None,
+    )
+
+
+def list_conflicts(contractor: str | None = None, include_resolved: bool = False) -> list[ConflictRecord]:
+    """저장된 판정 결과.
+
+    협력사로 부르면 자기 작업이 걸린 충돌만 준다. 권한은 서버에서 거른다(프론트 필터로 대신하지 않는다).
+    상대 업체가 누구인지는 충돌 안에 남는다 — 혼재작업 조정에 필요한 정보이고, 기획서의 공유 범위
+    (인접 위치 작업·위험 요소·작업 인계 조건)에 들어간다.
+    """
+    sql = "SELECT * FROM conflicts"
+    if not include_resolved:
+        sql += " WHERE status != 'resolved'"
+    with session() as conn:
+        records = [_conflict_record(r) for r in conn.execute(sql)]
+    if contractor:
+        mine = {t.id for t in current_schedule() if t.contractor == contractor}
+        records = [r for r in records if mine & set(r.conflict.task_ids)]
+    return sorted(records, key=lambda r: (r.conflict.window_start, r.conflict.id))
+
+
 def submit_plan(sub: PlanSubmission) -> PlanSubmitResult:
     with _submit_lock:
         now = datetime.now().isoformat(timespec="seconds")
@@ -101,5 +181,6 @@ def submit_plan(sub: PlanSubmission) -> PlanSubmitResult:
             )
         conflicts = judge(current_schedule())
         with session() as conn:
+            save_conflicts(conn, plan_id, conflicts, now)
             row = conn.execute(_PLAN_SELECT + " WHERE p.id = ?", (plan_id,)).fetchone()
     return PlanSubmitResult(plan=_record(row), conflicts=conflicts)

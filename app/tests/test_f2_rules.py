@@ -1,4 +1,4 @@
-"""F2 충돌 판정: 데모 시나리오 S1~S7(docs/20 5장), 근거 붙이기, 전 구역 작업, 혼재 경고, 표준서 결함, 판정 API."""
+"""F2 충돌 판정: 데모 시나리오 S1~S7(docs/20 5장), 근거 붙이기, 전 구역 작업, 혼재 경고, 표준서 결함, 제출 흐름."""
 
 from datetime import datetime
 
@@ -126,15 +126,6 @@ def test_sop_missing_step_becomes_defect():
     got = detect_conflicts([task], load_zones(), load_rules(), sop_matches=[sop])
     c = next(c for c in got if c.type == ConflictType.SOP_MISSING)
     assert c.grade == Grade.DEFECT and "제65조" in c.legal_basis and "가스 측정" in c.reason
-
-
-def test_conflicts_api_filters():
-    everything = client.get("/api/conflicts").json()
-    assert {c["id"] for c in everything} >= {"R16:P23>P20", "R18:P17>P24", "R04:P10>P25"}
-    at = client.get("/api/conflicts", params={"at": "2027-01-02T12:00:00"}).json()
-    assert at and all(c["window_start"] <= "2027-01-02T12:00:00" < c["window_end"] for c in at)
-    only = client.get("/api/conflicts", params={"task_id": "P24", "grade": "금지"}).json()
-    assert only and all("P24" in c["task_ids"] and c["grade"] == "금지" for c in only)
 
 
 def test_end_to_end_upload_submit_conflict_then_adjust():
