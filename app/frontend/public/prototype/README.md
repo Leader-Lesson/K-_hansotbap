@@ -17,8 +17,8 @@ npm run dev
 
 브라우저가 `http://localhost:5173/prototype/index.html`(이 시안)로 자동으로 열립니다. 팀 React 앱은 그대로 `http://localhost:5173/`에 있습니다.
 
-- **3D · 충돌 탭**은 같은 출처의 `/scene3d/index.html`(`app/frontend/public/scene3d`)을 iframe으로 넣고 `postMessage`로 데이터를 넘깁니다. 그래서 `npm run dev`(또는 `npm run build` 뒤 `vite preview`)로 열어야 동작합니다. `index.html` 파일을 직접 열면 3D 탭에 안내가 뜨고, "시안 3D" 버튼으로 기존 클레이 3D를 볼 수 있습니다.
-- 인터넷 연결이 필요합니다. 시안 3D용 three.js(r128, cdnjs), GLTFLoader(jsdelivr), 웹폰트(Google Fonts)를 CDN에서 불러옵니다. scene3d는 `vendor/`에 three.js를 포함하고 있습니다.
+- **3D · 충돌 탭**은 같은 출처의 `/scene3d/index.html`(`app/frontend/public/scene3d`)을 iframe으로 넣고 `postMessage`로 데이터를 넘깁니다. 그래서 `npm run dev`(또는 `npm run build` 뒤 `vite preview`)로 열어야 동작합니다. `index.html` 파일을 직접 열면 3D 탭에 안내만 뜹니다.
+- 인터넷 연결이 필요합니다. 웹폰트(Google Fonts)를 CDN에서 불러옵니다. 3D(scene3d)는 `vendor/`에 three.js를 포함하고 있어 인터넷이 없어도 됩니다.
 
 ## 폴더 구조
 
@@ -38,7 +38,7 @@ app/frontend/public/prototype/
 | 탭 | 내용 |
 | --- | --- |
 | 현재 상황판 | 시안4 시간표형 (07:00–19:00, 30분 칸). 위험 시간대 띠(F9), 구역별 업체 막대, 지금 선, 겹침 띠, 조치 카드, 착수 승인 대기, 안전 작업 가이드 |
-| 3D · 충돌 | 기본은 **scene3d**(팀 3D 화면) 삽입: 시안의 날짜·작업·충돌·역할(직영관리자/파트장/작업자)을 넘기고, 시연 7번·충돌 상세의 "3D로 보기"는 해당 작업을 선택합니다. "시안 3D" 버튼으로 기존 클레이 3D(작업별/충돌별, 2D 도면, 변경 사항)를 볼 수 있습니다 |
+| 3D · 충돌 | **scene3d**(팀 3D 화면) 하나만 사용: 시안의 날짜·작업·충돌·역할(직영관리자/파트장/작업자)을 넘기고, 시연 7번·충돌 상세의 "3D로 보기"는 해당 작업을 선택합니다. 2D 도면·시간·작업자·위험/안전 영역은 scene3d 안에서 봅니다 |
 | TBM 확인 | M1 큰 체크리스트. 공유된 충돌·조정, 위험 시간대, 작업표준서 항목을 팀장 발언과 대조 |
 | 이력 | 제64조 이행 기록 (반려·조정·전체 알림·착수 승인·TBM 등), 계획서 버전, 공유 현황, CSV 복사 |
 
@@ -96,22 +96,6 @@ app/frontend/public/prototype/
 | scene3d → 시안 | `ready` · `select` · `decision` | 준비 완료 시 데이터 전송, 선택한 작업의 충돌 포커스, 승인·반려는 이력에 기록 |
 
 구역 매핑: 노정→`TOP`, 노 내부 상부·중부→`STACK`, 노 내부 하부→`BELLY_BOSH`, 풍구 층→`TUYERE`, 노 내부 바닥→`HEARTH`, 외부 작업대→`SHELL`, 주상→`CASTHOUSE`, 열풍로→`STOVE`
-
-## 외부 3D 연결 규격 (시안 3D)
-
-3D 탭의 **3D 결과물 불러오기**로 `.glb`를 바로 넣어 볼 수 있습니다.
-
-- 메시나 그룹 이름에 구역 ID(`Z1`~`Z9`) 또는 구역명(노정, 노 내부 상부·중부·하부, 풍구, 바닥, 작업대, 주상, 열풍로)을 넣습니다.
-- 텍스처를 포함한 단일 `.glb`, Draco 압축 없이 내보냅니다.
-
-직접 만든 장면을 붙일 때는 아래 객체를 넣은 JS 파일을 만들고 `app.js`의 `EXT3D_SRC`에 경로를 적습니다.
-
-```js
-window.HansotbapScene = {
-  mount(el, api) { /* el 안에 캔버스 생성. api.snapshot(), api.selectZone("Z3"), api.openConflict(key) */ },
-  update(snap)  { /* 날짜·시각·모드가 바뀔 때마다 호출. snap.zones.Z3.level, .sectors, .tasks, snap.conflicts */ }
-};
-```
 
 ## 시연판에서 흉내만 낸 부분
 

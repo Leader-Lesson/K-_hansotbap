@@ -8,7 +8,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="assets/css/styles.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 <header class="top">
@@ -55,22 +54,9 @@
 
   <section class="view" id="view-model" hidden>
     <section class="card s3card" id="s3card">
-      <header><h2>고로 3D · 충돌</h2><span class="fx">F3 scene3d</span><span class="sub" id="s3info">불러오는 중…</span><span class="grow"></span>
-        <div class="seg" role="group" aria-label="3D 화면"><button data-act="m3src" data-s="scene3d">scene3d</button><button data-act="m3src" data-s="legacy">시안 3D</button></div></header>
+      <header><h2>고로 3D · 충돌</h2><span class="fx">F3 scene3d</span><span class="sub" id="s3info">불러오는 중…</span><span class="grow"></span></header>
       <div class="s3frame" id="s3frame"></div>
     </section>
-    <div class="m3" id="m3legacy">
-      <section class="card">
-        <header><h2>고로 3D</h2><span class="fx">F3</span>
-          <div class="seg" role="group" aria-label="구분"><button data-act="mmode" data-m="task">작업별</button><button data-act="mmode" data-m="conf">충돌별</button></div>
-          <div class="seg" role="group" aria-label="보기"><button data-act="mview" data-v="3d">3D</button><button data-act="mview" data-v="2d">2D 도면</button></div>
-          <span class="grow"></span><label class="btn sm" for="glbIn" style="cursor:pointer">3D 결과물 불러오기</label><input type="file" id="glbIn" accept=".glb,.gltf" hidden><button class="btn sm" data-act="extspec">연결 규격</button></header>
-        <div class="stage" id="stage"><span class="tag">임시 3D · 클레이 스타일 시안</span></div>
-        <div class="slider"><div class="r"><label for="mday" class="sub">공정일</label><input type="range" id="mday" min="1" max="132"><span id="mdayOut"></span></div><div class="ticks2" id="mticks"></div></div>
-        <div class="extinfo" id="extInfo" hidden></div>
-      </section>
-      <section class="card"><header><h2 id="mlTitle"></h2><span class="grow"></span><span class="sub" id="mlSub"></span></header><div class="lst" id="mList"></div></section>
-    </div>
   </section>
 
   <section class="view" id="view-tbm" hidden><div id="tbmBody"></div></section>

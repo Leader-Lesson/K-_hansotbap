@@ -106,7 +106,7 @@ function fresh(){
   return {tasks,ver:{A:1,B:1,C:1,D:1,E:1},fst:{A:"ok",B:"ok",C:"ok",D:"ok",E:"ok"},files:[],role:"HQ",day:65,sel:null,
     conflicts:[],mitig:{},seen:new Set(),newKeys:new Set(),log:[],adjusted:[],shared:new Set(),riskSent:new Set(),banner:null,lastMs:0,lastApply:null,undo:null,
     chat:[],chatOpen:false,heard:null,drawer:null,upOpen:null,mmode:"conf",mview:"3d",mzone:null,
-    tbm:{p:"C",sample:"A",text:"",res:null,rec:false},hfilt:"전체",step:0,focus:null,ptab:"A",tbmLast:{},delays:{},urgent:[],useq:0,dform:{t:null,h1:null,why:""},events:[],holds:[],started:{},eseq:0,xseq:0,lvl:"hq",notes:[],notiOpen:false,mhour:10.5,extOpen:false,m3src:"scene3d",
+    tbm:{p:"C",sample:"A",text:"",res:null,rec:false},hfilt:"전체",step:0,focus:null,ptab:"A",tbmLast:{},delays:{},urgent:[],useq:0,dform:{t:null,h1:null,why:""},events:[],holds:[],started:{},eseq:0,xseq:0,lvl:"hq",notes:[],notiOpen:false,mhour:10.5,extOpen:false,
     eform:{tab:"job",p:"C",name:"노 내부 중부 가스 배관 누설 긴급 차단",zone:"Z3",h0:13,h1:15,crew:4,types:["가스"],vk:"wind",vz:"Z3",vh1:15,secs:["N"]},
     review:Object.fromEntries(PARTNERS.map(p=>[p.id,{v:1,st:"반영"}])),
     hist:Object.fromEntries(PARTNERS.map(p=>[p.id,[{v:1,time:UPT[p.id],by:p.lead,st:"반영",note:"첫 제출 · 구조화 완료"}]]))};
@@ -633,178 +633,8 @@ function editTask(id,f,val){const t=task(id);if(!t)return;
   toast(`다시 대조했습니다 · 해소 ${resolved.length}건 · 새 충돌 ${added.length}건`);renderAll();}
 
 /* ================= 2. 3D · 충돌 (F3) ================= */
-const M3={inited:false,ok:false,
-  ensure(){if(this.inited)return;this.inited=true;const box=$("#stage");
-    const builtin=()=>{if(!window.THREE){this.ok=false;return;}try{this.build(box);this.ok=true;}catch(e){this.ok=false;}};
-    const plug=()=>{try{this.plugin=window.HansotbapScene;this.plugin.mount(box,window.hansotbap);this.ok=true;this.isPlugin=true;}catch(e){this.plugin=null;builtin();}};
-    if(window.HansotbapScene){plug();return;}
-    if(EXT3D_SRC){loadScript(EXT3D_SRC).then(()=>window.HansotbapScene?plug():builtin()).then(()=>renderModel()).catch(()=>{builtin();renderModel();});return;}
-    builtin();},
-  useModel(obj,name){if(!this.ok||this.isPlugin)return;const T=THREE;if(this.ext)this.root.remove(this.ext);
-    this.builtin=this.builtin||this.zones;Object.values(this.builtin).forEach(v=>v.meshes.forEach(m=>m.visible=false));
-    const ry=this.root.rotation.y;this.root.rotation.y=0;this.root.updateMatrixWorld(true);
-    const bx=new T.Box3().setFromObject(obj),size=bx.getSize(new T.Vector3()),ctr=bx.getCenter(new T.Vector3()),sc=72/Math.max(size.y,size.x*.8,size.z*.8,1e-6);
-    obj.scale.multiplyScalar(sc);obj.position.set(-ctr.x*sc,-bx.min.y*sc,-ctr.z*sc);this.root.add(obj);this.ext=obj;obj.updateMatrixWorld(true);
-    const zones={},found=new Set();
-    obj.traverse(o=>{if(!o.isMesh)return;let z=null,q=o;while(q&&!z){z=zoneOfName(q.name||"");q=q.parent;}if(!z)return;
-      o.material=Array.isArray(o.material)?o.material.map(m=>m.clone()):o.material.clone();(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m.color)m.userData.c0=m.color.clone();});
-      o.userData.id=z;o.castShadow=true;o.receiveShadow=true;(zones[z]=zones[z]||{meshes:[],base:[]}).meshes.push(o);zones[z].base.push(o.position.y);found.add(z);});
-    this.anchors={...this.anchors0};this.LP={...this.LP0};
-    Object.entries(zones).forEach(([z,v])=>{const b=new T.Box3();v.meshes.forEach(m=>b.expandByObject(m));const c=b.getCenter(new T.Vector3());this.anchors[z]=[b.max.x,c.y];this.LP[z]=[b.max.x,c.y,c.z];});
-    Object.keys(ZONES).forEach(z=>{if(!zones[z]){zones[z]=this.builtin[z];zones[z].meshes.forEach(m=>m.visible=true);}});
-    this.root.rotation.y=ry;this.zones=zones;this.extInfo={name,found:[...found].sort()};this.update();renderModel();
-    toast(`${name} 불러옴 · 구역 매핑 ${found.size}/9${found.size<9?" · 나머지는 기본 모델로 표시":""}`);},
-  resetModel(){if(!this.ext)return;this.root.remove(this.ext);this.ext=null;this.zones=this.builtin;Object.values(this.zones).forEach(v=>v.meshes.forEach(m=>m.visible=true));
-    this.anchors={...this.anchors0};this.LP={...this.LP0};this.extInfo=null;this.update();renderModel();toast("기본 모델로 돌아왔습니다");},
-  build(box){
-    const T=THREE,W=box.clientWidth||600,H=box.clientHeight||520;
-    const r=new T.WebGLRenderer({antialias:true,alpha:true});r.setPixelRatio(Math.min(2,devicePixelRatio||1));r.setSize(W,H);r.shadowMap.enabled=true;r.shadowMap.type=T.PCFSoftShadowMap;box.appendChild(r.domElement);
-    const scene=new T.Scene(),cam=new T.PerspectiveCamera(34,W/H,.1,800);cam.position.set(0,58,132);cam.lookAt(0,34,0);
-    scene.add(new T.HemisphereLight(0xffffff,0x9a8f80,.85));const dl=new T.DirectionalLight(0xffffff,.7);dl.position.set(50,110,70);dl.castShadow=true;dl.shadow.mapSize.set(1024,1024);
-    Object.assign(dl.shadow.camera,{left:-70,right:70,top:90,bottom:-10,near:10,far:300});scene.add(dl);
-    const root=new T.Group();scene.add(root);
-    const ground=new T.Mesh(new T.CircleGeometry(70,48),new T.MeshStandardMaterial({color:0xcfc8bd,roughness:1,transparent:true,opacity:.35}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;root.add(ground);
-    const zones={};
-    const mk=(id,geo,pos,rot)=>{const m=new T.Mesh(geo,new T.MeshStandardMaterial({color:0xd8d1c6,roughness:.95,metalness:0,transparent:true}));m.castShadow=true;m.receiveShadow=true;
-      m.position.set(...pos);if(rot)m.rotation.set(...rot);m.userData.id=id;root.add(m);(zones[id]=zones[id]||{meshes:[],base:[]}).meshes.push(m);zones[id].base.push(pos[1]);};
-    const fr=(rt,rb,h)=>new T.CylinderGeometry(rt,rb,h,40,1);
-    mk("Z6",fr(7.6,7.4,11),[0,6.5,0]);mk("Z5",new T.TorusGeometry(10.6,1.1,12,48),[0,16,0],[Math.PI/2,0,0]);mk("Z5",fr(8.4,7.7,6),[0,16,0]);
-    mk("Z4",fr(9.4,8.6,7),[0,23.5,0]);mk("Z3",fr(8.6,9.5,12),[0,34,0]);mk("Z2",fr(6.8,8.5,11),[0,46.5,0]);mk("Z1",fr(4.6,6.6,6),[0,56,0]);mk("Z1",new T.BoxGeometry(10,6,10),[0,63,0]);
-    mk("Z7",new T.BoxGeometry(4,1.2,20),[12.5,36,0]);mk("Z8",new T.BoxGeometry(22,6,14),[25,3,0]);
-    mk("Z9",fr(3.6,3.6,30),[-28,15,-4]);mk("Z9",fr(3.6,3.6,30),[-36,15,6]);mk("Z9",new T.CylinderGeometry(1,1,16,12),[-19,24,0],[0,0,Math.PI/2]);
-    const anchors={Z1:[7,59],Z2:[9,46.5],Z3:[10,34],Z7:[15,38],Z4:[10,23.5],Z5:[12.5,16],Z6:[8.5,6.5],Z8:[37,4],Z9:[-24,32]};
-    this.LP={Z1:[7.2,58,0],Z2:[9.2,46.5,0],Z3:[10.2,34,0],Z4:[10.1,23.5,0],Z5:[12.6,16,0],Z6:[8.3,6.5,0],Z7:[14.6,36,0],Z8:[25,6.5,0],Z9:[-28,24,-4]};this.LP0={...this.LP};this.anchors0={...anchors};
-    const labels={};Object.keys(ZONES).forEach(z=>{const d=document.createElement("div");d.className="zl";box.appendChild(d);labels[z]=d;});
-    const links=new T.Group();root.add(links);Object.assign(this,{r,scene,cam,root,zones,anchors,labels,box,W,H,links});
-    let drag=false,lx=0,mv=0,idle=0;const ray=new T.Raycaster(),v2=new T.Vector2();
-    r.domElement.addEventListener("pointerdown",e=>{drag=true;lx=e.clientX;mv=0;});
-    addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-lx;lx=e.clientX;mv+=Math.abs(dx);root.rotation.y+=dx*.01;});
-    addEventListener("pointerup",e=>{if(!drag)return;drag=false;idle=performance.now();if(mv<5&&e.target===r.domElement){const b=r.domElement.getBoundingClientRect();v2.set((e.clientX-b.left)/b.width*2-1,-((e.clientY-b.top)/b.height)*2+1);ray.setFromCamera(v2,cam);
-      const hit=ray.intersectObjects(Object.values(this.zones).flatMap(z=>z.meshes).filter(m=>m.visible),true)[0];if(hit){let ob=hit.object;while(ob&&!ob.userData.id)ob=ob.parent;S.mzone=ob?ob.userData.id:S.mzone;S.mview="2d";renderModel();}}});
-    new ResizeObserver(()=>{const w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;this.W=w;this.H=h;r.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix();}).observe(box);
-    const v=new T.Vector3();const loop=()=>{requestAnimationFrame(loop);if(cur!=="model"||S.mview!=="3d")return;
-      if(!drag&&!reduced&&performance.now()-idle>3000)root.rotation.y+=.002;root.updateMatrixWorld();
-      for(const z in this.anchors){const a=this.anchors[z];v.set(a[0],a[1],0).applyMatrix4(root.matrixWorld).project(cam);const L=labels[z];L.style.left=((v.x+1)/2*this.W)+"px";L.style.top=((1-v.y)/2*this.H)+"px";L.style.display=v.z<1?"":"none";}
-      r.render(scene,cam);};loop();
-    new MutationObserver(()=>this.update()).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
-    matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>this.update());
-  },
-  update(){
-    if(this.isPlugin){try{this.plugin.update(snapshot());}catch(e){}return;}
-    if(!this.inited||!this.ok)return;const T=THREE,cs=getComputedStyle(document.documentElement),tok=n=>cs.getPropertyValue(n).trim()||"#999";
-    const d=S.day,st=zoneState(d),foc=S.focus?S.conflicts.find(c=>c.key===S.focus&&c.status==="open"&&c.from<=d&&d<=c.to):null;
-    const fz=new Set(foc?[task(foc.a).zone,foc.b&&task(foc.b).zone].filter(Boolean):[]);
-    for(const z in this.zones){const s=st[z];let col=tok("--clay");
-      if(S.mmode==="task"&&s.tasks.length){const top=s.tasks.slice().sort((a,b)=>b.crew-a.crew)[0];col=tok("--p"+top.p);}
-      if(S.mmode==="conf"&&s.lv)col=tok(s.lv==="금지"?"--red":s.lv==="조건부"?"--amber":"--violet");
-      const dim=fz.size&&!fz.has(z),up=S.mzone===z||fz.has(z);
-      const neutral=col===tok("--clay");this.zones[z].meshes.forEach((m,i)=>{(Array.isArray(m.material)?m.material:[m.material]).forEach(mt=>{if(mt.color){if(neutral&&mt.userData.c0)mt.color.copy(mt.userData.c0);else mt.color.set(col);}mt.transparent=true;mt.opacity=dim?.22:1;mt.depthWrite=!dim;if(mt.emissive){mt.emissive.set(up?col:"#000000");mt.emissiveIntensity=fz.has(z)?.3:up?.2:0;}});m.position.y=this.zones[z].base[i]+(up?1.5:0);});
-      const L=this.labels[z];L.className="zl"+(S.mmode==="conf"&&s.lv?" "+LV[s.lv]:"");L.style.opacity=dim?.35:1;
-      L.innerHTML=`${zn(z)}${S.mmode==="task"?(s.tasks.length?` · <b>${s.crew}명</b>`:""):(s.lv?` · <span class="${s.lv==="금지"?"kw":""}">${s.lv} ${s.n}</span>`:"")}${s.moved?` · <span class="chg">조정됨</span>`:""}`;}
-    while(this.links.children.length){const o=this.links.children.pop();o.geometry.dispose();o.material.dispose();}
-    const LP=this.LP;
-    const RC={Z7:[12.5,36,0,4.5],Z8:[25,3,0,9.5],Z9:[-32,15,1,9]};
-    visC().filter(c=>c.status==="open"&&c.b&&c.from<=d&&d<=c.to).forEach(c=>{
-      const isF=foc&&foc.key===c.key,za=task(c.a).zone,zb=task(c.b).zone,col=tok(c.level==="금지"?"--red":"--amber"),op=foc&&!isF?.15:.95,r=isF?.75:.4;
-      const mat=()=>new T.MeshBasicMaterial({color:new T.Color(col),transparent:true,opacity:op,depthWrite:false});
-      if(za===zb){let g,pos;if(RC[za]){const q=RC[za];g=new T.TorusGeometry(q[3],r,8,48);pos=[q[0],q[1],q[2]];}else{const q=LP[za];g=new T.TorusGeometry(q[0]+1.6,r,8,56);pos=[0,q[1],0];}
-        const m=new T.Mesh(g,mat());m.rotation.x=Math.PI/2;m.position.set(pos[0],pos[1],pos[2]);this.links.add(m);}
-      else{const p1=new T.Vector3(...LP[za]),p2=new T.Vector3(...LP[zb]),mid=p1.clone().add(p2).multiplyScalar(.5);mid.x+=9;
-        this.links.add(new T.Mesh(new T.TubeGeometry(new T.QuadraticBezierCurve3(p1,mid,p2),28,r,8,false),mat()));
-        [p1,p2].forEach(pt=>{const s=new T.Mesh(new T.SphereGeometry(r*2.2,14,10),mat());s.position.copy(pt);this.links.add(s);});}
-    });
-  }
-};
-function zoneState(d){const st={};Object.keys(ZONES).forEach(z=>st[z]={tasks:[],crew:0,lv:null,n:0,moved:false});
-  S.tasks.filter(t=>isBase(t)&&actOn(t,d)&&(S.role==="HQ"||t.p===S.role)).forEach(t=>{st[t.zone].tasks.push(t);st[t.zone].crew+=t.crew;});
-  S.tasks.filter(t=>t.moved&&(actOn(t,d)||actOn(t.moved.before,d))).forEach(t=>{st[t.zone].moved=true;});
-  visC().filter(c=>c.status==="open"&&c.from<=d&&d<=c.to).forEach(c=>[c.a,c.b].filter(Boolean).forEach(id=>{const z=task(id).zone,o=st[z];o.n++;if(o.lv===null||LVO[c.level]<LVO[o.lv])o.lv=c.level;}));
-  return st;}
-function plan2d(z){
-  const d=S.day,h=S.mhour,isCol=ZONES[z].col;
-  const ts=S.tasks.filter(t=>isBase(t)&&t.zone===z&&actOn(t,d)&&(S.role==="HQ"||inScope(t)));
-  const cs=visC().filter(c=>c.status==="open"&&c.from<=d&&d<=c.to&&(task(c.a).zone===z||(c.b&&task(c.b).zone===z)));
-  const zm=zoneMap(z,d,h),CX=320,CY=300,R=150;
-  let s=`<svg viewBox="0 0 640 540" role="img" aria-label="${zn(z)} 2D 도면 ${hh(h)}"><rect x="0" y="0" width="640" height="540" fill="var(--surface)"/>`;
-  s+=`<text x="24" y="34" fill="var(--ink)" font-size="16" font-weight="500">${zn(z)} · ${ZONES[z].floor} · EL.${ZONES[z].elev}m</text><text x="24" y="56" fill="var(--ink-3)" font-size="12">${ymd(d)} <tspan fill="var(--blue)">${hh(h)}</tspan> 기준 · 작업 ${ts.length}건 · 겹침 ${cs.length}건</text>`;
-  const SA={N:-90,E:0,S:90,W:180},fillOf={danger:"var(--red-soft)",caution:"var(--amber-soft)",safe:"var(--ok-soft)"},strokeOf={danger:"var(--red)",caution:"var(--amber)",safe:"var(--ok)"};
-  if(isCol){s+=`<circle cx="${CX}" cy="${CY}" r="${R+26}" fill="none" stroke="var(--ink-3)" stroke-width="10" opacity=".45"/>`;
-    SEC.forEach(k=>{const a0=(SA[k]-45)*Math.PI/180,a1=(SA[k]+45)*Math.PI/180;s+=`<path d="M${CX},${CY} L${(CX+R*Math.cos(a0)).toFixed(1)},${(CY+R*Math.sin(a0)).toFixed(1)} A${R},${R} 0 0 1 ${(CX+R*Math.cos(a1)).toFixed(1)},${(CY+R*Math.sin(a1)).toFixed(1)} Z" fill="${fillOf[zm.map[k]]}" stroke="${strokeOf[zm.map[k]]}" stroke-width="1.5"/>`;
-      const la=SA[k]*Math.PI/180;s+=`<text x="${(CX+(R+44)*Math.cos(la)).toFixed(1)}" y="${(CY+(R+44)*Math.sin(la)+4).toFixed(1)}" text-anchor="middle" font-size="12" fill="${strokeOf[zm.map[k]]}" font-weight="700">${SECN[k]} ${({danger:"위험",caution:"주의",safe:"안전"})[zm.map[k]]}</text>`;});}
-  else s+=`<rect x="90" y="130" width="460" height="330" rx="8" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>`;
-  const used={};const pos=ts.map((t,i)=>{if(!isCol)return [170+((i%2)*300),200+Math.floor(i/2)*100];const k=(secAt(t,h)[0])||t.pos[0];const n=used[k]=(used[k]||0)+1;const a=SA[k]*Math.PI/180,rr=t.pos.length===4&&!t.path?0:88;
-    return [CX+Math.cos(a)*rr,CY+Math.sin(a)*rr+(n-1)*58];});
-  cs.filter(c=>c.b).forEach(c=>{const ia=ts.findIndex(t=>t.id===c.a),ib=ts.findIndex(t=>t.id===c.b);if(ia>=0&&ib>=0)s+=`<line x1="${pos[ia][0]}" y1="${pos[ia][1]}" x2="${pos[ib][0]}" y2="${pos[ib][1]}" stroke="${LVC[c.level]}" stroke-width="3" stroke-dasharray="6 5"/>`;});
-  ts.forEach((t,i)=>{const [x,y]=pos[i],on=h>=t.h0&&h<t.h1&&(!t.path||secAt(t,h).length),own_=own(t),lab=own_?`${P(t.p).name} ${t.name}`:`타사 ${t.name}`;
-    s+=`<g opacity="${on?1:.45}"><rect x="${x-96}" y="${y-26}" width="192" height="52" rx="6" fill="var(--surface)" stroke="${own_?`var(--p${t.p})`:"var(--ink-3)"}" stroke-width="2" ${own_?"":'stroke-dasharray="5 4"'}/><text x="${x}" y="${y-6}" text-anchor="middle" font-size="12.5" fill="var(--ink)">${esc(lab.length>15?lab.slice(0,15)+"…":lab)}</text><text x="${x}" y="${y+14}" text-anchor="middle" font-size="12" fill="var(--ink-2)">${own_?`<tspan font-weight="700">${t.crew}명</tspan> · `:""}<tspan fill="var(--blue)">${hr(t.h0,t.h1)}</tspan>${on?"":" · 이 시각 아님"}</text></g>`;});
-  zm.src.filter(i=>i.s.zone!==z).slice(0,4).forEach((i,k)=>{const up=ZONES[i.s.zone].elev>ZONES[z].elev;
-    s+=`<g><rect x="372" y="${70+k*34}" width="254" height="28" rx="4" fill="var(--surface)" stroke="${i.r.lv==="ban"?"var(--red)":"var(--amber)"}"/><text x="382" y="${89+k*34}" font-size="12" fill="var(--ink)">${up?"↑ 위층":"↔ 인접"} ${zn(i.s.zone)} ${i.secs.length===4?"전체":i.secs.map(q=>SECN[q]).join("·")}: ${esc((own(i.s)?P(i.s.p).name+" ":"타사 ")+i.s.name.slice(0,8))}</text></g>`;});
-  if(!ts.length)s+=`<text x="${CX}" y="${CY+4}" text-anchor="middle" fill="var(--ink-3)" font-size="14">이 날 이 층에는 ${S.role==="HQ"?"":"볼 수 있는 "}작업이 없습니다</text>`;
-  return svgVars(s+`</svg>`);
-}
-function svgVars(s){return s.replace(/<([a-z]+)([^>]*?)(\/?)>/g,(m,tag,attrs,sl)=>{const st=[];attrs=attrs.replace(/\s(fill|stroke)="(var\([^)]*\))"/g,(mm,k,v)=>{st.push(k+":"+v);return "";});return `<${tag}${attrs}${st.length?` style="${st.join(";")}"`:""}${sl}>`;});}
-function renderModel(){
-  const useS3=S.m3src==="scene3d";$("#s3card").hidden=!useS3;$("#m3legacy").hidden=useS3;
-  document.querySelectorAll('[data-act="m3src"]').forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===S.m3src));
-  if(useS3){s3Sync();return;}
-  if(cur==="model")M3.ensure();
-  document.querySelectorAll('[data-act="mmode"]').forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===S.mmode));
-  document.querySelectorAll('[data-act="mview"]').forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===S.mview));
-  const stage=$("#stage");let p=$("#plan2d");if(!p){p=document.createElement("div");p.id="plan2d";p.className="plan2d";stage.appendChild(p);}
-  p.hidden=S.mview!=="2d";if(S.mview==="2d"){const z=S.mzone||"Z3";S.mzone=z;p.innerHTML=plan2d(z)+`<button class="btn sm" data-act="mview" data-v="3d" style="position:absolute;right:12px;top:12px">3D로</button><div style="position:absolute;left:12px;top:70px;display:flex;flex-direction:column;gap:3px"><span class="sub">시각</span>${[8,9,10,10.5,11,12,13,14,15,16,17].map(v=>`<button class="jump" data-act="mhour" data-h="${v}" aria-pressed="${S.mhour===v}">${hh(v)}${v===NOW?" 지금":""}</button>`).join("")}</div><div style="position:absolute;left:12px;bottom:12px;display:flex;gap:4px;flex-wrap:wrap">${ZORDER.map(k=>`<button class="jump" data-act="mzone" data-z="${k}" aria-pressed="${k===z}">${zn(k)}</button>`).join("")}</div>`;}
-  if(!M3.ok&&M3.inited&&S.mview==="3d"){p.hidden=false;p.innerHTML=`<div class="empty">3D를 불러오지 못했습니다. 2D 도면으로 보세요.</div>`;}
-  let fb=$("#focusbar");if(!fb){fb=document.createElement("div");fb.id="focusbar";fb.className="focusbar";stage.appendChild(fb);}
-  const fc=S.focus&&S.conflicts.find(c=>c.key===S.focus&&c.status==="open");fb.hidden=!(fc&&S.mview==="3d");
-  if(fc)fb.innerHTML=`<span class="pill ${LV[fc.level]}">${fc.level}</span><span style="flex:1;min-width:200px">${sentence(fc)}</span>${fc.from<=S.day&&S.day<=fc.to?"":`<button class="btn sm" data-act="day" data-d="${fc.from}">${md(fc.from)}로 이동</button>`}<button class="btn sm" data-act="sel" data-key="${fc.key}">상세</button><button class="link" data-act="unfocus">해제</button>`;
-  const mi=$("#mday");mi.value=S.day;$("#mdayOut").innerHTML=`<span class="t">${ymd(S.day)}</span> · D<b>${S.day}</b>`;
-  $("#mticks").innerHTML=[...new Set(visC().filter(c=>c.status==="open").map(c=>c.from))].map(dd=>`<i style="left:${(dd-1)/(TOTAL-1)*100}%;background:var(--red)"></i>`).join("")+S.adjusted.filter(a=>a.mv).map(a=>`<i style="left:${(a.mv.after.s-1)/(TOTAL-1)*100}%;background:var(--blue)" title="조정: ${esc(a.short)}"></i>`).join("");
-  const d=S.day;let h="";
-  if(S.mmode==="task"){$("#mlTitle").textContent="작업별";$("#mlSub").textContent=`${md(d)} 진행 작업`;
-    const st=zoneState(d);ZORDER.forEach(z=>{if(!st[z].tasks.length)return;h+=`<div class="grp">${zn(z)} · ${st[z].crew}명</div>`;
-      h+=st[z].tasks.map(t=>`<button class="li" data-act="task" data-t="${t.id}"><span class="r"><span class="dot" style="background:${pc(t.p)}"></span>${P(t.p).name} ${esc(t.name)}<b>${t.crew}명</b>${t.moved?`<span class="pill mute" style="color:var(--blue)">조정됨</span>`:""}</span><span class="sub"><span class="t">${hr(t.h0,t.h1)}</span> · ${md(t.s)}~${md(t.e)} · ${t.std}</span></button>`).join("");});
-    if(!h)h=`<div class="empty">이 날 작업이 없습니다</div>`;}
-  else{$("#mlTitle").textContent="충돌별";$("#mlSub").textContent="계획서 충돌과 조정 반영";
-    const all=visC(),today=all.filter(c=>c.from<=d&&d<=c.to&&c.status==="open"),later=all.filter(c=>!(c.from<=d&&d<=c.to)&&c.status==="open"),met=all.filter(c=>c.status==="met");
-    const item=c=>`<button class="li" data-act="focus" data-key="${c.key}" aria-pressed="${S.focus===c.key}"><span class="r"><span class="pill ${LV[c.level]}">${c.level}</span>${RULES[c.rule].kind}${S.newKeys.has(c.key)?`<span class="kw" style="font-size:12px">신규</span>`:""}</span><span>${esc(labelOf(c.key))}</span><span class="sub">${md(c.from)}~${md(c.to)} · <span class="t">${hr(c.h0,c.h1)}</span> · ${c.rule}</span></button>`;
-    h+=`<div class="grp">${md(d)} 충돌 ${today.length}건</div>`+(today.map(item).join("")||`<div class="empty">없음</div>`);
-    if(later.length)h+=`<div class="grp">다른 날 충돌 ${later.length}건</div>`+later.map(item).join("");
-    if(met.length)h+=`<div class="grp">조건 충족 ${met.length}건</div>`+met.map(item).join("");
-    const ch=S.adjusted.filter(a=>S.role==="HQ"||a.parties.includes(S.role));
-    const rv=S.log.filter(l=>l.type==="계획 변경");
-    h+=`<div class="grp">변경 사항 ${ch.length+rv.length}건 <span class="fx">계획서 충돌로 인한 변경</span></div>`;
-    h+=rv.map(l=>`<div class="li"><span class="r"><span class="pill ban">계획 변경</span>${esc(l.time)}</span><span>${esc(mask(l.sum))}</span><span class="sub">${esc(mask(l.dec))}</span></div>`).join("");
-    h+=ch.map(a=>`<div class="li"><span class="r"><span class="pill ok">조정</span><span class="hq">포스코 본청</span>${esc(a.time)} · ${esc(mask(a.who))}</span><span>${esc(labelOf(a.key))}</span><span class="sub">${a.mv?`${esc(tn(task(a.mv.id)))}: ${md(a.mv.before.s)}~${md(a.mv.before.e)} ${hr(a.mv.before.h0,a.mv.before.h1)} → <span class="t">${md(a.mv.after.s)}~${md(a.mv.after.e)} ${hr(a.mv.after.h0,a.mv.after.h1)}</span>`:esc(a.short)}</span>${a.mv?`<span><button class="link" style="padding:0" data-act="day" data-d="${a.mv.after.s}">옮긴 날 보기</button></span>`:""}</div>`).join("");
-    if(!ch.length&&!rv.length)h+=`<div class="empty">아직 변경 사항이 없습니다</div>`;}
-  $("#mList").innerHTML=h;const xi=$("#extInfo");xi.hidden=!S.extOpen&&!M3.extInfo;if(!xi.hidden)xi.innerHTML=extInfoHtml();M3.update();
-}
-
-/* 외부 3D 연결: 다른 로컬에서 만든 결과물을 이 페이지에 넣는 자리 */
-const EXT3D_SRC=null; // JS 모듈로 받으면 같이 게시하고 경로를 넣습니다. 예: "scene/furnace3d.js"
-function zoneOfName(n){const m=/(?:^|[^A-Za-z0-9])Z0?([1-9])(?![0-9])/i.exec(" "+n);if(m)return "Z"+m[1];
-  const k=[["Z1",/노정|furnace_?top|charging/i],["Z2",/내부\s?상부|upper_?shaft/i],["Z3",/내부\s?중부|노흉|mid_?shaft|shaft/i],["Z4",/내부\s?하부|노복|보시|belly|bosh/i],["Z5",/풍구|tuyere/i],["Z6",/바닥|노저|노상|hearth/i],["Z7",/작업대|platform/i],["Z8",/주상|출선|cast_?house/i],["Z9",/열풍로|stove/i]].find(([,re])=>re.test(n));return k?k[0]:null;}
-function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
-async function importModel(file){
-  if(!window.THREE){toast("3D 엔진을 불러오지 못했습니다");return;}M3.ensure();
-  if(file.size>15*1024*1024)toast(`파일이 ${(file.size/1048576).toFixed(1)}MB입니다. 게시할 때는 15MB 이하로 줄여야 합니다`);
-  try{if(!THREE.GLTFLoader)await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js");}catch(e){toast("GLTF 로더를 불러오지 못했습니다");return;}
-  const buf=await file.arrayBuffer(),data=/\.gltf$/i.test(file.name)?new TextDecoder().decode(buf):buf;
-  try{new THREE.GLTFLoader().parse(data,"",g=>M3.useModel(g.scene,file.name),err=>toast("모델을 읽지 못했습니다 · Draco 압축이나 외부 텍스처 파일이 있는지 확인하세요"));}catch(e){toast("모델을 읽지 못했습니다");}
-}
-function snapshot(){const d=S.day,hr0=S.mhour,zs=zoneState(d);
-  return {day:d,date:iso(d),hour:hr0,role:S.role,mode:S.mmode,focus:S.focus,selectedZone:S.mzone,
-    zones:Object.fromEntries(Object.entries(ZONES).map(([z,v])=>[z,{name:v.name,floor:v.floor,elev:v.elev,level:zs[z].lv,crew:zs[z].crew,moved:zs[z].moved,sectors:zoneMap(z,d,hr0).map,
-      tasks:S.tasks.filter(t=>t.zone===z&&actOn(t,d)&&inScope(t)).map(t=>({id:t.id,name:tn(t),partner:own(t)?P(t.p).name:"타사",h0:t.h0,h1:t.h1,sectorsNow:secAt(t,hr0),types:t.types}))}])),
-    conflicts:visC().filter(c=>c.status==="open"&&c.from<=d&&d<=c.to).map(c=>({key:c.key,level:c.level,rule:c.rule,zones:[task(c.a).zone,c.b&&task(c.b).zone].filter(Boolean),h0:c.h0,h1:c.h1}))};}
-window.hansotbap={snapshot,selectZone:z=>{S.mzone=z;S.mview="2d";renderModel();},openConflict:k=>{S.sel=k;S.drawer={kind:"conf",anim:true};renderAll();},zones:ZONES};
-function extInfoHtml(){const e=M3.extInfo;return `<div class="row2"><b>외부 3D 연결</b>${e?`<span class="pill ok">${esc(e.name)} · 구역 ${e.found.length}/9</span><button class="btn sm" data-act="extreset">기본 모델로</button>`:M3.isPlugin?`<span class="pill ok">외부 모듈 연결됨</span>`:`<span class="pill mute">기본 클레이 모델 사용 중</span>`}</div>
-  ${e&&e.found.length<9?`<div class="sub">매핑 안 된 구역: ${Object.keys(ZONES).filter(z=>!e.found.includes(z)).map(z=>`${z} ${zn(z)}`).join(", ")}</div>`:""}
-  <div><b>방법 1 · 모델 파일 (.glb)</b> 메시나 그룹 이름에 구역 ID(<code>Z1</code>~<code>Z9</code>) 또는 구역명(노정, 노 내부 상부·중부·하부, 풍구, 바닥, 작업대, 주상, 열풍로)을 넣으면 색칠·겹침 표시·클릭이 그대로 붙습니다. 텍스처는 파일 안에 넣은 단일 .glb, Draco 압축 없이, 15MB 이하로 주세요.</div>
-  <div><b>방법 2 · JS 모듈</b> 직접 그린 장면을 그대로 쓰려면 아래 두 함수를 가진 객체를 <code>window.HansotbapScene</code>에 넣은 파일 하나로 주세요. three.js는 이 페이지의 r128 전역(<code>THREE</code>)을 쓰거나 번들에 포함하면 됩니다.</div>
-  <pre>window.HansotbapScene = {
-  mount(el, api) { /* el 안에 캔버스를 만듭니다. api.snapshot(), api.selectZone("Z3"), api.openConflict(key) */ },
-  update(snap)  { /* 날짜·시각·모드가 바뀔 때마다 호출. snap.zones.Z3.level, .sectors, .tasks, snap.conflicts */ }
-};</pre>
-  <div class="sub">지금 상태 예시: 구역 ${Object.keys(ZONES).length}개 · 오늘 겹침 ${snapshot().conflicts.length}건 · <code>window.hansotbap.snapshot()</code>으로 확인할 수 있습니다.</div>`;}
+/* 3D · 충돌 탭은 scene3d(app/frontend/public/scene3d) 하나만 쓴다. 데이터·역할·시각은 아래 s3Sync가 postMessage로 넘긴다 */
+function renderModel(){$("#s3card").hidden=false;s3Sync();}
 
 /* ================= scene3d 연동 (app/frontend/public/scene3d, 같은 출처 iframe + postMessage) =================
    보내는 것: data{tasks, conflicts} (src/types.ts 모양) · role(ViewerRole + level) · time · selectTask
@@ -827,9 +657,9 @@ function s3Payload(){const d=S.day,ds=iso(d),at=h=>`${ds}T${hh(h)}:00`;
   const role=S.role==="HQ"?{kind:"prime"}:{kind:"contractor",contractor:s3Contractor(S.role),level:S.lvl==="worker"?"worker":"lead"};
   return {tasks,conflicts,role};}
 function s3Post(msg){const f=$("#s3frame iframe");if(f&&f.contentWindow)f.contentWindow.postMessage({source:"hansotbap",...msg},location.origin);}
-function s3Fail(why){$("#s3info").textContent="연결 안 됨";$("#s3frame").innerHTML=`<div class="empty"><div>scene3d 화면을 불러오지 못했습니다.</div><div class="sub">${why}</div><div class="row2"><button class="btn sm" data-act="s3retry">다시 불러오기</button><button class="btn sm" data-act="m3src" data-s="legacy">시안 3D로 보기</button></div></div>`;}
+function s3Fail(why){$("#s3info").textContent="연결 안 됨";$("#s3frame").innerHTML=`<div class="empty"><div>scene3d 화면을 불러오지 못했습니다.</div><div class="sub">${why}</div><div class="row2"><button class="btn sm" data-act="s3retry">다시 불러오기</button></div></div>`;}
 // 3D 준비가 늦어도 iframe은 지우지 않는다 (GPU 없는 PC에서는 첫 표시가 수십 초 걸릴 수 있음). 늦어지면 안내만 띄운다 [팀 설정값: 20초]
-function s3Slow(){$("#s3info").innerHTML=`3D 준비가 늦어지고 있습니다 · <button class="link" data-act="s3retry" style="padding:0">다시 불러오기</button> · <button class="link" data-act="m3src" data-s="legacy" style="padding:0">시안 3D로 보기</button>`;}
+function s3Slow(){$("#s3info").innerHTML=`3D 준비가 늦어지고 있습니다 · <button class="link" data-act="s3retry" style="padding:0">다시 불러오기</button>`;}
 function s3Sync(force){
   if(cur!=="model"&&!$("#s3frame iframe"))return;
   const ds=iso(S.day),host=$("#s3frame");
@@ -972,10 +802,7 @@ document.addEventListener("click",e=>{
   if(a==="nall"){myNotes().forEach(n=>n.read.add(S.role));renderNoti();return;}
   if(a==="nperm"){try{if(typeof Notification==="undefined")throw 0;Notification.requestPermission().then(r=>{toast(r==="granted"?"브라우저 알림을 켰습니다":"브라우저 알림이 허용되지 않았습니다. 화면 안 알림은 계속 표시됩니다");renderNoti();}).catch(()=>toast("이 화면에서는 브라우저 알림을 켤 수 없습니다. 화면 안 알림은 계속 표시됩니다"));}catch(e){toast("이 화면에서는 브라우저 알림을 켤 수 없습니다. 화면 안 알림은 계속 표시됩니다");}return;}
   if(a==="mhour"){S.mhour=+el.dataset.h;renderModel();return;}
-  if(a==="m3src"){S.m3src=el.dataset.s;renderModel();return;}
   if(a==="s3retry"){S3.src="";renderModel();return;}
-  if(a==="extspec"){S.extOpen=!S.extOpen;renderModel();return;}
-  if(a==="extreset"){M3.resetModel();return;}
   if(a==="openevent"){S.eform.tab="job";S.drawer={kind:"event",anim:true};renderDrawer();return;}
   if(a==="etab"){const t=el.dataset.t;if(t==="delay"){S.dform={t:null,h1:null,why:""};S.drawer={kind:"delay"};}else{S.eform.tab=t;S.drawer={kind:"event"};}renderDrawer();return;}
   if(a==="ejT"){const k=el.dataset.k,f=S.eform;f.types=f.types.includes(k)?f.types.filter(x=>x!==k):[...f.types,k];renderDrawer();return;}
@@ -994,7 +821,6 @@ document.addEventListener("click",e=>{
   if(a==="resubmit"){resubmit(el.dataset.p);return;}
   if(a==="to3d"){S.focus=el.dataset.key;const c=S.conflicts.find(x=>x.key===S.focus);if(c)S3.pendingSelect=c.b||c.a;if(c&&(S.day<c.from||S.day>c.to))S.day=c.from;S.mmode="conf";S.mview="3d";S.drawer=null;go("model");renderAll();return;}
   if(a==="focus"){S.focus=S.focus===el.dataset.key?null:el.dataset.key;const c=S.conflicts.find(x=>x.key===S.focus);if(c&&(S.day<c.from||S.day>c.to))S.day=c.from;S.mview="3d";renderHeader();renderModel();return;}
-  if(a==="unfocus"){S.focus=null;renderModel();return;}
   if(a==="undo"){undoLast();return;}
   if(a==="share"){shareC(el.dataset.key);return;}
   if(a==="unmet"){delete S.mitig[el.dataset.key];rejudge();renderAll();return;}
@@ -1002,9 +828,6 @@ document.addEventListener("click",e=>{
   if(a==="closebanner"){S.banner=null;renderBoard();return;}
   if(a==="dprev"||a==="dnext"){S.day=Math.max(1,Math.min(TOTAL,S.day+(a==="dprev"?-1:1)));S.tbm.res=null;renderAll();return;}
   if(a==="day"){S.day=+el.dataset.d;S.tbm.res=null;renderAll();return;}
-  if(a==="mmode"){S.mmode=el.dataset.m;renderModel();return;}
-  if(a==="mview"){S.mview=el.dataset.v;renderModel();return;}
-  if(a==="mzone"){S.mzone=el.dataset.z;renderModel();return;}
   if(a==="chat"){S.chatOpen=!S.chatOpen;renderChat();if(S.chatOpen)setTimeout(()=>$("#chatIn")&&$("#chatIn").focus(),0);return;}
   if(a==="ask"){ask(el.dataset.q);return;}
   if(a==="mic"){voiceAsk(SUGG[(S.chat.length/2|0)%SUGG.length]);return;}
@@ -1030,7 +853,6 @@ document.addEventListener("change",e=>{const el=e.target;
   if(el.id==="evH1"){ef.vh1=+el.value;renderDrawer();return;}
   if(el.id==="dTask"){S.dform.t=el.value;S.dform.h1=null;renderDrawer();return;}
   if(el.id==="dEnd"){S.dform.h1=+el.value;renderDrawer();return;}
-  if(el.id==="glbIn"&&el.files[0]){importModel(el.files[0]);el.value="";return;}
   if(el.id==="dateIn"){const n=dayOfIso(el.value);if(n){S.day=Math.max(1,Math.min(TOTAL,n));S.tbm.res=null;renderAll();}return;}
   if(el.id==="role"){const [r,l]=el.value.split(":");S.role=r;S.lvl=l||"hq";S.drawer=S.drawer&&S.drawer.kind==="up"?S.drawer:null;S.sel=null;S.tbm.res=null;S.upOpen=S.role==="HQ"?null:S.role;renderAll();return;}
   if(el.dataset&&el.dataset.f){editTask(el.dataset.t,el.dataset.f,el.type==="checkbox"?el.checked:el.value);return;}
