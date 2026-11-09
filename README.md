@@ -31,19 +31,21 @@ docs/                 기획서, 기술 스택, 작업 분해 (docs/private/ 는
 
 ## 준비물
 
-- Node.js 22 이상, npm
-- Python 3.11 이상 + [uv](https://docs.astral.sh/uv/) (`pip install uv` 또는 `winget install astral-sh.uv`)
+- Node.js 24 (`.nvmrc`, npm 11 포함). 24보다 낮으면 `npm run setup` 이 `EBADENGINE` 오류로 멈춘다 (`.npmrc` 의 `engine-strict`). nvm-windows: `nvm install 24 && nvm use 24`
+- [uv](https://docs.astral.sh/uv/) (`pip install uv` 또는 `winget install astral-sh.uv`). Python은 `app/backend/.python-version` 에 3.12로 고정돼 있고, 없으면 uv가 자동으로 받는다
 - (선택) LM Studio 로컬 서버, Whisper 모델
 
 ## 실행
 
 ```bash
 cp .env.example .env      # Windows: copy .env.example .env  → ANTHROPIC_API_KEY 입력
-npm run setup             # 커밋 훅 연결 + 루트·프론트 npm install + 백엔드 uv sync
+npm run setup             # 커밋 훅 연결 + 루트·프론트 npm ci + 백엔드 uv sync --locked (lock 파일 그대로 설치)
 npm run dev               # API http://localhost:8000 + 웹 http://localhost:5173
 npm test                  # 백엔드 pytest
 npm run build             # 프론트 타입 검사·빌드
 ```
+
+`npm run setup` 은 lock 파일을 고치지 않는다. 라이브러리를 추가할 때만 `npm --prefix app/frontend install <패키지>` 또는 `cd app/backend && uv add <패키지>` 를 쓰고, 바뀐 lock 파일(`package-lock.json`·`uv.lock`)을 같은 커밋에 넣는다.
 
 API 문서: http://localhost:8000/docs
 
