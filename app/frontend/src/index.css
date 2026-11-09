@@ -142,3 +142,7 @@ body {
 .vis-item.cf-prohibited { background-color: #fde2e1; border-color: #d9534f; color: #7a1f1b; }
 .vis-item.cf-conditional { background-color: #fdebd3; border-color: #f0a04b; color: #7a4a0f; }
 .vis-item.cf-defect { background-color: #e9e1f3; border-color: #8a6fb3; color: #4a2f73; }
+/* F9 위험 시간대 띠: 그 구역 줄의 배경 (가장 높은 등급 색을 옅게) */
+.vis-item.vis-background.rw-prohibited { background-color: rgba(217, 83, 79, 0.16); }
+.vis-item.vis-background.rw-conditional { background-color: rgba(240, 160, 75, 0.18); }
+.vis-item.vis-background.rw-defect { background-color: rgba(138, 111, 179, 0.15); }
