@@ -19,13 +19,19 @@ def transcribe(audio_path: Path, prompt: str | None = None) -> str:
     url = settings.whisper_base_url.rstrip("/") + "/audio/transcriptions"
     headers = {"Authorization": f"Bearer {settings.whisper_api_key}"} if settings.whisper_api_key else {}
     with audio_path.open("rb") as f:
-        res = httpx.post(
-            url,
-            headers=headers,
-            files={"file": (audio_path.name, f)},
-            data={"model": "whisper", "response_format": "json", "language": "ko", "prompt": prompt or DEFAULT_PROMPT},
-            timeout=300,
-        )
+        try:
+            res = httpx.post(
+                url,
+                headers=headers,
+                files={"file": (audio_path.name, f)},
+                data={"model": "whisper", "response_format": "json", "language": "ko", "prompt": prompt or DEFAULT_PROMPT},
+                timeout=httpx.Timeout(settings.whisper_timeout, connect=10),
+            )
+        except httpx.ReadTimeout as e:
+            raise RuntimeError(
+                f"음성 서버가 {settings.whisper_timeout}초 안에 받아쓰지 못했습니다. "
+                "CPU판은 녹음 길이의 2~3배 걸립니다. 녹음을 나누거나 .env 의 WHISPER_TIMEOUT 을 늘리세요"
+            ) from e
     if res.status_code == 401:
         raise RuntimeError("음성 서버 API 키가 없거나 틀렸습니다 (.env 의 WHISPER_API_KEY)")
     if res.status_code == 503:
