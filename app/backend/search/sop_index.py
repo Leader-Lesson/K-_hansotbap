@@ -1,7 +1,7 @@
 """F8 작업표준서 임베딩 인덱스 (담당: 백엔드·규칙).
 
 지금은 numpy 코사인 유사도로 동작하는 최소 구현이다. 표준서가 많아지면 FAISS/Chroma로 바꾼다.
-임베딩은 LM Studio(/v1/embeddings)에서 받는다.
+임베딩은 Unsloth Studio(/v1/embeddings)에서 받는다.
 """
 
 import numpy as np

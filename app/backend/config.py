@@ -16,19 +16,24 @@ class Settings(BaseSettings):
     )
 
     # LLM — LLMProvider 하나로 감싸고 설정으로 전환한다
-    llm_provider: Literal["claude", "lmstudio"] = "claude"
+    llm_provider: Literal["claude", "unsloth"] = "claude"
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-5-5"
     # 추출 품질·속도 조절. 시연 응답 시간을 보고 정한다 [팀 설정값]
     llm_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
     # 안전 분류기가 요청을 거절하면 서버가 권장 모델로 다시 돌린다 (fallbacks: "default")
     llm_fallbacks: bool = True
-    lmstudio_base_url: str = "http://localhost:1234/v1"
-    lmstudio_chat_model: str = ""
-    lmstudio_embedding_model: str = ""
+    # 로컬 LLM 노트북의 Unsloth Studio (OpenAI 호환 API)
+    unsloth_base_url: str = "http://localhost:8888/v1"
+    unsloth_api_key: str = ""
+    unsloth_chat_model: str = ""
+    unsloth_embedding_model: str = ""
 
     # F7 음성인식: large-v3-turbo(속도) / large-v3(정확도)
     whisper_model: Literal["large-v3-turbo", "large-v3"] = "large-v3-turbo"
+    # 각자 PC에서 띄운 whisper.cpp 서버. 백엔드 API(8000)와 겹치지 않게 8090 [팀 설정값]
+    whisper_base_url: str = "http://127.0.0.1:8090/v1"
+    whisper_api_key: str = ""  # 키를 검사하는 원격 음성 서버를 쓸 때만
 
     # DB·서버
     db_path: Path = BACKEND_DIR / "hansotbap.db"
