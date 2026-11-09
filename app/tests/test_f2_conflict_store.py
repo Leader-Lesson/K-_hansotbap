@@ -104,3 +104,32 @@ def test_adjusted_status_survives_rejudge():
     records = client.get("/api/conflicts").json()
     assert one(records, P22_CONFLICT)["status"] == "adjusted"
     assert one(records, "R08:P21>P34")["status"] == "open"
+
+
+def test_plan_id_is_the_submission_that_revealed_the_conflict():
+    """plan_id 는 그 충돌을 처음 드러낸 제출이다. 다음 제출로 다시 판정해도 앞 제출의 충돌을 가져가지 않는다
+    (상황판 '이 제출로 새로 드러난 충돌'·충돌 목록 '최근 제출' 필터가 이 값을 쓴다)."""
+    from db.seed import seed_demo
+
+    seeded = seed_demo()
+    before = {r["conflict"]["id"]: r["plan_id"] for r in client.get("/api/conflicts").json()}
+    assert before and set(before.values()) <= {p.id for p in seeded}
+
+    plan_id = submit_s1()["plan"]["id"]
+    after = {r["conflict"]["id"]: r["plan_id"] for r in client.get("/api/conflicts").json()}
+    mine = {cid for cid, pid in after.items() if pid == plan_id}
+    assert S1_CONFLICTS <= mine  # 이 제출이 드러낸 순서 위반
+    assert mine == set(after) - set(before)  # 이미 있던 충돌은 앞 제출 그대로
+    assert all(after[cid] == before[cid] for cid in set(before) & set(after))
+
+
+def test_cannot_submit_another_companys_plan():
+    """협력사는 자기 업체 계획서만 낸다. 배관O 계획서를 가설A로 제출하면 막는다 (서버에서)."""
+    ext = client.post("/api/plans", files={"file": ("배관O_수정.xlsx", s1_xlsx(), XLSX)}).json()
+    res = client.post(
+        "/api/plans/submit",
+        json={"contractor": "가상-가설A", "file": ext["file"], "tasks": [t["task"] for t in ext["tasks"]]},
+    )
+    assert res.status_code == 422
+    assert "가상-배관O" in str(res.json()["detail"]["problems"])
+    assert client.get("/api/plans").json() == []  # 기록도 남지 않는다

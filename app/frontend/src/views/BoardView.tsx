@@ -318,8 +318,8 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
         <div className="banner">
           <span className="pill ban">계획 변경</span>
           <span>
-            <b>{short(latestPlan.contractor)}</b> 계획서 v{latestPlan.version}
-            {josa(String(latestPlan.version), "이", "가")} 들어와 다시 대조했습니다. 이 제출로 드러난 <span className="kw">충돌</span> <b>{fromLatest.length}건</b>
+            <b>{short(latestPlan.contractor)}</b> 계획서 v{latestPlan.version} 제출 · 전체 일정과 다시 대조했습니다. 이 제출로 새로 드러난 <span className="kw">충돌</span>{" "}
+            <b>{fromLatest.length}건</b>
             {fromLatest.some((r) => r.conflict.grade === "금지") && <> (금지 {fromLatest.filter((r) => r.conflict.grade === "금지").length}건)</>}
           </span>
           <span className="grow" />
