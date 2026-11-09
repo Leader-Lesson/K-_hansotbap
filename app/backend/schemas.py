@@ -506,3 +506,93 @@ class PlanSubmitResult(BaseModel):
     refresh: bool = Field(default=True, description="판정 후 화면을 한 번 강제 새로고침한다")
     diff: ConflictDiff | None = Field(default=None, description="이 제출로 달라진 충돌 중 제출한 협력사에게 공유된 것")
     recheck_ms: float | None = Field(default=None, description="재판정에 걸린 시간(밀리초)")
+
+
+# ── F6 챗봇 ───────────────────────────────────────────────────────────
+class ChatTurn(BaseModel):
+    """앞선 대화 한 번. '그 작업 몇 시야?' 같은 이어지는 질문을 해석할 때만 쓴다."""
+
+    question: str = Field(max_length=500)
+    answer: str = Field(default="", max_length=2000)
+
+
+class ChatRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=500)
+    today: date | None = Field(default=None, description="'오늘' 기준 날짜. 비우면 서버 설정(CHAT_TODAY) 또는 실제 오늘")
+    history: list[ChatTurn] = Field(default=[], max_length=6, description="최근 대화 (오래된 것부터)")
+
+
+class ChatTool(str, Enum):
+    """챗봇이 고를 수 있는 조회 함수. SQL 을 직접 실행하지 않는다."""
+
+    FIND_TASKS = "find_tasks"  # 날짜·구역·업체·작업 번호로 작업 일정
+    FIND_CONFLICTS = "find_conflicts"  # 판정된 겹침(충돌)
+    RISK_WINDOWS = "risk_windows"  # 구역별 위험 시간대 (F9)
+    SHARED_NOTICES = "shared_notices"  # 원청이 협력사에 공유한 충돌·인계 조건 (F5)
+
+
+class ChatToolCall(BaseModel):
+    """서버가 실제로 실행한 조회와 그 조건. 업체 범위(권한)는 LLM 이 아니라 서버가 정한다."""
+
+    tool: ChatTool
+    date_from: date | None = None
+    date_to: date | None = None
+    zone_ids: list[str] = []
+    task_ids: list[str] = []
+    contractor: str | None = Field(default=None, description="원청이 특정 업체로 좁혀 물었을 때만")
+    keyword: str | None = None
+    count: int = Field(default=0, description="조건에 맞는 건수 (답에는 일부만 쓸 수 있다)")
+    note: str | None = Field(default=None, description="조회 조건을 바꿨거나 권한 때문에 비었을 때 안내")
+
+
+class ChatEvidenceKind(str, Enum):
+    TASK = "task"
+    CONFLICT = "conflict"
+    RISK = "risk"
+    SHARE = "share"
+
+
+class ChatEvidence(BaseModel):
+    """답의 근거 한 건. 화면에서 target_id 로 작업·충돌·구역을 연다."""
+
+    ref: str = Field(description="task:P34 · conflict:<충돌 ID> · risk:<구역>:<시작> · share:<충돌 ID>")
+    kind: ChatEvidenceKind
+    target_id: str = Field(description="작업 ID · 충돌 ID · 구역 ID")
+    label: str
+    rule_id: str | None = None
+    legal_basis: str | None = None
+    source: SourceRef | None = Field(default=None, description="원문 문장. 협력사에게는 자기 계획서 원문만 준다")
+
+
+class ChatStepBy(str, Enum):
+    LLM = "llm"  # LLM 이 했다
+    RULES = "rules"  # LLM 이 늦거나 실패해 규칙으로 대신했다 (또는 LLM 을 부르지 않았다)
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    evidence: list[ChatEvidence] = []
+    tools: list[ChatToolCall] = []
+    today: date
+    role: Role
+    plan_by: ChatStepBy = Field(description="질문 해석(조회 도구 고르기)을 누가 했나")
+    answer_by: ChatStepBy = Field(description="답 문장을 누가 썼나")
+    degraded: bool = Field(description="LLM 이 늦거나 실패해 규칙으로 대신한 단계가 있다")
+    notice: str | None = Field(default=None, description="화면에 보여 줄 안내 (예: 응답이 늦어 규칙으로 답함)")
+    provider: str
+    model: str
+    elapsed_ms: float
+    timings: dict[str, float] = Field(default={}, description="단계별 걸린 시간(ms): plan · tools · answer")
+
+
+class ChatStatus(BaseModel):
+    """챗봇 LLM 연결 확인 (짧은 질문 하나를 보내 본다)."""
+
+    provider: str
+    model: str
+    ok: bool
+    latency_ms: float | None = None
+    error: str | None = None
+    plan_timeout: float
+    answer_timeout: float
+    total_timeout: float
