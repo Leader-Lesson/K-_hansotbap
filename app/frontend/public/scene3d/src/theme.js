@@ -20,7 +20,7 @@ export const ZONE_COLOR = {
 export const SEV = {
   PROHIBITED: { color: '#c62828', label: '금지', mark: '◆', score: 9 },
   CONDITIONAL: { color: '#e67e00', label: '조건부', mark: '▲', score: 3 },
-  DEFECT: { color: '#e0b000', label: '결함', mark: '△', score: 1 },
+  DEFECT: { color: '#6a4db2', label: '결함', mark: '△', score: 1 },   // 보라: 고로가스 배관 노랑(KS 식별색)과 겹치지 않게, 시안·FurnaceScene과 같은 색
 };
 export const SEV_ORDER = ['PROHIBITED', 'CONDITIONAL', 'DEFECT'];
 
