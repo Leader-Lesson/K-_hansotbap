@@ -1,15 +1,15 @@
 /* 한솥밥 3D · 시연 데이터 (모두 가상·합성)
    기준: app/contracts/CONTRACT.md §6 · 시연일 2027-01-21(목) D71 · A사 수정 계획서(v2) 반영 직후 상태
    공정은 작업 분해표(work-packages.json) D71 기준: 노저 카본블록(WP16 D60-82), 냉각판 설치 마무리(WP14), 벨리스 탑(WP20), 풍구·송풍지관(WP21), 출선구(WP22)
-   인원은 교대당 한 번에 현장에 있는 인원 (노 안은 바닥 면적상 20명 안팎이 상한)
+   작업 시간은 07:00–19:00 (주간만, 야간조 없음). 인원은 한 번에 현장에 있는 인원 (노 안은 바닥 면적상 20명 안팎이 상한)
    나중에 서버가 생기면 GET /api/meta, /api/view 응답으로 바꿔 끼움 (모양 동일) */
 
 export const DEMO = {
   date: '2027-01-21',
   day: 71,
-  now: '2027-01-21T21:00',
+  now: '2027-01-21T15:00',
   windowStart: '2027-01-21T07:00',
-  windowEnd: '2027-01-22T07:00',
+  windowEnd: '2027-01-21T19:00',
 };
 
 /* app/backend/data/zones.csv 와 같은 내용 */
@@ -38,8 +38,7 @@ export const COMPANIES = [
 
 export const TASKS = [
   /* B사 내화물 — 노저 축로 (완료 예정 2/1 = D82) */
-  { id: 'T-B-001', shift: 'day', work_area: { shape: 'all' }, company_id: 'B', title: '노저 카본블록·세라믹 시공 (주간조)', zone_ids: ['IN-HEARTH'], start: '2027-01-21T07:00', end: '2027-01-21T19:00', crew: 22, work_types: ['CONFINED', 'LIFT'], systems: [], wbs: 'WP16' },
-  { id: 'T-B-003', shift: 'night', work_area: { shape: 'ring', r0: 0.5, r1: 1 }, company_id: 'B', title: '노저 세라믹컵 축조 (야간조)', zone_ids: ['IN-HEARTH'], start: '2027-01-21T19:00', end: '2027-01-22T07:00', crew: 16, work_types: ['CONFINED'], systems: [], wbs: 'WP16' },
+  { id: 'T-B-001', shift: 'day', work_area: { shape: 'all' }, company_id: 'B', title: '노저 카본블록·세라믹 시공', zone_ids: ['IN-HEARTH'], start: '2027-01-21T07:00', end: '2027-01-21T19:00', crew: 22, work_types: ['CONFINED', 'LIFT'], systems: [], wbs: 'WP16' },
   { id: 'T-B-002', shift: 'day', company_id: 'B', title: '풍구 연와 자재 반입·치수 확인', zone_ids: ['IN-TUY'], start: '2027-01-21T09:00', end: '2027-01-21T16:00', crew: 6, work_types: ['CONFINED'], systems: [], wbs: 'WP17' },
   { id: 'T-P-001', shift: 'day', company_id: 'B', title: '열풍로 내부 점검', zone_ids: ['STOVE'], start: '2027-01-21T09:00', end: '2027-01-21T16:00', crew: 6, work_types: ['CONFINED'], systems: ['BFG'], wbs: 'WP23' },
   /* C사 노정 장입설비 (WP20 벨리스 탑 설치 D50–105) */
@@ -49,19 +48,16 @@ export const TASKS = [
   { id: 'T-A-002', shift: 'day', company_id: 'A', title: '가스청정 연계 배관 절단·용접', zone_ids: ['GAS'], start: '2027-01-21T08:00', end: '2027-01-21T12:00', crew: 10, work_types: ['HOT', 'GAS'], systems: ['BFG'], wbs: 'WP24' },
   { id: 'T-A-001', shift: 'day', company_id: 'A', title: '냉각수 배관 수압시험', zone_ids: ['EX-MID'], start: '2027-01-21T13:00', end: '2027-01-21T18:00', crew: 8, work_types: ['HEIGHT'], systems: ['WTR'], wbs: 'WP15' },
   { id: 'T-A-004', shift: 'day', company_id: 'A', title: '배관 보온재 교체', zone_ids: ['EX-MID'], start: '2027-01-21T09:00', end: '2027-01-21T12:00', crew: 6, work_types: ['HEIGHT'], systems: [], wbs: 'WP15' },
-  { id: 'T-A-003', shift: 'night', work_area: { shape: 'sector', phi: 0.6, width: 1.0 }, company_id: 'A', title: '질소 퍼지 라인 연결 (풍구 레벨)', zone_ids: ['EX-TUY'], start: '2027-01-21T22:00', end: '2027-01-22T02:00', crew: 8, work_types: ['GAS', 'HEIGHT'], systems: ['N2'], plan_id: 'PLAN-A-v2', wbs: 'WP21',
-    note: '원래 계획(v1)은 노저 축조 완료 뒤 2/2 주간. 수정 계획서(v2)에서 1/21 야간으로 앞당김' },
+  { id: 'T-A-003', shift: 'day', work_area: { shape: 'sector', phi: 0.6, width: 1.0 }, company_id: 'A', title: '질소 퍼지 라인 연결 (풍구 레벨)', zone_ids: ['EX-TUY'], start: '2027-01-21T14:00', end: '2027-01-21T18:00', crew: 8, work_types: ['GAS', 'HEIGHT'], systems: ['N2'], plan_id: 'PLAN-A-v2', wbs: 'WP21',
+    note: '원래 계획(v1)은 노저 축조 완료 뒤 2/2. 수정 계획서(v2)에서 1/21 오후로 앞당김' },
   /* D사 주상·출선 (WP22) */
   { id: 'T-D-001', shift: 'day', work_area: { shape: 'sector', phi: 0.9, width: 0.9 }, company_id: 'D', title: '출선구 개공기 설치', zone_ids: ['CAST'], start: '2027-01-21T08:00', end: '2027-01-21T17:00', crew: 16, work_types: ['LIFT', 'HOT'], systems: [], wbs: 'WP22' },
-  { id: 'T-D-002', shift: 'night', company_id: 'D', title: '탕도 정비 (야간)', zone_ids: ['CAST'], start: '2027-01-21T19:00', end: '2027-01-21T23:00', crew: 10, work_types: ['HOT'], systems: [], wbs: 'WP22' },
+  { id: 'T-D-002', shift: 'day', company_id: 'D', title: '탕도 정비', zone_ids: ['CAST'], start: '2027-01-21T17:00', end: '2027-01-21T19:00', crew: 10, work_types: ['HOT'], systems: [], wbs: 'WP22' },
   /* E사 중량물·제관 */
   { id: 'T-E-004', shift: 'day', work_area: { shape: 'ring', r0: 0.7, r1: 1 }, company_id: 'E', title: '냉각판(스테이브) 설치 마무리', zone_ids: ['IN-MID'], start: '2027-01-21T08:00', end: '2027-01-21T17:00', crew: 14, work_types: ['LIFT', 'CONFINED', 'HOT'], systems: [], wbs: 'WP14' },
   { id: 'T-E-001', shift: 'day', work_area: { shape: 'sector', phi: 1.2, width: 0.8 }, company_id: 'E', title: '링블록 인양 (풍구층 → 주상 경로)', zone_ids: ['EX-TUY', 'CAST'], start: '2027-01-21T10:00', end: '2027-01-21T14:00', crew: 12, work_types: ['LIFT'], systems: [], equipment: ['대형 크롤러 크레인'], wbs: 'WP21' },
-  { id: 'T-E-002', shift: 'night', work_area: { shape: 'sector', phi: 2.4, width: 1.2 }, company_id: 'E', title: '송풍지관 교체 용접 (야간)', zone_ids: ['EX-TUY'], start: '2027-01-21T20:00', end: '2027-01-22T01:00', crew: 10, work_types: ['HOT', 'HEIGHT', 'LIFT'], systems: [], wbs: 'WP21' },
+  { id: 'T-E-002', shift: 'day', work_area: { shape: 'sector', phi: 2.4, width: 1.2 }, company_id: 'E', title: '송풍지관 교체 용접', zone_ids: ['EX-TUY'], start: '2027-01-21T15:00', end: '2027-01-21T18:30', crew: 10, work_types: ['HOT', 'HEIGHT', 'LIFT'], systems: [], wbs: 'WP21' },
   { id: 'T-E-003', shift: 'day', company_id: 'E', title: '철피 보강부 용단', zone_ids: ['EX-MID'], start: '2027-01-21T09:00', end: '2027-01-21T11:30', crew: 9, work_types: ['HOT', 'HEIGHT'], systems: [], wbs: 'WP13' },
-  /* 야간조 작업계획서 (19:00–07:00) — 교대 후 이어서 하는 작업 */
-  { id: 'T-E-005', shift: 'night', company_id: 'E', title: '냉각판 설치 (야간조)', zone_ids: ['IN-MID'], start: '2027-01-21T19:30', end: '2027-01-22T03:00', crew: 10, work_types: ['LIFT', 'CONFINED'], systems: [], wbs: 'WP14', work_area: { shape: 'ring', r0: 0.7, r1: 1 } },
-  { id: 'T-C-007', shift: 'night', company_id: 'C', title: '장입설비 볼트 체결 (야간조)', zone_ids: ['TOP'], start: '2027-01-21T19:30', end: '2027-01-22T01:00', crew: 6, work_types: ['HEIGHT'], systems: [], wbs: 'WP20' },
 ];
 
 /* 판정 결과 (나중에 규칙 엔진이 계산해 줌 — 지금은 고정값) */
@@ -69,11 +65,11 @@ export const CONFLICTS = [
   {
     id: 'C-SEQ-01', rule_id: 'SEQ-01', type: 'SEQUENCE', severity: 'PROHIBITED',
     title: '노저 축조 완료 전 풍구 레벨 질소 라인 연결',
-    task_ids: ['T-A-003', 'T-B-003'], company_ids: ['A', 'B'], zone_ids: ['IN-HEARTH', 'EX-TUY'],
-    start: '2027-01-21T22:00', end: '2027-01-22T02:00',
-    reason: 'B사 16명이 노저(밀폐공간) 안에서 야간 축조 중인데, A사가 풍구 레벨 질소 퍼지 라인을 연결합니다. 노저 축조 완료(2/1 예정) 전에 연결하면 질소가 풍구를 통해 노 안으로 흘러들 수 있습니다.',
+    task_ids: ['T-A-003', 'T-B-001'], company_ids: ['A', 'B'], zone_ids: ['IN-HEARTH', 'EX-TUY'],
+    start: '2027-01-21T14:00', end: '2027-01-21T18:00',
+    reason: 'B사 22명이 노저(밀폐공간) 안에서 축조 중인데, A사가 풍구 레벨 질소 퍼지 라인을 연결합니다. 노저 축조 완료(2/1 예정) 전에 연결하면 질소가 풍구를 통해 노 안으로 흘러들 수 있습니다.',
     law_ref: '산업안전보건법 제64조 제1항 제7·8호 (혼재작업 확인·조정)',
-    suggestion: { kind: 'ADD_PRECONDITION', text: '질소 라인 연결을 「노저 축조 완료·인원 철수 확인」 뒤로 옮깁니다 (2/1 19:00 이후).' },
+    suggestion: { kind: 'ADD_PRECONDITION', text: '질소 라인 연결을 「노저 축조 완료·인원 철수 확인」 뒤로 옮깁니다 (2/2 이후).' },
   },
   {
     id: 'C-VER-01', rule_id: 'VER-01', type: 'VERTICAL', severity: 'PROHIBITED',
@@ -115,7 +111,7 @@ export const CONFLICTS = [
     id: 'C-HOT-01', rule_id: 'HOT-02', type: 'HOT_GAS', severity: 'CONDITIONAL',
     title: '풍구층 용접 · 같은 층 질소 라인 개방',
     task_ids: ['T-E-002', 'T-A-003'], company_ids: ['E', 'A'], zone_ids: ['EX-TUY'],
-    start: '2027-01-21T22:00', end: '2027-01-22T01:00',
+    start: '2027-01-21T15:00', end: '2027-01-21T18:00',
     reason: 'E사가 풍구층에서 용접하는 시간에 같은 층에서 A사가 질소 라인을 엽니다. 산소 결핍·가스 체류를 확인해야 합니다.',
     law_ref: '산업안전보건법 제64조 제1항 제7호',
     suggestion: { kind: 'SHIFT_TIME', text: '용접 전 산소·가스 농도 측정·기록, 화기 감시자 배치를 조건으로 합니다.' },
@@ -133,7 +129,7 @@ export const CONFLICTS = [
     id: 'C-STD-01', rule_id: 'STD-01', type: 'STANDARD', severity: 'DEFECT',
     title: '질소 라인 연결 — 작업 전 가스 측정 단계 없음',
     task_ids: ['T-A-003'], company_ids: ['A'], zone_ids: ['EX-TUY'],
-    start: '2027-01-21T22:00', end: '2027-01-22T02:00',
+    start: '2027-01-21T14:00', end: '2027-01-21T18:00',
     reason: 'A사 계획서에 작업표준서의 필수 단계 「작업 전 가스 측정」이 빠져 있습니다.',
     law_ref: '원청 작업표준서 STD-PIPE-07 (질소 배관 연결)',
     suggestion: { kind: 'ADD_PRECONDITION', text: '계획서에 「작업 전 산소·질소 농도 측정」 단계를 추가합니다.' },
@@ -141,17 +137,13 @@ export const CONFLICTS = [
 ];
 
 /* 긴급 변경 예시 (시뮬레이션 버튼·발표용) — SPEC_v2 §4 Change
-   E사가 22:30부터 외부 상부 작업대에서 냉각판 긴급 인양 → 바로 아래 풍구층 외부(A사 질소 배관·E사 용접)에 낙하 위험 */
+   E사가 16:00부터 외부 상부 작업대에서 냉각판 긴급 인양 → 바로 아래 풍구층 외부(A사 질소 배관·E사 용접)에 낙하 위험 */
 export const SAMPLE_CHANGE = {
-  id: 'CHG-001', at: '2027-01-21T21:40', kind: 'ADD', urgent: true, status: 'pending',
+  id: 'CHG-001', at: '2027-01-21T15:40', kind: 'ADD', urgent: true, status: 'pending',
   title: '냉각판 긴급 교체 인양 (외부 상부 작업대)',
   requested_by: { company_id: 'E', name: 'E사 현장소장', level: 'lead' },
   affected_company_ids: ['A', 'E'],
-  task: { id: 'T-E-201', shift: 'night', company_id: 'E', title: '냉각판 긴급 교체 인양', zone_ids: ['EX-UP'], start: '2027-01-21T22:30', end: '2027-01-21T23:30',
+  task: { id: 'T-E-201', shift: 'day', company_id: 'E', title: '냉각판 긴급 교체 인양', zone_ids: ['EX-UP'], start: '2027-01-21T16:00', end: '2027-01-21T17:00',
     crew: 6, work_types: ['LIFT', 'HEIGHT'], systems: [], equipment: ['체인블록·소형 크레인'], urgent: true, status: 'pending',
     work_area: { shape: 'sector', phi: 0.8, width: 0.9 } },
 };
-
-/* 잔업 계획서 예시 — 주간조 B사 노저 카본블록 시공이 19시까지 끝나지 않아 21시까지 연장 요청
-   (야간조 E사 냉각판 인양이 바로 위층에서 시작돼 위아래 판정이 새로 생김) */
-export const SAMPLE_OVERTIME = { taskId: 'T-B-001', hours: 2, crew: 8, reason: '작업 지연 · 카본블록 2단 남음' };

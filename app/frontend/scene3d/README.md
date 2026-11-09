@@ -7,7 +7,7 @@ three.js(npm `three`) 화면. Vite가 React 앱과 함께 빌드하는 두 번�
 - 3D 본체는 JS(ES 모듈)이고 서버 경계(`api.ts`, `adapter.d.ts`)만 TS다. 파일을 직접 열면 동작하지 않으니 `npm run dev`로 연다
 
 ## 기능
-- 고로 12구역 3D(구조물·배관·장비·작업자·낮/밤), 층 펼치기, 2D 도면 전환, 시간 슬라이더(그날 07:00~다음 날 07:00)
+- 고로 12구역 3D(구조물·배관·장비·작업자·시간대 조명), 층 펼치기, 2D 도면 전환, 시간 슬라이더(그날 07:00~19:00, 주간 작업만 · 야간조 없음)
 - 왼쪽: 받은 작업을 위치별로 자동 정렬(작업 없는 구역 숨김, 단 출입 제한 구역은 표시). 구역마다 한 줄(구역명 · 작업 n건 · 등급 점)만, 작업 줄은 고른 구역만 펼침 / 오른쪽: 지금 할 조치·걸린 위험·위치별 안전 안내
 - 걸린 위험: 등급별 묶음(금지 → 조건부 → 결함, 5건 넘으면 묶음째 접기) + 카드 한 줄 요약(유형 · 작업 둘 · 시간) → 펼치면 업체·구역·이유·조정 방향·자세히(법 근거·규칙·원문). 금지는 기본 펼침
 - 출입 제한(`barrierList(t)`, 안전띠·표지와 같은 목록)이 걸린 구역은 3D 구역 배너(`banners.setBarriers`)와 왼쪽 목록에 빨간 「북·동 출입 금지 · HH:MM까지」 꼬리표 — 권한과 무관하게 모두에게 보임
@@ -24,7 +24,7 @@ three.js(npm `three`) 화면. Vite가 React 앱과 함께 빌드하는 두 번�
 | 부모 → scene3d | `selectTask` · `time` · `change` | 작업 선택 · 시각 이동 · 긴급 변경 |
 | scene3d → 부모 | `ready` · `select{taskId, zoneId}` · `decision{changeId, taskId, decision, by}` | |
 
-주소: `index.html?embed=1&date=2027-02-20&now=2027-02-20T22:30`
+주소: `index.html?embed=1&date=2027-02-20&now=2027-02-20T14:30`
 
 ## 구역 매핑 (`src/adapter.js`)
 TOP→노정 · STACK→노흉 내부 · BELLY_BOSH→노복·조안 내부 · TUYERE→풍구층 외부 · HEARTH→노저 · SHELL→철피 외부(중부) · CASTHOUSE/SLAG→주상 · DOWNCOMER/GCP→가스 설비 · STOVE→열풍로 · CRANE_PAD/YARD/ALL→3D 구역 없음
