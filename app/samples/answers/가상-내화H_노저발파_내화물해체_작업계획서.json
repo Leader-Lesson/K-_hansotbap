@@ -1,0 +1,70 @@
+{
+  "file": "가상-내화H_노저발파_내화물해체_작업계획서.pdf",
+  "contractor": "가상-내화H",
+  "format": "pdf",
+  "tasks": [
+    {
+      "wbs_id": "P13",
+      "name": "노저 잔선(약 2천t) 천공·화약 장약·파쇄",
+      "zone_id": "HEARTH",
+      "start": "2026-11-24",
+      "end": "2026-12-22",
+      "shift": "day",
+      "headcount": 12,
+      "equipment": [
+        "잔선 천공기 2대",
+        "환기팬 3대",
+        "발파 장비 1식",
+        "미니 로더 1대"
+      ],
+      "location_detail": {
+        "text": "노저 내부 중앙 (잔선 상면)",
+        "dirs": [],
+        "level": "중앙"
+      },
+      "system": "NONE",
+      "hazards": [
+        "confined",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P12"
+      ]
+    },
+    {
+      "wbs_id": "P14",
+      "name": "노흉·노복 내화물·스테이브 해체",
+      "zone_id": "BELLY_BOSH",
+      "start": "2026-11-27",
+      "end": "2026-12-22",
+      "shift": "day",
+      "headcount": 28,
+      "equipment": [
+        "달비계 4조",
+        "노내 호이스트(양중C 운영)",
+        "환기팬 4대",
+        "소형 굴삭기 1대"
+      ],
+      "location_detail": {
+        "text": "노복·조안 내부 전 둘레 (스테이브 1~9단)",
+        "dirs": [
+          "N",
+          "E",
+          "S",
+          "W"
+        ],
+        "level": "스테이브 1~9단"
+      },
+      "system": "NONE",
+      "hazards": [
+        "confined",
+        "height"
+      ],
+      "predecessors": [
+        "P12"
+      ]
+    }
+  ],
+  "expected_conflicts": [],
+  "note": "기준 일정 그대로(P13·P14). PDF 세로 양식 예시(발파 경계 표 포함). 잔선 천공기·발파 장비는 3D 모델이 없는 장비(code=null). 작업별 표준서(SOP-P13·P14)와 공통 밀폐 표준(SOP-02, P14) 핵심 단계가 절차에 다 적혀 있어 결함 없음. 단독으로는 충돌 없음"
+}
