@@ -71,6 +71,13 @@ export function TbmView({ role, contractors, tasks, defaultContractor }: Props) 
   useEffect(loadRecords, [loadRecords]);
 
   const items: TbmItem[] = lists[contractor]?.items ?? [];
+  const listLoaded = contractor in lists; // 불러오기 전에는 "항목 없음"으로 보이지 않게
+  // 전달할 항목이 없으면 녹음·대조를 막는다. 버튼만 꺼지면 고장처럼 보여서 이유를 함께 보여 준다
+  const noItemsReason = !listLoaded
+    ? "전달할 항목을 불러오는 중…"
+    : isPrime
+      ? "이 업체에 이 날 전달할 항목이 없어 녹음할 수 없습니다. 충돌을 공유하거나 위 '원청 공지 추가'로 항목을 넣으면 켜집니다"
+      : "원청이 이 날 전달할 항목(공유한 충돌·위험 시간대·공지)을 아직 보내지 않아 녹음할 수 없습니다. 원청이 공유하면 켜집니다";
   const runs = latestFor(records, contractor, date);
   const run = runs[0] ?? null;
   const prev = runs[1] ?? null;
@@ -384,6 +391,7 @@ export function TbmView({ role, contractors, tasks, defaultContractor }: Props) 
           onClick={() => void startRec(sup)}
           disabled={transcribing || !items.length}
           aria-label={recording ? "녹음 멈추고 받아쓰기" : sup ? "보충 전달 녹음 시작" : "녹음 시작"}
+          title={!items.length ? noItemsReason : undefined}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             {recording ? <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" /> : <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></>}
@@ -397,6 +405,10 @@ export function TbmView({ role, contractors, tasks, defaultContractor }: Props) 
           ) : transcribing ? (
             <>
               <span className="kw">받아쓰는 중…</span> <span className="sub">CPU판 음성 서버는 녹음 길이의 2~3배 걸립니다</span>
+            </>
+          ) : !items.length ? (
+            <>
+              팀장 발언 녹음 <span className="sub">· {noItemsReason}</span>
             </>
           ) : sup ? (
             <>
