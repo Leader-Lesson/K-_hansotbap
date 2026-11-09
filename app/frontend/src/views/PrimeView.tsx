@@ -118,7 +118,8 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
 
   return (
     <div className="grid gap-4">
-      <Tabs value={tab} onValueChange={setTab}>
+      {/* min-w-0: grid 칸이 시간표 최소 폭(860px)만큼 늘어나 좁은 화면 전체가 넓어지지 않게 (시간표는 자기 칸 안에서 가로 스크롤) */}
+      <Tabs value={tab} onValueChange={setTab} className="min-w-0">
 
         <TabsContent value="board" className="grid gap-4">
           {/* 시안 상황판(#board) 레이아웃을 서버 데이터로: 숫자 띠 · 30분 칸 시간표 · 위험 시간대 띠 · 조치 카드 · 충돌 상세 */}

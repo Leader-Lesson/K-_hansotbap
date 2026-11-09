@@ -13,6 +13,8 @@ import "./actions.css";
 
 // 조정을 적용하면 App 이 화면을 한 번 강제 새로고침한다(기획서). 결과 서랍(되돌리기)이 새로고침 뒤에도 다시 열리게 남겨 둔다
 const LAST_KEY = "hansotbap.lastAdjust";
+// 'AI로 문장 다듬기'가 한 번 실패하면(문장이 그대로) 이 탭에서는 단추를 숨긴다 (탭을 닫으면 지워짐 — .env 를 고친 뒤 새 탭에서 다시 보인다)
+const POLISH_OFF_KEY = "hansotbap.polishOff";
 function readLast(): AdjustmentResult | null {
   try {
     const v = sessionStorage.getItem(LAST_KEY);
@@ -371,7 +373,13 @@ function AdjustPanel({
   const [cands, setCands] = useState<AdjustmentCandidate[] | null>(null);
   const [polished, setPolished] = useState<Set<string>>(new Set());
   const [polishing, setPolishing] = useState(false);
-  const [polishNote, setPolishNote] = useState<string | null>(null);
+  const [polishOff, setPolishOff] = useState(() => {
+    try {
+      return sessionStorage.getItem(POLISH_OFF_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [applying, setApplying] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [sharedAt, setSharedAt] = useState<string | null>(r.shared_at);
@@ -396,11 +404,11 @@ function AdjustPanel({
   }, [c.id]); // 충돌이 바뀔 때만 다시 계산
   useEffect(() => setSharedAt(r.shared_at), [r.shared_at]);
 
-  // 이유 문장만 LLM 으로 다듬는다 (후보·적용은 그대로 규칙). 다듬기가 안 되면 서버가 규칙 문장을 그대로 돌려준다
+  // 이유 문장만 LLM 으로 다듬는다 (후보·적용은 그대로 규칙). 다듬기가 안 되면 서버가 규칙 문장을 그대로 돌려준다.
+  // 한 문장도 안 바뀌면(LLM 설정 없음 등) 이 탭에서는 단추를 숨긴다 — 서랍을 열 때마다 같은 기다림을 되풀이하지 않게
   const polish = async () => {
     if (!cands) return;
     setPolishing(true);
-    setPolishNote(null);
     const xs = await load(true);
     setPolishing(false);
     if (!xs) return;
@@ -408,7 +416,14 @@ function AdjustPanel({
     const changed = new Set(xs.filter((x) => before.has(x.id) && before.get(x.id) !== x.reason).map((x) => x.id));
     setCands(xs);
     setPolished(changed);
-    if (!changed.size) setPolishNote("AI 문장 다듬기를 쓸 수 없어 규칙 문장을 그대로 씁니다");
+    if (!changed.size) {
+      setPolishOff(true);
+      try {
+        sessionStorage.setItem(POLISH_OFF_KEY, "1");
+      } catch {
+        /* 저장이 막혀도 이 서랍에서는 숨긴다 */
+      }
+    }
   };
 
   const needPerson = (what: string) => {
@@ -457,13 +472,13 @@ function AdjustPanel({
     <div className="sec">
       <span className="h">
         조정안 <span className="fx">F4</span> 규칙이 계산한 일정 이동 · 원청이 직접 적용합니다
-        {cands && cands.length > 0 && (
+        {cands && cands.length > 0 && !polishOff && (
           <button type="button" className="link" onClick={polish} disabled={polishing} style={{ marginLeft: 6 }}>
-            {polishing ? "다듬는 중… (LLM, 1분까지 걸릴 수 있음)" : "AI로 문장 다듬기"}
+            {polishing ? "다듬는 중…" : "AI로 문장 다듬기"}
           </button>
         )}
       </span>
-      {polishNote && <p className="note">{polishNote}</p>}
+      {polishOff && <p className="note">AI 문장 다듬기를 쓸 수 없어(LLM 설정 확인) 규칙 문장을 그대로 씁니다.</p>}
       {cands === null && !err && <p className="note">조정안 계산 중…</p>}
       {cands && cands.length === 0 && <p className="note">{noCandidate}</p>}
       {cands?.map((cand) => {

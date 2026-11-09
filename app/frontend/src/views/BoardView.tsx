@@ -200,7 +200,8 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
   const mine = dayTasks.filter((t) => t.contractor === me);
 
   return (
-    <div className="pb">
+    // min-w-0: 원청 화면처럼 grid 안에 놓여도 시간표 최소 폭(860px)이 화면 전체를 넓히지 않게
+    <div className="pb min-w-0">
       {!isPrime && (
         <p className="note" style={{ margin: "0 0 10px" }}>
           우리 작업과, 원청이 공유한 충돌의 상대 작업(빗금 막대)만 보입니다. 그 밖의 다른 회사 일정은 볼 수 없습니다.
