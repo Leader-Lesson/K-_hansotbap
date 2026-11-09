@@ -449,3 +449,9 @@ body.embed .app { height: 100vh; }
 .vg-m { display: block; margin-top: 2px; }
 .vg-m .bad { color: #c62828; }
 .vg-m .good { color: #1f7a3a; }
+
+/* 잔업 계획서 버튼 (작업 상세) */
+.ot-box { margin-top: 12px; padding: 10px 12px; border: 1px dashed #9fb3c4; border-radius: 8px; background: #f7f9fb; }
+.ot-btn { width: 100%; padding: 9px; border-radius: 8px; border: 0; background: #2f3d5c; color: #fff; font-size: 15px; cursor: pointer; }
+.ot-btn:disabled { opacity: .45; cursor: not-allowed; }
+.ot-box small { display: block; margin-top: 6px; color: var(--muted); font-size: 13px; }

@@ -8,7 +8,7 @@ import { renderFloorPlan } from './plan2d.js';
 import { SEV, LEVEL_NAME, WORK_TYPE_NAME, TYPE_NAME, fmtTime, fmtDateTime } from './theme.js';
 
 const SIDE_NAME = { in: '노 내부', out: '외부 작업대', aux: '부대설비' };
-import { ZONES, COMPANIES, TASKS, CONFLICTS, DEMO, SAMPLE_CHANGE } from './data.js';
+import { ZONES, COMPANIES, TASKS, CONFLICTS, DEMO, SAMPLE_CHANGE, SAMPLE_OVERTIME } from './data.js';
 import { detectConflicts, filterForRole, hazardsFor, guidanceFor, influenceZones, describeArea } from './rules.js';
 import { renderLeft, renderRightIntro, renderRightZone, renderRightTask } from './panels.js';
 import { buildSession } from './session.js';
@@ -465,10 +465,16 @@ function renderDetail() {
       conflicts: state.active.conflicts, tasks: state.active.tasks, alternatives: ALTERNATIVES, role: state.role, selectedConflictId: state.conflictId });
   }
   if (!state.taskId && !state.zoneId) html += placementGuideHtml();
+  if (state.taskId) {
+    const k = TASKS.find((x) => x.id === state.taskId);
+    if (k && k.shift === 'day' && (k.status || 'active') === 'active') html += `<div class="ot-box"><button type="button" class="ot-btn" data-ot="${esc(k.id)}" ${canOvertime(k) ? '' : 'disabled'}>잔업 계획서 제출</button><small>${canOvertime(k) ? '주간에 끝나지 않으면 연장 시간을 신청합니다 · 승인 후 착수' : '해당 협력사 파트장 또는 원청 관리자만 제출할 수 있습니다'}</small></div>`;
+  }
   $('detailBody').innerHTML = html;
 }
 
 $('detailBody').addEventListener('click', (e) => {
+  const ot = e.target.closest('[data-ot]');
+  if (ot) { requestOvertime(ot.dataset.ot); return; }
   const ab = e.target.closest('[data-alt]');
   if (ab) { e.stopPropagation(); applyAlt(ab.dataset.alt); return; }
   const zl = e.target.closest('[data-zone]');
@@ -736,6 +742,65 @@ function issueCorrection(v, action) {
   toast(action === 'move' ? `시정 명령 — ${coLabel(task.company_id)} ${task.title}: ${DIR_KO[v.best.best]}으로 이동` : `시정 명령 — ${coLabel(task.company_id)} ${task.title}: ${v.until}까지 작업 중지`);
 }
 
+/* ---------- 2교대 · 인계 · 잔업 ----------
+   주간조 07–19 / 야간조 19–07, 교대 전 30분은 인계 시간. 주간 작업이 덜 끝나면 잔업 계획서 → 승인 → 재판정 */
+let SH = null;   // shifts.js (없어도 화면은 동작)
+import('./shifts.js').then((m) => {
+  SH = m;
+  try { SH.renderShiftBands(document.querySelector('.slider-wrap'), { windowStart: DEMO.windowStart, windowEnd: DEMO.windowEnd }); } catch (e) { console.warn('[scene3d] 교대 띠', e); }
+  refresh();
+}).catch((e) => console.warn('[scene3d] shifts.js 불러오기 실패', e));
+
+const canOvertime = (k) => state.role.id === 'PRIME' || (state.role.id === k.company_id && state.role.level !== 'worker');
+function requestOvertime(taskId) {
+  const k = TASKS.find((x) => x.id === taskId);
+  if (!k || !SH) return;
+  SH.openOvertimeForm(k, { companies: COMPANIES, zoneName: zname, canSubmit: canOvertime(k), onSubmit: submitOvertime });
+}
+let otN = 0;
+/* 잔업 계획서 → 긴급 변경과 같은 승인 절차(파트장·원청) → 승인되면 잔업 작업이 생기고 야간조 작업과 다시 판정 */
+function submitOvertime({ taskId, hours = 2, crew, reason = '', start, end } = {}) {
+  const k = TASKS.find((x) => x.id === taskId);
+  if (!k) return null;
+  otN += 1;
+  const s0 = start || k.end, e0 = end || toIso(new Date(new Date(s0).getTime() + hours * 3600000));
+  const dirs = (k.sectors || []).slice(-1)[0]?.dirs;
+  const change = {
+    id: `OT-${k.id}-${otN}`, at: state.t, kind: 'OVERTIME', urgent: false, status: 'pending',
+    title: `잔업 계획서 · ${k.title} ${hhmm(s0)}–${hhmm(e0)}`,
+    requested_by: { company_id: k.company_id, name: `${coLabel(k.company_id)} 파트장`, level: 'lead' },
+    task: { ...k, id: `${k.id}-OT${otN}`, title: `${k.title} (잔업)`, start: s0, end: e0, crew: crew ?? Math.max(2, Math.ceil((k.crew || 4) / 2)),
+      shift: 'overtime', overtime_of: k.id, reason, pauses: [], place_override: null, preconditions: k.preconditions || [],
+      sectors: dirs ? [{ start: s0, end: e0, dirs }] : null, status: 'pending' },
+  };
+  pushChange(change);
+  post({ type: 'overtime', changeId: change.id, taskId: k.id, start: s0, end: e0, crew: change.task.crew, reason });
+  toast(`잔업 계획서 제출 — ${coLabel(k.company_id)} ${k.title} ${hhmm(s0)}–${hhmm(e0)} · 승인 대기`);
+  return change;
+}
+
+/* 인계 문서: 나가는 조 → 들어오는 조. 들어오는 조 파트장(또는 원청)이 확인하면 이력에 남김 */
+const handovers = [];
+function openHandover() {
+  if (!SH) return;
+  const sh = SH.shiftAt(state.t);
+  const doc = SH.buildHandoverDoc({
+    t: state.t, fromShift: sh.id, toShift: sh.next,
+    tasks: [...state.view.tasks, ...pendingVisible()], conflicts: state.view.conflicts.filter((c) => c.end > state.t),
+    restrictions: barrierList(state.t), corrections, companies: COMPANIES, zoneName: zname,
+    overtime: TASKS.filter((k) => k.shift === 'overtime' && (k.status || 'active') !== 'rejected'),
+  });
+  SH.openHandoverModal(doc, {
+    canConfirm: state.role.id === 'PRIME' || state.role.level !== 'worker',
+    onConfirm: (d) => {
+      const rec = { at: state.t, from: sh.id, to: sh.next, by: { id: state.role.id, level: state.role.level }, title: d.title };
+      handovers.unshift(rec);
+      post({ type: 'handover', ...rec, items: (d.sections || []).reduce((n, x) => n + x.items.length, 0) });
+      toast(`인계 확인 — ${d.title}`);
+    },
+  });
+}
+
 /* 집중 보기: 고른 구역 + 그 구역과 지금 충돌로 엮인 구역만 남기고 나머지는 투명하게 */
 function relatedZones(zid) {
   const ids = new Set([zid]);
@@ -793,7 +858,12 @@ function previewGuidance(change) {
 let simN = 0;
 function pushChange(change) {
   const ch = { ...change, task: change.task ? { ...change.task, status: 'pending' } : null, status: 'pending' };
-  if (ch.task && !ch.affected_company_ids) ch.affected_company_ids = affectedCompanies(ch.task);
+  if (ch.task && !ch.affected_company_ids) {
+    // 영향 범위 안 업체 + 승인하면 새로 생길 충돌의 상대 업체 (그 업체 파트장도 알림·승인 가능)
+    const live = liveTasks(), before = new Set(detectConflicts(live, ZONES, { seed: CONFLICTS }).map((c) => c.id));
+    const fresh = detectConflicts([...live, { ...ch.task, status: 'active' }], ZONES, { seed: CONFLICTS }).filter((c) => !before.has(c.id));
+    ch.affected_company_ids = [...new Set([...affectedCompanies(ch.task), ...fresh.flatMap((c) => c.company_ids)])].filter((id) => id !== ch.task.company_id);
+  }
   if (ch.task && !TASKS.some((k) => k.id === ch.task.id)) TASKS.push(ch.task);
   session?.pushChange(ch);
   refresh();
@@ -836,6 +906,7 @@ state.role = session.role || state.role;
 function refresh() {
   applyFocus();
   updateViolations();
+  try { SH?.renderHandoverBanner($('view'), { t: state.t, onOpen: openHandover }); } catch (e) { console.warn('[scene3d] 인계 띠', e); }
   syncExtras();
   applyZoneStates();
   updateLabels();
@@ -1110,4 +1181,4 @@ window.addEventListener('message', (e) => {
 const dataUrl = new URLSearchParams(location.search).get('data');
 if (dataUrl) fetch(dataUrl).then((r) => r.json()).then(setData).catch((e) => console.warn('[scene3d] 데이터 불러오기 실패', e));
 post({ type: 'ready', version: 2 });
-window.scene3d = { computeViolations, placementGuide, issueCorrection, barrierList, fromHansotbap, setData, setRole, pushChange, session, selectTask, applyAlt, undoAlt, selectZone, selectLevel, setTime, setMode, selectConflict, state, furnace, extras, camera, controls };
+window.scene3d = { requestOvertime, submitOvertime, openHandover, SAMPLE_OVERTIME, computeViolations, placementGuide, issueCorrection, barrierList, fromHansotbap, setData, setRole, pushChange, session, selectTask, applyAlt, undoAlt, selectZone, selectLevel, setTime, setMode, selectConflict, state, furnace, extras, camera, controls };

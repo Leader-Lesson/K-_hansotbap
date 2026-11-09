@@ -692,6 +692,8 @@ function s3Sync(force){
 addEventListener("message",e=>{const m=e.data;if(e.origin!==location.origin||!m||m.source!=="scene3d")return;
   if(m.type==="ready"){S3.ready=true;clearTimeout(S3.timer);s3Sync(true);}
   else if(m.type==="select"&&m.taskId){const t=task(m.taskId);if(t){const c=visC().find(x=>(x.a===t.id||x.b===t.id)&&x.status==="open"&&x.from<=S.day&&S.day<=x.to);if(c)S.focus=c.key;}}
+  else if(m.type==="handover"){S.log.unshift({time:clock(),type:"교대 인계",sum:`${m.title||"교대 인계"} · 인계 항목 ${m.items||0}건`,dec:`${m.from==="day"?"주간조 → 야간조":"야간조 → 주간조"} 인계 확인`,who:m.by&&m.by.id?String(m.by.id).replace(/^가상-/,"")+(m.by.level==="manager"?" 직영관리자":" 파트장"):byWho(),rule:"F5",law:"",parties:[]});renderHistory();toast("교대 인계를 이력에 남겼습니다");}
+  else if(m.type==="overtime"){const t=task(m.taskId);if(t)note(["HQ",t.p],`잔업 계획서 · ${tn(t)}`,`${String(m.start).slice(11,16)}–${String(m.end).slice(11,16)} · ${m.crew}명 · ${m.reason||""} — 승인 전 착수 불가`,"잔업");renderNoti();}
   else if(m.type==="violation"){S3.vseen=S3.vseen||new Set();
     (m.items||[]).forEach(v=>{const t=task(v.taskId);if(!t)return;const k=v.taskId+"|"+v.zone+"|"+v.until;if(S3.vseen.has(k))return;S3.vseen.add(k);
       note(["HQ",t.p],`긴급 · 출입 제한 구역 안 작업 · ${tn(t)}`,`${v.where} 출입 제한(${v.until}까지, ${v.cause||"상부 작업"}) 구역 안에서 작업 중입니다. 3D·충돌 탭에서 시정 명령을 내려 주세요.`,"긴급");});
