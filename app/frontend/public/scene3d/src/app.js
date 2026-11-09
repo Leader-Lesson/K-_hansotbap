@@ -625,7 +625,7 @@ function syncExtras() {
 }
 
 /* ---------- 방위별 출입 제한 → 안전띠·러버콘 ----------
-   부모가 넘긴 제한(시안 zoneMap)이 있으면 그대로, 없으면 규칙 엔진의 위험 영역을 동서남북 4방위로 바꿔 씀.
+   부모가 넘긴 제한(서버 금지 판정 또는 시안 zoneMap)과 규칙 엔진의 위험 영역(동서남북 4방위로 변환)을 합쳐 씀.
    방위: 남 φ=0(+z) · 동 π/2(+x) · 북 π(−z) · 서 3π/2(−x), 각 방위는 ±45° */
 const DIRS = ['N', 'E', 'S', 'W'], DIR_PHI = { S: 0, E: Math.PI / 2, N: Math.PI, W: 1.5 * Math.PI }, DIR_KO = { N: '북쪽', E: '동쪽', S: '남쪽', W: '서쪽' };
 const TAU2 = Math.PI * 2, angDiff = (a, b) => { const d = ((a - b) % TAU2 + TAU2) % TAU2; return d > Math.PI ? TAU2 - d : d; };
@@ -649,9 +649,12 @@ function barrierList(t) {
     if (until && (!z.until || until < z.until)) z.until = until;
     byZone.set(zid, z);
   };
+  // 부모(서버 금지 판정·시안 zoneMap)가 넘긴 제한을 먼저 세우고, 브라우저 규칙의 위험 영역(낙하 중앙부 같은 방위 정보)을 보탠다.
+  // 서버 판정은 구역 단위라 방위가 없고, 브라우저 규칙만으로는 서버가 금지한 구역을 빠뜨릴 수 있어서 둘을 합친다
   if (state.restrictions) {
     for (const r of state.restrictions) if (r.start <= t && t < r.end) r.zone_ids.forEach((zid) => add(zid, r.blocked, null, r.end, r.reason, r.source_ids));
-  } else {
+  }
+  {
     const live = liveTasks();
     for (const z of ZONES) for (const h of hazardsFor(z.id, live, ZONES, t)) {
       if (h.severity !== 'PROHIBITED' && h.kind !== 'DROP') continue;   // 출입 제한은 치명·낙하 위험에만

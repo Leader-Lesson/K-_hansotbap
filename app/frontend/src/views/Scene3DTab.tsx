@@ -1,12 +1,14 @@
 // F3 고로 3D·충돌 탭: public/scene3d(three.js 정적 화면)를 iframe으로 넣고 postMessage로 데이터·역할을 넘긴다
 // scene3d 쪽 메시지 규칙은 public/scene3d/src/app.js 의 'iframe 연동' 주석 참고
 import { useEffect, useRef, useState } from "react";
+import type { ZoneRestriction } from "@/lib/restrictions";
 import type { Conflict, Task, ViewerRole } from "@/types";
 
 interface Props {
   date: string; // 'YYYY-MM-DD' — 그날 07:00 ~ 다음 날 07:00 을 보여준다
   tasks: Task[];
   conflicts?: Conflict[]; // 서버 판정(GET /api/conflicts). 없으면 scene3d 브라우저 규칙 엔진이 계산한다
+  restrictions?: ZoneRestriction[]; // 서버 금지 판정에서 만든 구역별 출입 제한 → scene3d 가 안전띠·출입 금지 표지를 세운다
   role: ViewerRole;
   now?: string; // 'YYYY-MM-DDTHH:MM' 시작 시각 (기본 그날 10:00)
   selectTaskId?: string | null; // 충돌 목록의 [3D로 보기]에서 고른 작업
@@ -14,7 +16,7 @@ interface Props {
   onDecision?: (d: { changeId: string; taskId: string; decision: "approved" | "rejected" }) => void;
 }
 
-export function Scene3DTab({ date, tasks, conflicts, role, now, selectTaskId, onSelect, onDecision }: Props) {
+export function Scene3DTab({ date, tasks, conflicts, restrictions, role, now, selectTaskId, onSelect, onDecision }: Props) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   const cb = useRef({ onSelect, onDecision });
@@ -41,8 +43,8 @@ export function Scene3DTab({ date, tasks, conflicts, role, now, selectTaskId, on
 
   useEffect(() => setReady(false), [date]); // 날짜가 바뀌면 iframe을 새로 띄우므로 다시 ready를 기다림
   useEffect(() => {
-    if (ready) send({ type: "data", tasks, conflicts });
-  }, [ready, tasks, conflicts]);
+    if (ready) send({ type: "data", tasks, conflicts, restrictions });
+  }, [ready, tasks, conflicts, restrictions]);
   useEffect(() => {
     if (ready) send({ type: "role", role });
   }, [ready, role]);

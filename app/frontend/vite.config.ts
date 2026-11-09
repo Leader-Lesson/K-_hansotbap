@@ -13,7 +13,7 @@ export default defineConfig({
     port: 5173,
     // npm run dev 하면 화면 시안(public/prototype)을 연다. 팀 React 앱은 그대로 / 에 있다
     open: "/prototype/index.html",
-    // 프론트는 표시 전용. /api 요청은 FastAPI(8000)로 넘긴다
-    proxy: { "/api": "http://localhost:8000" },
+    // 프론트는 표시 전용. /api 요청은 FastAPI(8000)로 넘긴다. 8000이 막혀 있으면 API_PORT 로 바꾼다
+    proxy: { "/api": `http://localhost:${process.env.API_PORT ?? 8000}` },
   },
 });
