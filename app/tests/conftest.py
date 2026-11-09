@@ -22,6 +22,8 @@ from config import settings
 @pytest.fixture(autouse=True)
 def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "db_path", tmp_path / "test.db")
+    # 각자 .env 의 USE_BASELINE 과 상관없이 기준 일정(합성 37건)을 켠 상태로 시험한다. 끄는 시험은 그 안에서 따로 끈다
+    monkeypatch.setattr(settings, "use_baseline", True)
 
     def no_llm():
         raise RuntimeError("테스트에서는 실제 LLM을 부르지 않는다")
