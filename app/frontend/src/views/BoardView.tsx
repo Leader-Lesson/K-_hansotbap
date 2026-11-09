@@ -1,11 +1,13 @@
 // 상황판(F3 ① 메인): 시안(public/prototype #board)의 레이아웃을 서버 데이터로 그린다.
 // 숫자 띠 → 오늘 작업 시간표(07~19시·30분 칸·구역은 위층부터·위험 시간대 띠·지금 선·겹침 띠) → 조치 카드 → 충돌 상세(근거·공유·조정안)
 // 판정·위험 시간대·조정은 서버 규칙이 한 것이고 여기서는 보여 주기만 한다. 협력사는 서버가 거른 데이터만 받는다(자기 작업 + 공유된 충돌의 상대 작업)
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { api } from "@/api/client";
 import { DEF_NOW, useShell } from "@/lib/shell";
-import { ConflictList } from "@/components/ConflictList";
-import { CONFLICT_TYPE_LABEL, GRADE_RANK } from "@/lib/format";
+import { ActionCards } from "@/components/ActionCards";
+import { ConflictDrawer } from "@/components/ConflictDrawer";
+import { conflictLabel } from "@/lib/conflictText";
+import { GRADE_RANK } from "@/lib/format";
 import { restrictionsFrom } from "@/lib/restrictions";
 import type { AdjustmentResult, Conflict, ConflictRecord, Grade, Hazard, PlanRecord, RiskWindow, Task, TbmCheckRecord, ViewerRole, Zone } from "@/types";
 import "./board.css";
@@ -28,7 +30,6 @@ const H1 = 19;
 const SLOTS = (H1 - H0) * 2;
 const LANE = 30; // 막대 한 줄 높이(px) — 시안과 같음
 const GRADE_VAR: Record<Grade, string> = { 금지: "var(--red)", 조건부: "var(--amber)", 결함: "var(--violet)" };
-const GRADE_PILL: Record<Grade, string> = { 금지: "ban", 조건부: "cond", 결함: "def" };
 // 시연 시각 고르기: 07:00~18:30, 30분씩 (시안 setNow 와 같은 범위 — 19:00 은 하루 끝)
 const NOPT = Array.from({ length: SLOTS }, (_, i) => H0 + i / 2);
 /** 위험 시간대 띠 색: 칸의 위험 점수(서버 F9 score, 금지 3·조건부 2·결함 1의 합) 구간. 시안 rcls 와 같은 경계 [팀 설정값] */
@@ -41,12 +42,6 @@ const hh = (v: number) => `${pad(Math.floor(v))}:${pad(Math.round((v % 1) * 60))
 const hourOf = (iso: string) => Number(iso.slice(11, 13)) + Number(iso.slice(14, 16)) / 60;
 const short = (c: string) => c.replace(/^가상-/, "");
 
-/** 받침에 맞는 조사 (한글이 아니면 '이(가)' 꼴) */
-function josa(word: string, withBatchim: string, without: string): string {
-  const c = word.charCodeAt(word.length - 1);
-  if (c < 0xac00 || c > 0xd7a3) return `${withBatchim}(${without})`;
-  return (c - 0xac00) % 28 ? withBatchim : without;
-}
 /** 타사 막대·문장에 쓰는 위험 유형 (시안 HZ와 같은 우선순위) */
 const HZ_ORDER: [Hazard, string][] = [["heavy_lift", "인양 작업"], ["gas", "가스 배관 작업"], ["hot_work", "화기 작업"], ["confined", "밀폐공간 작업"], ["height", "고소 작업"]];
 const hzLabel = (t: Task) => HZ_ORDER.find(([h]) => t.hazards.includes(h))?.[1] ?? "작업";
@@ -87,11 +82,6 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
   const [risk, setRisk] = useState<RiskWindow[]>([]);
   const [moved, setMoved] = useState<Set<string>>(new Set());
   const [checks, setChecks] = useState<TbmCheckRecord[]>([]);
-  const detailRef = useRef<HTMLElement>(null);
-  // 카드를 누르면 아래의 충돌 상세(근거·공유·조정안)로 내려간다 (시안의 오른쪽 서랍 대신)
-  useEffect(() => {
-    if (sel) detailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [sel]);
 
   // 위험 시간대(F9)·적용 중인 조정(점선 막대)·TBM 확인(F7): 판정이 바뀌면(conflicts) 다시 받는다
   useEffect(() => {
@@ -206,94 +196,8 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
     w.scrollLeft = Math.max(0, Math.min(w.scrollWidth - w.clientWidth, Math.round(at - lw - (w.clientWidth - lw) / 3)));
   });
 
-  const acts = [...dayConflicts].sort(
-    (a, b) => GRADE_RANK[b.c.grade] - GRADE_RANK[a.c.grade] || Number(a.h1 <= now) - Number(b.h1 <= now) || a.h0 - b.h0,
-  );
-  const when = (d: DayConflict) => {
-    if (d.h1 <= now) return "오늘 종료";
-    if (d.h0 <= now) return <span className="kw">진행 중</span>;
-    const m = Math.round((d.h0 - now) * 60);
-    return (
-      <>
-        <span className="t">{m >= 60 ? `${Math.floor(m / 60)}시간${m % 60 ? ` ${m % 60}분` : ""}` : `${m}분`}</span> 후 시작
-      </>
-    );
-  };
-  const label = (c: Conflict) =>
-    c.task_ids
-      .slice(0, 2)
-      .map((id) => {
-        const t = taskById.get(id);
-        return t ? (me && t.contractor !== me ? `타사 ${t.name}` : `${short(t.contractor)} ${t.name}`) : id;
-      })
-      .join(c.type === "sequence" ? " ← 선행 " : " ↔ ") + (c.task_ids.length > 2 ? ` 외 ${c.task_ids.length - 2}건` : "");
-  const who = (t: Task | undefined, id: string): ReactNode => {
-    if (!t) return id;
-    if (me && t.contractor !== me) return `타사 ${t.name}`;
-    return (
-      <>
-        <b>{short(t.contractor)}</b> {t.name}
-        {t.crew != null && <> {t.crew}명</>}
-      </>
-    );
-  };
-  // 카드 문장: 시안처럼 구역·업체·시각을 짧게, 위험 낱말 하나만 빨강, 시각은 파랑, 인원은 굵게 (전체 판정 이유는 상세에)
-  const sentence = (d: DayConflict): ReactNode => {
-    const c = d.c;
-    const [a, b] = c.task_ids.map((id) => taskById.get(id));
-    const za = a ? zoneById.get(a.zone_id)?.name ?? a.zone_id : "";
-    const zb = b ? zoneById.get(b.zone_id)?.name ?? b.zone_id : "";
-    const ja = (x: string, y: string) => josa(a?.name ?? "", x, y);
-    const jb = (x: string, y: string) => josa(b?.name ?? "", x, y);
-    const time = (
-      <span className="t">
-        {hh(d.h0)}–{hh(d.h1)}
-      </span>
-    );
-    if (c.type === "sop_missing")
-      return (
-        <>
-          {who(a, c.task_ids[0])} 계획서에 작업표준서 핵심 단계가 <span className="kw">빠졌습니다</span>. 보완해 다시 제출해야 합니다.
-        </>
-      );
-    if (c.task_ids.length > 2)
-      return (
-        <>
-          전 구역 작업 {who(a, c.task_ids[0])}
-          {ja("이", "가")} 작업 {c.task_ids.length - 1}건과 <span className="kw">겹칠 수 있습니다</span> · {time}
-        </>
-      );
-    if (c.type === "sequence")
-      return (
-        <>
-          {who(b, c.task_ids[1])}
-          {jb("이", "가")} 선행 작업 {who(a, c.task_ids[0])}
-          {ja("이", "가")} <span className="kw">끝나기 전</span>에 시작합니다 · 선행 완료 <span className="t">{a ? a.end.slice(5, 10).replace("-", "/") : "?"}</span>
-        </>
-      );
-    if (c.type === "vertical")
-      return (
-        <>
-          {za}에서 {who(a, c.task_ids[0])}
-          {ja("을", "를")} 하는 동안 <span className="kw">바로 아래</span> {zb}에서 {who(b, c.task_ids[1])} · {time}
-        </>
-      );
-    if (c.type === "hot_gas")
-      return (
-        <>
-          {who(a, c.task_ids[0])}
-          {ja("과", "와")} {who(b, c.task_ids[1])}
-          {jb("이", "가")} <span className="kw">화기·가스</span> 거리 안에서 겹칩니다 · {time}
-        </>
-      );
-    return (
-      <>
-        {za}에서 {who(a, c.task_ids[0])}
-        {ja("과", "와")} {who(b, c.task_ids[1])}
-        {jb("이", "가")} <span className="kw">같은 시간</span>에 겹칩니다 · {time}
-      </>
-    );
-  };
+  // 순서 위반은 task_ids 가 [선행, 후행] — '후행 ← 선행 선행작업' 으로 쓴다 (조치 카드·상세와 같은 함수)
+  const label = (c: Conflict) => conflictLabel(c, { taskById, me });
   const pickTask = (t: Task) => {
     const top = dayConflicts.filter((d) => d.c.task_ids.includes(t.id)).sort((a, b) => GRADE_RANK[b.c.grade] - GRADE_RANK[a.c.grade])[0];
     setSel(top ? top.c.id : null);
@@ -313,7 +217,6 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
   );
   const firms = new Set(dayTasks.map((t) => t.contractor));
   const crewOf = (ts: Task[]) => ts.reduce((a, t) => a + (t.crew ?? 0), 0);
-  const zoneById = new Map(zones.map((z) => [z.id, z]));
   // 계획 변경 배너: 가장 최근 제출이 드러낸 충돌 (원청 화면, 아직 열려 있는 것)
   const fromLatest = latestPlan ? conflicts.filter((r) => r.plan_id === latestPlan.id) : [];
   const latestTop = [...fromLatest].sort(
@@ -326,7 +229,8 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
   const mine = dayTasks.filter((t) => t.contractor === me);
 
   return (
-    <div className="pb">
+    // min-w-0: 원청 화면처럼 grid 안에 놓여도 시간표 최소 폭(860px)이 화면 전체를 넓히지 않게
+    <div className="pb min-w-0">
       {!isPrime && (
         <p className="note" style={{ margin: "0 0 10px" }}>
           우리 작업과, 원청이 공유한 충돌의 상대 작업(빗금 막대)만 보입니다. 그 밖의 다른 회사 일정은 볼 수 없습니다.
@@ -556,67 +460,34 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
         </div>
       </section>
 
-      <section className="acts">
-        <div className="acts-h">
-          <h2>{isPrime ? "지금 조치할 것" : "원청에서 받은 공지"}</h2>
-          <span className="big" style={{ fontSize: 22, ...(acts.length ? { color: "var(--red)" } : {}) }}>
-            {acts.length}
-          </span>
-          <span className="sub">
-            건 · 겹침 {pairs.length}
-            {acts.length - pairs.length ? ` + 계획 결함 ${acts.length - pairs.length}` : ""} · 금지 먼저, 시작이 가까운 순
-            {isPrime ? " · 카드를 누르면 근거·공유·조정안이 아래에 열립니다" : ""}
-          </span>
-        </div>
-        <div className="acts-grid">
-          {acts.map((d) => (
-            <button key={d.c.id} type="button" className="ac" style={{ ["--c" as string]: GRADE_VAR[d.c.grade] } as CSSProperties} aria-pressed={sel === d.c.id} onClick={() => setSel(sel === d.c.id ? null : d.c.id)}>
-              <span className="top2">
-                <span className={`pill ${GRADE_PILL[d.c.grade]}`}>{d.c.grade}</span>
-                <span>{CONFLICT_TYPE_LABEL[d.c.type]}</span>
-                {latestPlan && d.rec.plan_id === latestPlan.id && (
-                  <span className="kw" style={{ fontSize: 12 }}>
-                    최근 제출
-                  </span>
-                )}
-                {isPrime && d.rec.shared_at && <span className="pill mute">협력사 공유됨</span>}
-                {d.rec.status === "adjusted" && <span className="pill ok">조정 적용</span>}
-                <span className="when">{d.c.type !== "sop_missing" ? when(d) : ""}</span>
-              </span>
-              <p title={d.c.reason}>{sentence(d)}</p>
-              <span className="ev">
-                {d.c.rule_id} · {d.c.legal_basis.split(" / ")[0]}
-              </span>
-            </button>
-          ))}
-          {acts.length === 0 && <div className="empty">{isPrime ? "이 날 조치할 겹침이 없습니다" : "이 날 원청이 공유한 충돌이 없습니다"}</div>}
-        </div>
-      </section>
-
-      {selected && (
-        <section className="card" style={{ marginTop: 12 }} ref={detailRef}>
-          <header>
-            <h2>충돌 상세 — 근거{isPrime ? " · 협력사 공유 · 조정안" : ""}</h2>
-            <span className="sub">{label(selected.c)}</span>
-            <span className="grow" />
-            <button type="button" className="link" onClick={() => setSel(null)}>
-              닫기
-            </button>
-          </header>
-          <div style={{ padding: "0 14px 8px" }}>
-            <ConflictList
-              key={selected.c.id}
-              records={[selected.rec]}
-              tasks={tasks}
-              role={role}
-              onShow3D={onShow3D}
-              onAdjusted={onAdjusted}
-              onShared={onShared}
-              initialOpenId={selected.c.id}
-            />
-          </div>
-        </section>
-      )}
+      {/* 조치 카드·충돌 상세 서랍: components/ActionCards · components/ConflictDrawer (시안 renderActs·renderDrawer) */}
+      <ActionCards
+        role={role}
+        date={date}
+        now={now}
+        items={dayConflicts}
+        tasks={tasks}
+        zones={zones}
+        latestPlanId={latestPlan?.id ?? null}
+        selectedId={sel}
+        onSelect={setSel}
+      />
+      <ConflictDrawer
+        record={selected?.rec ?? null}
+        date={date}
+        role={role}
+        tasks={tasks}
+        zones={zones}
+        colorOf={colorOf}
+        onClose={() => setSel(null)}
+        onOpen={(id) => {
+          const r = conflicts.find((x) => x.conflict.id === id);
+          if (r) goTo(r);
+        }}
+        onAdjusted={onAdjusted}
+        onShared={onShared}
+        onShow3D={onShow3D}
+      />
     </div>
   );
 }

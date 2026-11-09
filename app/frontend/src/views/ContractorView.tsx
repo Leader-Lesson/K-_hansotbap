@@ -59,7 +59,8 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
 
   return (
     <div className="grid gap-4">
-      <Tabs value={tab} onValueChange={setTab}>
+      {/* min-w-0: grid 칸이 시간표 최소 폭(860px)만큼 늘어나 좁은 화면 전체가 넓어지지 않게 (시간표는 자기 칸 안에서 가로 스크롤) */}
+      <Tabs value={tab} onValueChange={setTab} className="min-w-0">
 
         <TabsContent value="board">
           <BoardView
