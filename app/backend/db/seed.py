@@ -20,8 +20,12 @@ from schemas import PlanRecord, PlanSubmission, SourceRef, Task
 from .database import session
 from .plans import list_plans, submit_plan
 
-# 지우는 순서: tasks 가 plans 를 참조하므로 자식부터
-TABLES = ("tasks", "plans", "shares", "conflicts", "decisions", "adjustments", "extraction_cache")
+# 지우는 순서: tasks 가 plans 를 참조하므로 자식부터.
+# database.py 에 표를 더하면 여기에도 더한다 — 빠지면 리허설 기록(TBM 공지·전달 확인 등)이 시연에 남는다
+TABLES = (
+    "tasks", "plans", "shares", "conflicts", "decisions", "adjustments", "extraction_cache",
+    "plan_documents", "tbm_notices", "tbm_checks",
+)
 
 # 시연 시작 상태: 협력사 두 곳이 기준 일정대로 이미 제출해 둔 상태.
 # 각각 따로 보면 정상이다 — 겹쳐서 위험해지는 건 배관 계획서가 올라온 다음이다.
