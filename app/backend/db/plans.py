@@ -22,6 +22,7 @@ from schemas import (
     Adjustment,
     AdjustmentStatus,
     Conflict,
+    ConflictDiff,
     ConflictRecord,
     ConflictStatus,
     PlanExtraction,
@@ -230,12 +231,14 @@ def _conflict_record(row) -> ConflictRecord:
     )
 
 
-def _without_others_sources(record: ConflictRecord, others: list[SourceRef]) -> ConflictRecord:
-    """상대 업체 계획서의 원문 문장을 뺀다. 표준서처럼 어느 업체 것도 아닌 근거는 남는다."""
-    conflict = record.conflict.model_copy(
-        update={"sources": [s for s in record.conflict.sources if s not in others]}
-    )
-    return record.model_copy(update={"conflict": conflict})
+def _without_others_sources(record: ConflictRecord, own: list[SourceRef]) -> ConflictRecord:
+    """자기 계획서의 원문과 이 결함의 표준서 근거만 남긴다.
+
+    남길 것을 고르는 방식이라, 해소된 충돌에 남은 상대 업체의 예전 원문(재제출로 일정에서 빠진 것)도 나가지 않는다.
+    """
+    c = record.conflict
+    kept = [s for s in c.sources if s in own or c.rule_id == f"SOP:{s.file}"]
+    return record.model_copy(update={"conflict": c.model_copy(update={"sources": kept})})
 
 
 def _scoped(record: ConflictRecord, schedule: list[Task], contractor: str) -> ConflictRecord:
@@ -260,16 +263,34 @@ def list_conflicts(contractor: str | None = None, include_resolved: bool = False
     if contractor:
         schedule = current_schedule()
         mine = {t.id for t in schedule if t.contractor == contractor}
-        others = [t.source for t in schedule if t.contractor != contractor and t.source]
+        own = [t.source for t in schedule if t.contractor == contractor and t.source]
         records = [
-            _without_others_sources(_scoped(r, schedule, contractor), others)
+            _without_others_sources(_scoped(r, schedule, contractor), own)
             for r in records
             if r.shared_at and mine & set(r.conflict.task_ids)
         ]
     return sorted(records, key=lambda r: (r.conflict.window_start, r.conflict.id))
 
 
-def submit_plan(sub: PlanSubmission) -> PlanSubmitResult:
+def _for_viewer(diff: ConflictDiff, viewer: str) -> tuple[list[Conflict], ConflictDiff]:
+    """제출 응답을 이 협력사에게 공유된 범위로 좁힌다. 판정 원본이 아니라 list_conflicts 가 거른 충돌만 돌려준다."""
+    records = list_conflicts(viewer, include_resolved=True)
+    visible = {r.conflict.id: r.conflict for r in records}
+    return (
+        [r.conflict for r in records if r.status != ConflictStatus.RESOLVED],
+        ConflictDiff(
+            resolved=[visible[c.id] for c in diff.resolved if c.id in visible],
+            introduced=[visible[c.id] for c in diff.introduced if c.id in visible],
+            grade_changed=[g for g in diff.grade_changed if g.conflict_id in visible],
+        ),
+    )
+
+
+def submit_plan(sub: PlanSubmission, viewer: str | None = None) -> PlanSubmitResult:
+    """계획서를 저장하고 제출 순간 일정 전체를 판정한다.
+
+    viewer=None 이면 판정 전체를 돌려준다(시드·직접 호출). viewer 를 주면 그 협력사에게 공유된 범위만 돌려준다.
+    """
     with _submit_lock:
         now = datetime.now().isoformat(timespec="seconds")
         before = judge(current_schedule())  # 이 제출이 들어오기 전 판정 (새 충돌 알림용)
@@ -295,6 +316,8 @@ def submit_plan(sub: PlanSubmission) -> PlanSubmitResult:
         with session() as conn:
             save_conflicts(conn, plan_id, conflicts, now)
             row = conn.execute(_PLAN_SELECT + " WHERE p.id = ?", (plan_id,)).fetchone()
-    return PlanSubmitResult(
-        plan=_record(row), conflicts=conflicts, diff=diff_conflicts(before, conflicts), recheck_ms=recheck_ms
-    )
+        diff = diff_conflicts(before, conflicts)
+        if viewer is not None:
+            # 위 저장이 끝난 뒤에 읽어야 이번 판정이 보인다 (list_conflicts·current_schedule 은 _submit_lock 을 잡지 않는다)
+            conflicts, diff = _for_viewer(diff, viewer)
+    return PlanSubmitResult(plan=_record(row), conflicts=conflicts, diff=diff, recheck_ms=recheck_ms)
