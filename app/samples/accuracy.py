@@ -4,7 +4,7 @@
     cd app/backend && uv run python ../samples/accuracy.py --mode llm  # LLM 경로 (.env 의 ANTHROPIC_API_KEY 필요)
     cd app/backend && uv run python ../samples/accuracy.py --json ../samples/answers/_last_result.json
 
-칸: 업체 · 작업명 · 구역 · 시작일 · 종료일 · 주야간 · 작업 유형 · 선행 작업 · 기준 일정 ID (9칸).
+칸: 업체 · 작업명 · 구역 · 시작일 · 종료일 · 주야간 · 투입 인원 · 작업 유형 · 선행 작업 · 기준 일정 ID (10칸).
 정답셋의 값이 null 이면 그 칸은 세지 않는다 (예: '주야간' 연속 작업은 한쪽으로 정할 수 없다).
 틀린 칸 목록은 프롬프트·규칙 수정용으로 그대로 전달한다.
 """
@@ -28,10 +28,10 @@ from parsers.xlsx import parse_xlsx  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 PARSERS = {".pdf": parse_pdf, ".xlsx": parse_xlsx, ".hwpx": parse_hwpx}
-FIELDS = ("contractor", "name", "zone_id", "start", "end", "shift", "hazards", "predecessors", "wbs_id")
+FIELDS = ("contractor", "name", "zone_id", "start", "end", "shift", "headcount", "hazards", "predecessors", "wbs_id")
 LABEL = {
     "contractor": "업체", "name": "작업명", "zone_id": "구역", "start": "시작일", "end": "종료일",
-    "shift": "주야간", "hazards": "작업 유형", "predecessors": "선행 작업", "wbs_id": "기준 일정 ID",
+    "shift": "주야간", "headcount": "투입 인원", "hazards": "작업 유형", "predecessors": "선행 작업", "wbs_id": "기준 일정 ID",
 }
 
 
@@ -48,6 +48,7 @@ def extracted_row(et) -> dict:
         "start": t.start.date().isoformat(),
         "end": t.end.date().isoformat(),
         "shift": t.shift.value if t.shift else None,
+        "headcount": t.crew,
         "hazards": sorted(h.value for h in t.hazards),
         "predecessors": sorted(t.predecessors),
         "wbs_id": et.wbs_id,

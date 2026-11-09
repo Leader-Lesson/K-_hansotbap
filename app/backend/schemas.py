@@ -91,6 +91,7 @@ class Task(BaseModel):
     start: datetime
     end: datetime
     shift: Shift | None = None
+    crew: int | None = Field(default=None, ge=0, description="투입 인원(명). 계획서의 인원 칸, 없으면 기준 일정 값")
     hazards: list[Hazard] = []
     risk_codes: list[str] = Field(default=[], description="시행령 제53조의2 1~8호, 기타는 X")
     predecessors: list[str] = []

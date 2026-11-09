@@ -105,6 +105,19 @@ def parse_times(text: str | None) -> list[time]:
     return out
 
 
+_CREW = re.compile(r"\d{1,4}")
+
+
+def parse_crew(value: Any) -> int | None:
+    """투입 인원 칸 → 명 수. '8', '8명', '작업인원 12명', 8.0 을 읽는다. 숫자가 여럿이면 첫 숫자 ('8명(신호수 2명 포함)' → 8)."""
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return int(value) if value >= 0 else None
+    m = _CREW.search(str(value))
+    return int(m.group(0)) if m else None
+
+
 def as_time(value: Any) -> time | None:
     if isinstance(value, datetime):
         return value.time()
