@@ -129,7 +129,7 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
 
         <TabsContent value="conflicts" className="rounded-lg bg-white p-4 shadow-sm">
           <h3 className="mb-2 font-semibold">나와 겹친 충돌 — 내 작업이 걸린 것만 (서버에서 거름)</h3>
-          <ConflictList records={conflicts} tasks={tasks} role={{ kind: "contractor", contractor }} emptyText="내 작업이 걸린 충돌이 없습니다." />
+          <ConflictList records={conflicts} tasks={tasks} role={{ kind: "contractor", contractor }} emptyText="원청이 공유한 충돌이 없습니다. 원청 확인 전인 충돌은 여기에 나오지 않습니다." />
         </TabsContent>
 
         <TabsContent value="restrictions" className="grid gap-2">

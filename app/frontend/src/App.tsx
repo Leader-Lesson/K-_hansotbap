@@ -76,6 +76,7 @@ export default function App() {
   const changeRole = (r: ViewerRole) => {
     sessionStorage.setItem(ROLE_KEY, JSON.stringify(r));
     setRole(r);
+    setNotice(null); // 협력사 제출 안내가 원청 화면 위에 남지 않게
   };
 
   // 기획서: 판정 후 화면을 한 번 강제 새로고침한다. 결과 요약은 새로고침 뒤에 띄운다
@@ -92,11 +93,13 @@ export default function App() {
   const onSubmitted = (r: PlanSubmitResult) => {
     const intro = r.diff?.introduced ?? [];
     const gone = r.diff?.resolved ?? [];
+    // 제출 응답은 제출한 협력사에게 공유된 충돌만 담는다(#56). 원청 확인 전이면 보통 비어 있으므로 "충돌 0건"으로 쓰지 않는다
     const parts = [
       `${r.plan.contractor} 계획서 v${r.plan.version} 제출 · 작업 ${r.plan.task_count}건 · 판정 ${r.recheck_ms != null ? `${Math.round(r.recheck_ms)}ms` : ""}`,
-      `현재 충돌 ${r.conflicts.length}건`,
-      intro.length ? `새로 생긴 충돌 ${intro.length}건: ${intro.map((c) => `${c.id} (${c.grade})`).join(", ")}` : "새로 생긴 충돌 없음",
-      gone.length ? `해소된 충돌 ${gone.length}건: ${gone.map((c) => c.id).join(", ")}` : "",
+      "충돌 판정 결과는 원청 확인 후 공유됩니다",
+      r.conflicts.length ? `이미 공유된 충돌 ${r.conflicts.length}건` : "",
+      intro.length ? `새로 생긴 공유 충돌 ${intro.length}건: ${intro.map((c) => `${c.id} (${c.grade})`).join(", ")}` : "",
+      gone.length ? `해소된 공유 충돌 ${gone.length}건: ${gone.map((c) => c.id).join(", ")}` : "",
     ].filter(Boolean);
     sessionStorage.removeItem(DATE_KEY); // 원청 화면이 이 제출이 낸 충돌 날짜로 가게
     finishWithRefresh(parts.join(" · "), r.refresh);
