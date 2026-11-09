@@ -1,7 +1,7 @@
-"""LLMProvider: Claude API 와 Unsloth Studio(OpenAI 호환 로컬 API)를 같은 인터페이스로 감싼다.
+"""LLMProvider: Claude API, Unsloth Studio·LM Studio(OpenAI 호환 로컬 API)를 같은 인터페이스로 감싼다.
 
 LLM은 추출·위치 매핑·사유 설명·조정안 문장만 맡는다. 판정은 rules/ 가 한다.
-LLM_PROVIDER 환경변수로 전환한다 (API 장애 시 unsloth 로 바꿔 시연을 이어간다).
+LLM_PROVIDER 환경변수로 전환한다 (API 장애 시 unsloth·lmstudio 로 바꿔 시연을 이어간다).
 """
 
 import json
@@ -88,8 +88,8 @@ class ClaudeProvider:
         return res.parsed_output
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        # Claude API에는 임베딩이 없다 → F8 임베딩은 Unsloth Studio를 쓴다
-        return UnslothProvider().embed(texts)
+        # Claude API에는 임베딩이 없다 → F8 임베딩은 EMBEDDING_PROVIDER 의 로컬 서버를 쓴다
+        return _LOCAL[settings.embedding_provider]().embed(texts)
 
 
 _THINK = re.compile(r"<think>.*?</think>", re.DOTALL)
@@ -107,16 +107,18 @@ def _json_text(content: str) -> str:
     return content[start : end + 1] if start != -1 and end > start else content
 
 
-class UnslothProvider:
-    name = "unsloth"
+class _OpenAICompatProvider:
+    """OpenAI 호환 로컬 서버 공통 구현. 하위 클래스가 주소·키·모델만 정한다."""
 
-    def __init__(self) -> None:
+    name: str
+    label: str
+
+    def __init__(self, base_url: str, api_key: str, chat_model: str, embedding_model: str) -> None:
         from openai import OpenAI
 
-        if not settings.unsloth_api_key:
-            raise RuntimeError("UNSLOTH_API_KEY 가 .env 에 없습니다")
-        self._client = OpenAI(base_url=settings.unsloth_base_url, api_key=settings.unsloth_api_key)
-        self.model = settings.unsloth_chat_model
+        self._client = OpenAI(base_url=base_url, api_key=api_key)
+        self.model = chat_model
+        self._embedding_model = embedding_model
 
     def complete(self, system: str, user: str, max_tokens: int = 2048) -> str:
         res = self._client.chat.completions.create(
@@ -126,9 +128,9 @@ class UnslothProvider:
             extra_body=_NO_THINKING,
         )
         choice = res.choices[0]
-        content = choice.message.content or ""
-        if not content.strip():
-            raise RuntimeError(f"Unsloth 응답 본문이 비어 있습니다 (finish_reason={choice.finish_reason})")
+        content = _THINK.sub("", choice.message.content or "").strip()
+        if not content:
+            raise RuntimeError(f"{self.label} 응답 본문이 비어 있습니다 (finish_reason={choice.finish_reason})")
         return content
 
     def extract(self, system: str, user: str, schema: type[T], max_tokens: int = 16000) -> T:
@@ -149,11 +151,49 @@ class UnslothProvider:
             raise LLMExtractionError(f"로컬 모델 응답이 형식에 맞지 않습니다: {e}") from e
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        res = self._client.embeddings.create(model=settings.unsloth_embedding_model, input=texts)
+        # 임베딩은 LLM_PROVIDER 와 따로 EMBEDDING_PROVIDER 를 따른다 (인덱스를 한 모델로 맞추려고)
+        if settings.embedding_provider != self.name:
+            return _LOCAL[settings.embedding_provider]().embed(texts)
+        if not self._embedding_model:
+            raise RuntimeError(f"{self.label} 임베딩 모델이 .env 에 없습니다 ({self.name.upper()}_EMBEDDING_MODEL)")
+        res = self._client.embeddings.create(model=self._embedding_model, input=texts)
         return [d.embedding for d in res.data]
 
 
+class UnslothProvider(_OpenAICompatProvider):
+    """로컬 LLM 노트북(bird-llm)의 Unsloth Studio. API 키 필수."""
+
+    name = "unsloth"
+    label = "Unsloth"
+
+    def __init__(self) -> None:
+        if not settings.unsloth_api_key:
+            raise RuntimeError("UNSLOTH_API_KEY 가 .env 에 없습니다")
+        super().__init__(
+            settings.unsloth_base_url, settings.unsloth_api_key,
+            settings.unsloth_chat_model, settings.unsloth_embedding_model,
+        )
+
+
+class LMStudioProvider(_OpenAICompatProvider):
+    """각자 PC의 LM Studio 로컬 서버. 키를 검사하지 않으므로 비어 있으면 아무 값이나 보낸다."""
+
+    name = "lmstudio"
+    label = "LM Studio"
+
+    def __init__(self) -> None:
+        if not settings.lmstudio_chat_model and not settings.lmstudio_embedding_model:
+            raise RuntimeError("LMSTUDIO_CHAT_MODEL 이 .env 에 없습니다 (lms ls 로 모델 이름 확인)")
+        super().__init__(
+            settings.lmstudio_base_url, settings.lmstudio_api_key or "lm-studio",
+            settings.lmstudio_chat_model, settings.lmstudio_embedding_model,
+        )
+
+
+_LOCAL: dict[str, type[_OpenAICompatProvider]] = {"unsloth": UnslothProvider, "lmstudio": LMStudioProvider}
+
+
 def get_provider() -> LLMProvider:
-    if settings.llm_provider == "unsloth":
-        return UnslothProvider()
+    if settings.llm_provider in _LOCAL:
+        return _LOCAL[settings.llm_provider]()
     return ClaudeProvider()

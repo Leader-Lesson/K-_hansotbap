@@ -109,19 +109,19 @@ export function buildPiping(furnace) {
   // 라벨 스프라이트 (화면상 일정 크기). sub가 있으면 위에 계통명을 작게 한 줄 더
   function label(owner, sys, text, pos, sub) {
     const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
-    const fs = 44, fsS = 30;
+    const fs = 44, fsS = 34;
     ctx.font = `700 ${fs}px sans-serif`;
     let tw = ctx.measureText(text).width;
     if (sub) { ctx.font = `600 ${fsS}px sans-serif`; tw = Math.max(tw, ctx.measureText(sub).width); }
-    const w = Math.ceil(tw) + 56, h = sub ? 100 : 64;
+    const w = Math.ceil(tw) + 56, h = sub ? 108 : 64;
     cv.width = w; cv.height = h;
     ctx.fillStyle = 'rgba(250,248,244,0.92)'; ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(0, 0, w, h, 14); else ctx.rect(0, 0, w, h); ctx.fill();
     ctx.fillStyle = SYS_COL[sys] || '#8f8c86'; ctx.fillRect(10, 12, 12, h - 24);
     ctx.textBaseline = 'middle';
-    if (sub) { ctx.font = `600 ${fsS}px sans-serif`; ctx.fillStyle = '#6b665f'; ctx.fillText(sub, 34, 30); }
+    if (sub) { ctx.font = `600 ${fsS}px sans-serif`; ctx.fillStyle = '#6b665f'; ctx.fillText(sub, 34, 32); }
     ctx.font = `700 ${fs}px sans-serif`; ctx.fillStyle = '#3d3a36';
-    ctx.fillText(text, 34, sub ? 70 : h / 2 + 2);
+    ctx.fillText(text, 34, sub ? 76 : h / 2 + 2);
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; textures.push(tex);
     const m = new THREE.SpriteMaterial({ map: tex, sizeAttenuation: false, depthTest: false, transparent: true });
     const s = new THREE.Sprite(m);
@@ -283,10 +283,12 @@ export function buildPiping(furnace) {
   line('decor', 'STEAM', [[-34, yT2(0.32), -28.4], [62, yT2(0.32), -28.4]], 0.32, { fl: 9 });
 
   // ═══ 7. 라벨 ═══
-  label('TOP', 'BFG', LABEL.BFG, pol(9.5, 1.25 * Math.PI, 70.5));
-  label('GAS', 'BFG', LABEL.BFG, [24, 55, -5.5]);
-  label('decor', 'BFG', LABEL.BFG, [20, yB + 1.6, -28.6]);
-  label('decor', 'BFG', LABEL.BFG, [46, yG + 1.8, -20]);
+  // 고로가스는 구간마다 성격이 달라 구간명을 붙인다 (조가스: 분진·고온·노정압 / 정제가스: 청정 후, CO 독성은 같음)
+  label('TOP', 'BFG', '상승관·블리더', pol(9.5, 1.25 * Math.PI, 70.5), LABEL.BFG);
+  label('GAS', 'BFG', '하강관 (조가스)', [24, 55, -5.5], LABEL.BFG);
+  label('decor', 'BFG', '조가스 본관 → 청정', [46, yG + 1.8, -20], LABEL.BFG);
+  label('decor', 'BFG', '정제가스 → TRT', [67, 11.5, -31], LABEL.BFG);
+  label('decor', 'BFG', '연료가스 → 열풍로', [20, yB + 1.6, -28.6], LABEL.BFG);
   label('decor', 'BFG', '가스청정·TRT', [64, 21, -32]);
   label('EX-UP', 'N2', LABEL.N2, pol(13.5, Math.PI, yN + 1.3));
   label('decor', 'N2', LABEL.N2, [-20, 8.5, -34.5]);

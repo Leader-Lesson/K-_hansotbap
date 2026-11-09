@@ -60,6 +60,12 @@ CREATE TABLE IF NOT EXISTS extraction_cache (
     payload TEXT NOT NULL,               -- schemas.PlanExtraction JSON
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS plan_documents (
+    draft_id TEXT PRIMARY KEY,           -- PlanExtraction.draft_id (파일 sha256 앞 16자)
+    filename TEXT NOT NULL,
+    lines TEXT NOT NULL,                 -- 파서가 읽은 원문 줄 JSON (F8 필수 단계 확인·근거 표시)
+    created_at TEXT NOT NULL
+);
 """
 
 # 예전 스키마로 만든 DB 파일에 나중에 생긴 칸을 붙인다 (ALTER 로 붙이므로 NOT NULL 은 기본값을 둔다)

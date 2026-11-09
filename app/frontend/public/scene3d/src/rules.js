@@ -43,7 +43,7 @@ const activeAt = (task, tm) => activeIntervals(task).some(([s, e]) => s <= tm &&
 
 /* ───────── 공통 도우미 ───────── */
 const GAS_SYS = ['N2', 'O2', 'BFG'];
-const GAS_NAME = { N2: '질소', O2: '산소', BFG: '고로가스' };
+const GAS_NAME = { N2: '질소', O2: '산소', BFG: '고로가스(BFG·CO)' };
 const has = (t, w) => (t.work_types || []).includes(w);
 const live = t => t && t.status !== 'rejected';
 const isPending = t => t && t.status === 'pending';

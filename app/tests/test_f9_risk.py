@@ -103,3 +103,34 @@ def test_scores_split_by_time_and_merge_across_days():
     ]
     assert windows[1].conflict_ids == ["X"]
     assert "2027-01-01~2027-01-02 07:00~19:00" in windows[0].notice
+
+
+def test_grouped_all_zone_conflict_counts_only_that_zone():
+    """전 구역 비계 작업과의 묶음 충돌(F2 '…>ALL')은 구역마다 그 구역 작업이 있는 날·그 구역 업체로만 집계한다.
+
+    그러지 않으면 공사 기간 내내 모든 구역 공지에 다른 구역 업체까지 섞인다 (예: 풍구 레벨 공지에 15개 업체).
+    """
+    from rules.data_loader import load_rules, load_zones
+    from rules.engine import detect_conflicts
+
+    def task(id: str, contractor: str, name: str, zone: str, start: str, end: str) -> Task:
+        return Task(
+            id=id, contractor=contractor, name=name, zone_id=zone,
+            start=datetime.fromisoformat(start), end=datetime.fromisoformat(end),
+        )
+
+    tasks = [
+        task("S", "가상-비계N", "비계 설치·해체", "ALL", "2027-01-01T07:00", "2027-01-20T19:00"),
+        task("A", "가상-A", "풍구 점검", "TUYERE", "2027-01-02T07:00", "2027-01-03T19:00"),
+        task("B", "가상-B", "주상 점검", "CASTHOUSE", "2027-01-10T07:00", "2027-01-11T19:00"),
+        task("E", "가상-전기", "전기·계장 점검", "ALL", "2027-01-15T07:00", "2027-01-16T19:00"),  # 위치 모르는 다른 전 구역 작업
+    ]
+    conflicts = detect_conflicts(tasks, load_zones(), load_rules())
+    assert "R17:S>ALL" in {c.id for c in conflicts}
+    windows = score_windows(conflicts, tasks, load_zones())
+    tuyere = [w for w in windows if w.zone_id == "TUYERE"]
+    casthouse = [w for w in windows if w.zone_id == "CASTHOUSE"]
+    assert [(w.start, w.end) for w in tuyere] == [(datetime(2027, 1, 2, 7), datetime(2027, 1, 3, 19))]
+    assert [(w.start, w.end) for w in casthouse] == [(datetime(2027, 1, 10, 7), datetime(2027, 1, 11, 19))]
+    assert tuyere[0].contractors == ["가상-A", "가상-비계N"]
+    assert casthouse[0].contractors == ["가상-B", "가상-비계N"]
