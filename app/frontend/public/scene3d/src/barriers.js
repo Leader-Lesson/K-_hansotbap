@@ -14,11 +14,11 @@ export const DIR_NAME = { N: '북쪽', E: '동쪽', S: '남쪽', W: '서쪽' };
 const PH = PERSON_H_MODEL;
 const TAU = Math.PI * 2;
 const QUAD = ['S', 'E', 'N', 'W'];        // φ 증가 순서
-const POST_GAP = 1.0 * PH;                // 기둥 간격
-const POST_H = 0.55 * PH;
-const TAPE_Y = 0.45 * PH, TAPE_W = 0.075 * PH;
-const CONE_H = 0.42 * PH, CONE_B = 0.25 * PH;
-const SIGN_H = 0.022, BIG_SIGN_H = 0.034;   // 화면 높이 비율
+const POST_GAP = 1.1 * PH;                // 기둥 간격
+const POST_H = 0.78 * PH;                 // 멀리서도 보이게 약 1.4배 [팀 설정값]
+const TAPE_Y = 0.64 * PH, TAPE_W = 0.11 * PH;
+const CONE_H = 0.6 * PH, CONE_B = 0.34 * PH;
+const SIGN_H = 0.028, BIG_SIGN_H = 0.04;   // 화면 높이 비율
 const FONT = '"Pretendard","Noto Sans KR","Malgun Gothic",sans-serif';
 const noRay = () => {};
 

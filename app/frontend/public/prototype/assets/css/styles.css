@@ -99,13 +99,14 @@ main{padding-block:14px 90px}
 .note{font-size:12px;color:var(--ink-3);margin:0}
 
 /* board stats */
-.stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--line-2);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px}
+.stats{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--line-2);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px}
 .stat{background:var(--surface);padding:10px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
 .stat .k{font-size:12px;color:var(--ink-3)}
 .stat .v{display:flex;align-items:baseline;gap:4px}
 .stat .v small{font-size:13px;color:var(--ink-2)}
 .stat .d{font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-@media (max-width:900px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:900px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:560px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .banner{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:9px 14px;border:1px solid var(--red);border-radius:8px;background:var(--surface);margin-bottom:12px}
 .jumps{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .jump{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:1px 10px;font-size:12.5px}
@@ -347,6 +348,20 @@ td input[type=date]{width:132px;padding:2px 5px;font-size:12.5px}
 .bck .why{font-size:14px;margin-top:6px}
 .bck.ok .mk{background:var(--ok-soft);color:var(--ok)} .bck.weak .mk{background:var(--amber-soft);color:var(--amber)} .bck.miss .mk{background:var(--red-soft);color:var(--red)}
 .bck.miss{border-color:var(--red)} .bck.weak{border-color:var(--amber)}
+.bck .say{font-size:15px;margin-top:8px;padding:6px 10px;border-radius:6px;background:var(--surface-2);color:var(--ink)}
+.bck .say .sub{display:block;font-size:12px}
+.bck .lb .pill{vertical-align:middle}
+/* TBM 본청: 업체별 상태 */
+.tbmall{margin-bottom:12px}
+.tbmall-row{display:flex;flex-wrap:wrap;gap:8px;padding:12px 14px}
+.tst{appearance:none;display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);padding:6px 12px;font-size:14px;color:var(--ink);cursor:pointer}
+.tst .dot{width:8px;height:8px;border-radius:50%}
+.tst .tsx{font-size:12.5px;color:var(--ink-3)}
+.tst.todo .tsx{color:var(--ink-2)}
+.tst.miss{border-color:var(--red)} .tst.miss .tsx{color:var(--red);font-weight:500}
+.tst.ok{border-color:var(--ok)} .tst.ok .tsx{color:var(--ok)}
+.tst[aria-pressed="true"]{box-shadow:0 0 0 2px var(--blue)}
+.tst:disabled{opacity:.55;cursor:default}
 @media (max-width:640px){.bck{grid-template-columns:40px minmax(0,1fr);gap:10px;padding:12px}.bck .mk{width:36px;height:36px;font-size:18px}.bck .lb{font-size:19px}}
 .m1rec{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:12px 16px;margin-top:12px}
 .m1rec .recb{width:46px;height:46px}
@@ -455,3 +470,26 @@ mark{background:var(--amber-soft);color:inherit;border-radius:2px;padding:0 1px}
   body.chat-dock .chatp{top:0;right:0;bottom:0;width:380px;height:auto;border-radius:0;border-width:0 0 0 1px;box-shadow:none;z-index:25;padding-top:env(safe-area-inset-top,0px)}
   body.chat-dock .fab{display:none}
 }
+/* 24시간 2교대: 시간표 보기·시연 시각·교대 띠·잔업·인계 문서 */
+.tlbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 14px;border-bottom:1px solid var(--line-2)}
+.tctl{display:inline-flex;align-items:center;gap:4px}
+.tctl select{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:2px 6px;font-variant-numeric:tabular-nums}
+.sband{position:absolute;top:0;bottom:0;pointer-events:none}
+.sband.day{background:color-mix(in srgb,var(--amber) 4%,transparent)}
+.sband.night{background:color-mix(in srgb,var(--blue) 10%,transparent)}
+.sband.hov{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--amber) 30%,transparent) 0 4px,transparent 4px 8px)}
+.sw.sband{position:static;border:1px solid var(--line)}
+.tl-scale .ticks .hovmk{top:7px;transform:translateX(-100%);font-size:10.5px;font-weight:700;color:var(--amber);padding-right:3px}
+.tl-lines .hovl{position:absolute;top:0;bottom:0;border-left:1.5px dashed var(--amber)}
+.tb.ot{border-left-style:dashed}
+.nd{font-size:11px;margin-left:4px;color:var(--ink-3)}
+.nk.잔업,.nk.인계{background:var(--amber);color:var(--surface)}
+.hovb{background:var(--amber-soft);color:var(--ink);border-bottom:1px solid var(--line)}
+.hovb .wrap{padding-block:6px}
+.hovb .upill{border:1px solid currentColor}
+.hvc{border:1px solid var(--line);border-left:3px solid var(--pc);border-radius:6px;padding:8px 12px}
+.hvc header{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hvs{margin-top:6px}
+.hvs .h{font-size:12px;color:var(--ink-3)}
+.hvs ul{margin:2px 0 0;padding-left:18px}
+.hvs li{margin:2px 0}

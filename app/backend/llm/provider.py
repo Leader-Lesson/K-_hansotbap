@@ -193,6 +193,16 @@ class LMStudioProvider(_OpenAICompatProvider):
 _LOCAL: dict[str, type[_OpenAICompatProvider]] = {"unsloth": UnslothProvider, "lmstudio": LMStudioProvider}
 
 
+def embedding_model() -> str:
+    """EMBEDDING_PROVIDER 쪽 임베딩 모델 이름 (UNSLOTH_EMBEDDING_MODEL / LMSTUDIO_EMBEDDING_MODEL). 비어 있으면 ''."""
+    return getattr(settings, f"{settings.embedding_provider}_embedding_model")
+
+
+def get_embedding_provider() -> LLMProvider:
+    """F8 임베딩을 받을 로컬 서버. LLM_PROVIDER 와 따로 EMBEDDING_PROVIDER 로 고른다 (Claude API에는 임베딩이 없다)."""
+    return _LOCAL[settings.embedding_provider]()
+
+
 def get_provider() -> LLMProvider:
     if settings.llm_provider in _LOCAL:
         return _LOCAL[settings.llm_provider]()

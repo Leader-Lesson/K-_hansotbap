@@ -1,6 +1,6 @@
 # F4 조정안 API와 재제출 새 충돌 비교
 
-- 상태: 미반영
+- 상태: 반영됨
 - 브랜치: `feat/F4-adjust-api`
 - 바뀐 곳: `app/backend/schemas.py`에 `AdjustmentStatus`, `AdjustmentRecord`, `AdjustmentApply`, `AdjustmentResult`를 더했고, `AdjustmentCandidate`에 `recommended`, `PlanSubmitResult`에 `diff`, `recheck_ms`를 더했습니다. 앞 요청 `20261109-F4-adjustment-models.md`의 타입이 먼저 필요합니다.
 - 쓰는 곳 / 까닭: 충돌 상세의 조정안 카드와 [조정 적용], 적용 결과의 "사라짐 / 새로 생김", [되돌리기], 계획서 제출 뒤 새 충돌 알림, 이력(F5)의 조정 기록.

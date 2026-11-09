@@ -58,6 +58,77 @@ export interface ConflictRecord {
   resolved_at: string | null; // 재판정에서 사라진 시각
 }
 
+// ── F4 조정안·재판정 ──────────────────────────────────────────────────
+
+export type AdjustmentKind = "reschedule";
+export type AdjustmentStatus = "active" | "reverted" | "stale";
+
+/** F4 조정안 후보: 규칙이 계산한 일정 이동안 (GET /api/conflicts/{id}/adjustments, 추천 안이 맨 앞) */
+export interface AdjustmentCandidate {
+  id: string;
+  kind: AdjustmentKind;
+  task_id: string; // 옮길 작업
+  conflict_id: string; // 이 조정안이 풀려는 충돌
+  original_start: string; // ISO datetime
+  original_end: string;
+  new_start: string;
+  new_end: string;
+  reason: string;
+  resolves: boolean; // 적용하면 conflict_id의 충돌이 사라지는가
+  new_conflict_ids: string[]; // 적용하면 새로 생기는 충돌
+  affected_successors: string[]; // 옮긴 뒤 시작이 이 작업의 새 종료보다 이른 후행 작업
+  recommended: boolean; // 후보 중 새 충돌·영향 받는 후행 작업이 가장 적은 안
+}
+
+/** 적용한 조정 기록: 협력사 원본 계획서는 그대로 두고 이 기록을 얹어 판정한다 */
+export interface Adjustment {
+  id: string;
+  kind: AdjustmentKind;
+  task_id: string;
+  conflict_id: string;
+  original_start: string;
+  original_end: string;
+  new_start: string;
+  new_end: string;
+  reason: string;
+  decided_by: string; // 적용한 책임자
+  decided_at: string;
+}
+
+export interface ConflictGradeChange {
+  conflict_id: string;
+  before: Grade;
+  after: Grade;
+}
+
+/** 조정 전후 비교 (Conflict.id 기준) */
+export interface ConflictDiff {
+  resolved: Conflict[]; // 사라진 충돌
+  introduced: Conflict[]; // 새로 생긴 충돌
+  grade_changed: ConflictGradeChange[];
+}
+
+export interface AdjustmentRecord {
+  adjustment: Adjustment;
+  status: AdjustmentStatus;
+  closed_at: string | null; // 되돌렸거나 무효가 된 시각
+}
+
+/** POST /api/adjustments 본문 */
+export interface AdjustmentApply {
+  conflict_id: string;
+  candidate_id: string;
+  decided_by: string; // 적용한 책임자
+}
+
+export interface AdjustmentResult {
+  record: AdjustmentRecord;
+  conflicts: Conflict[]; // 재판정 결과
+  diff: ConflictDiff;
+  recheck_ms: number;
+  refresh: boolean;
+}
+
 export interface OverlapCandidate {
   task_a: string;
   task_b: string;
@@ -173,4 +244,6 @@ export interface PlanSubmitResult {
   plan: PlanRecord;
   conflicts: Conflict[];
   refresh: boolean; // 판정 후 화면을 한 번 강제 새로고침
+  diff: ConflictDiff | null; // 이 제출로 사라지거나 새로 생긴 충돌 (새 충돌 알림)
+  recheck_ms: number | null;
 }

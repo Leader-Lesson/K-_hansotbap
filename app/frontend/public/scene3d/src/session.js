@@ -14,7 +14,7 @@ const KIND_KO = { ADD: '작업 추가', MOVE: '작업 변경', CANCEL: '작업 �
 
 const CSS = `
 .ss-wrap{display:flex;align-items:center;gap:10px;margin-left:14px;flex-shrink:0}
-.ss-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;color:#fff;font-weight:700;font-size:15px;white-space:nowrap}
+.ss-chip{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:5px 12px;border-radius:999px;color:#fff;font-weight:700;font-size:15px;white-space:nowrap;box-sizing:border-box;width:200px;overflow:hidden;text-overflow:ellipsis}   /* 역할 이름 길이와 상관없이 같은 폭 → 위치 고정 */
 .ss-role{display:flex;align-items:center;gap:6px;font-size:15px;color:#1f2933}
 .ss-role label{font-weight:700;color:#5b6672}
 .ss-role select{font-size:16px;padding:6px 8px;border:1px solid #b9c0c8;border-radius:8px;background:#fff;min-height:38px}
@@ -71,6 +71,9 @@ const CSS = `
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nowIso = () => { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 const fdt = iso => { try { return iso ? fmtDateTime(iso) : '-'; } catch { return iso || '-'; } };
+
+/* 변경 종류 이름: 잔업 계획서는 긴급 변경과 같은 승인 절차를 타지만 이름을 구분 */
+const kindName = (ch) => (ch && ch.kind === 'OVERTIME' ? '잔업 계획서' : '긴급 작업 변경');
 
 export function buildSession({ topbar, zones = [], companies = [], onRoleChange, onDecision, onSimulate, previewRisks, previewGuidance } = {}) {
   const coById = Object.fromEntries(companies.map(c => [c.id, c]));
@@ -174,7 +177,7 @@ export function buildSession({ topbar, zones = [], companies = [], onRoleChange,
         <b>${esc(c.title || c.task?.title || '긴급 변경')}</b>
         <small>${esc((c.task?.zone_ids || []).map(zoneName).join(', '))}${c.task ? ` · ${esc(fdt(c.task.start))}~${esc(fdt(c.task.end).split(' ').pop())}` : ''}</small>
       </button>`).join('');
-    drop.innerHTML = `<h4>긴급 작업 변경 알림</h4>${items || '<div class="ss-empty">들어온 긴급 변경이 없습니다</div>'}
+    drop.innerHTML = `<h4>긴급 변경 · 잔업 계획서 알림</h4>${items || '<div class="ss-empty">들어온 긴급 변경이 없습니다</div>'}
       ${onSimulate ? '<button type="button" class="ss-sim">▶ 긴급 변경 시뮬레이션 (시연용)</button>' : ''}`;
   }
 
@@ -194,7 +197,7 @@ export function buildSession({ topbar, zones = [], companies = [], onRoleChange,
     placeBanner();
     banner.dataset.id = ch.id;
     banner.querySelector('.ss-btxt').textContent =
-      `긴급 작업 변경 — ${coName(ch.requested_by?.company_id || ch.task?.company_id)} ${ch.title || ch.task?.title || ''} · 승인 전 착수 불가`;
+      `${kindName(ch)} — ${coName(ch.requested_by?.company_id || ch.task?.company_id)} ${ch.title || ch.task?.title || ''} · 승인 전 착수 불가`;
     banner.classList.add('ss-show');
     clearTimeout(bannerTimer);
     bannerTimer = setTimeout(hideBanner, 20000);
@@ -204,7 +207,7 @@ export function buildSession({ topbar, zones = [], companies = [], onRoleChange,
   function sysNotify(ch) {
     try {
       if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-      const n = new Notification('긴급 작업 변경 — 승인 필요', {
+      const n = new Notification(`${kindName(ch)} — 승인 필요`, {
         body: `${coName(ch.requested_by?.company_id || ch.task?.company_id)} ${ch.title || ch.task?.title || ''} · 승인 전 착수 불가`,
         tag: `ss-${ch.id}`,
       });
@@ -226,7 +229,7 @@ export function buildSession({ topbar, zones = [], companies = [], onRoleChange,
 
     modal.innerHTML = `
       <div>${stChip(ch.status)} <small style="color:#5b6672">${esc(KIND_KO[ch.kind] || '')} · 접수 ${esc(fdt(ch.at))}</small></div>
-      <h3>긴급 작업 변경 — ${esc(ch.title || t.title || '')}</h3>
+      <h3>${kindName(ch)} — ${esc(ch.title || t.title || '')}</h3>
       <dl class="ss-kv">
         <dt>업체</dt><dd>${esc(coName(t.company_id))}${ch.requested_by?.name ? ` (요청: ${esc(ch.requested_by.name)})` : ''}</dd>
         <dt>작업</dt><dd>${esc(t.title || '-')}</dd>
@@ -294,7 +297,7 @@ export function buildSession({ topbar, zones = [], companies = [], onRoleChange,
     unseen++;
     renderBadge(); renderDrop();
     showBanner(ch);
-    showToast(`긴급 작업 변경 도착 — ${ch.title || ''}`);
+    showToast(`${kindName(ch)} 도착 — ${ch.title || ''}`);
     sysNotify(ch);
     if (openId === ch.id) renderModal();
     return ch;

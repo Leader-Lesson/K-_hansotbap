@@ -1,6 +1,6 @@
 # F4 조정안·재판정 모델 추가
 
-- 상태: 미반영
+- 상태: 반영됨
 - 브랜치: `feat/F4-adjust-land` (PR #20이 `main`이 아닌 F2 브랜치에 합쳐져서 `main`에 없던 F4 엔진을 최신 `main` 위에 다시 올림)
 - 바뀐 곳: `app/backend/schemas.py`에 `AdjustmentKind`, `AdjustmentCandidate`, `Adjustment`, `ConflictGradeChange`, `ConflictDiff`를 더했습니다. 기존 모델은 바뀌지 않았습니다.
 - 쓰는 곳 / 까닭: 충돌 상세 화면의 조정안 카드와 [조정 적용] 버튼(기획서 F4), 적용 뒤 "사라짐 / 새로 생김" 표시, 이력(F5)의 조정 기록.

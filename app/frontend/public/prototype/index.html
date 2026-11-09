@@ -42,11 +42,12 @@
     <div id="bHold"></div>
     <div id="bGuide"></div>
     <section class="card">
-      <header><h2>오늘 작업 시간표</h2><span class="sub">07:00–19:00 · 30분 칸 · 구역은 위층부터</span><span class="grow"></span><div class="jumps" id="bJumps"></div></header>
+      <header><h2>오늘 작업 시간표</h2><span class="sub" id="bTlSub">07:00–19:00 · 30분 칸 · 구역은 위층부터</span><span class="grow"></span><div class="jumps" id="bJumps"></div></header>
+      <div class="tlbar" id="bTime"></div>
       <div class="tl-wrap" id="bTl"></div>
       <div class="tl-legend">
         <span><i class="sw" style="background:var(--red)"></i>금지 겹침</span><span><i class="sw" style="background:var(--amber)"></i>조건부 겹침</span><span><i class="sw" style="background:var(--blue);width:3px"></i>지금</span>
-        <span>위 띠: 위험 시간대 예보 <span class="fx">F9</span></span><span>점선 막대: 조정으로 옮겨진 작업</span>
+        <span>위 띠: 위험 시간대 예보 <span class="fx">F9</span></span><span>점선 막대: 조정으로 옮겨진 작업</span><span><i class="sw sband day"></i>주간조</span><span><i class="sw sband hov"></i>인계 30분</span><span><i class="sw sband night"></i>야간조</span>
       </div>
     </section>
     <section class="acts" id="bActs"></section>
