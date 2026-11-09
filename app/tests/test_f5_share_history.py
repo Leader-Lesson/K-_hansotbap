@@ -7,7 +7,9 @@ from conftest import s1_xlsx
 from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 
+from db.plans import current_schedule, list_conflicts
 from main import app
+from rules.engine import scope_all_zone_conflict
 
 client = TestClient(app)
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -96,3 +98,51 @@ def test_export_marks_synthetic_data_and_never_writes_formulas():
 
     outsider = load_workbook(BytesIO(client.get("/api/history/export", params={"contractor": OUTSIDER}).content)).active
     assert not any("HYPERLINK" in str(c.value) or c.value == TARGET for row in outsider.iter_rows() for c in row)
+
+
+def _bundles_with(contractor: str) -> tuple[dict[str, dict], set[str], list[dict]]:
+    """현재 일정, 이 업체의 작업, 그 작업이 들어 있는 전 구역 묶음 충돌(…>ALL, 원청이 보는 그대로)."""
+    tasks = {t["id"]: t for t in _get("/api/tasks")}
+    mine = {i for i, t in tasks.items() if t["contractor"] == contractor}
+    bundles = [
+        r["conflict"] for r in _get("/api/conflicts")
+        if r["conflict"]["id"].endswith(">ALL") and mine & set(r["conflict"]["task_ids"][1:])
+    ]
+    return tasks, mine, bundles
+
+
+def test_all_zone_bundle_is_scoped_to_contractor():
+    """전 구역 작업 묶음을 공유해도 협력사는 '전 구역 작업 + 자기 작업'의 겹침만 받는다 (다른 업체 일정은 비공개)."""
+    _submit_s1()
+    tasks, mine, bundles = _bundles_with(PIPE)
+    assert bundles and max(len(b["task_ids"]) for b in bundles) > 10  # 원청에게는 묶음 전체
+    assert _share(*(b["id"] for b in bundles)).status_code == 200
+
+    allowed = mine | {b["task_ids"][0] for b in bundles}
+    hidden = set(tasks) - allowed
+    for r in _get("/api/conflicts", PIPE):
+        c = r["conflict"]
+        assert set(c["task_ids"]) <= allowed
+        assert not any(f"({t})" in c["reason"] for t in hidden)  # 이유 문장에도 남의 작업을 나열하지 않는다
+        assert {s["file"] for s in c["sources"]} <= {tasks[t]["source"]["file"] for t in mine if tasks[t]["source"]}
+    assert {t["id"] for t in _get("/api/tasks", PIPE)} <= allowed
+    assert all({t["id"] for t in i["adjacent_tasks"]} <= allowed for i in _get("/api/shares", PIPE))
+    assert all(set(e["contractors"]) <= {tasks[t]["contractor"] for t in allowed} for e in _get("/api/history", PIPE))
+
+    # 위험 시간대는 자기 작업이 있는 구역·기간에만 생긴다
+    windows = _get("/api/risk-windows", PIPE)
+    assert windows
+    assert {w["zone_id"] for w in windows} <= {tasks[t]["zone_id"] for t in mine}
+    assert min(w["start"] for w in windows)[:10] >= min(tasks[t]["start"] for t in mine)[:10]
+
+    # 원청은 그대로 묶음 전체를 본다
+    assert {b["id"]: len(b["task_ids"]) for b in _bundles_with(PIPE)[2]} == {b["id"]: len(b["task_ids"]) for b in bundles}
+
+
+def test_all_zone_owner_keeps_whole_bundle():
+    """전 구역 작업을 낸 업체에게는 묶음 전체가 자기 작업의 상대다 (위치를 정하면 작업별로 다시 판정된다)."""
+    _submit_s1()
+    schedule = current_schedule()
+    bundle = next(r.conflict for r in list_conflicts() if r.conflict.id.endswith(">ALL"))
+    owner = next(t.contractor for t in schedule if t.id == bundle.task_ids[0])
+    assert scope_all_zone_conflict(bundle, schedule, owner) == bundle
