@@ -24,7 +24,7 @@ export const ZONES = [
   { id: 'IN-HEARTH', name: '노 내부 바닥(노저)', plain: '쇳물이 고이는 맨 아래', level: 2, side: 'in', cap: 50, below: [], adj: ['IN-TUY', 'CAST'], systems: [], confined: true },
   { id: 'CAST', name: '주상', plain: '쇳물을 빼내는 바닥 작업장', level: 1, side: 'out', cap: 40, below: [], adj: ['IN-HEARTH', 'EX-TUY'], systems: ['O2'], confined: false },
   { id: 'STOVE', name: '열풍로', plain: '바람을 데우는 탑 (고로 옆)', level: 0, side: 'aux', cap: 25, below: [], adj: ['EX-TUY', 'GAS'], systems: ['BFG'], confined: true },
-  { id: 'GAS', name: '가스 설비', plain: '고로가스 배관·청정설비·TRT', level: 0, side: 'aux', cap: 25, below: [], adj: ['TOP', 'STOVE'], systems: ['BFG', 'N2'], confined: false },
+  { id: 'GAS', name: '가스 설비', plain: '고로가스(BFG·CO) 배관·청정설비·TRT', level: 0, side: 'aux', cap: 25, below: [], adj: ['TOP', 'STOVE'], systems: ['BFG', 'N2'], confined: false },
   { id: 'ELEC', name: '전기실', plain: '전원·제어반', level: 0, side: 'aux', cap: 20, below: [], adj: [], systems: ['PWR'], confined: false },
 ];
 
