@@ -1,0 +1,97 @@
+{
+  "file": "가상-해체G_노내굴착_노저해체_스크랩_작업계획서.docx",
+  "contractor": "가상-해체G",
+  "format": "docx",
+  "tasks": [
+    {
+      "wbs_id": "P12",
+      "name": "노내 장입물·코크스 굴착 배출",
+      "zone_id": "STACK",
+      "start": "2026-11-20",
+      "end": "2026-12-02",
+      "shift": "day",
+      "headcount": 20,
+      "equipment": [
+        "원격 굴착 장비(미니 로더) 2대",
+        "환기팬 4대",
+        "배출 호퍼·컨베이어 1식"
+      ],
+      "location_detail": {
+        "text": "노흉 내부 중앙 (장입물 상면)",
+        "dirs": [],
+        "level": "중앙"
+      },
+      "system": "NONE",
+      "hazards": [
+        "confined"
+      ],
+      "predecessors": [
+        "P08"
+      ]
+    },
+    {
+      "wbs_id": "P16",
+      "name": "노저 해체·청소",
+      "zone_id": "HEARTH",
+      "start": "2026-12-22",
+      "end": "2027-01-01",
+      "shift": "day",
+      "headcount": 18,
+      "equipment": [
+        "소형 굴삭기 1대",
+        "환기팬 2대",
+        "체인블록 2t 2대",
+        "노내 호이스트(양중C 운영)"
+      ],
+      "location_detail": {
+        "text": "노저 내부 전 둘레 (카본블록 잔존부)",
+        "dirs": [
+          "N",
+          "E",
+          "S",
+          "W"
+        ],
+        "level": null
+      },
+      "system": "NONE",
+      "hazards": [
+        "confined"
+      ],
+      "predecessors": [
+        "P13"
+      ]
+    },
+    {
+      "wbs_id": "P32",
+      "name": "해체 스크랩 절단·반출",
+      "zone_id": "YARD",
+      "start": "2026-11-27",
+      "end": "2027-01-11",
+      "shift": "day",
+      "headcount": 10,
+      "equipment": [
+        "산소절단기 4조",
+        "휠로더 1대",
+        "이동식 크레인 25t 1대",
+        "덤프트럭 4대"
+      ],
+      "location_detail": {
+        "text": "자재 야드 서측 (스크랩 적치장)",
+        "dirs": [
+          "W"
+        ],
+        "level": null
+      },
+      "system": "NONE",
+      "hazards": [
+        "heavy_lift",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P14"
+      ]
+    }
+  ],
+  "expected_conflicts": [],
+  "note": "기준 일정 그대로(P12·P16·P32). Word 양식 예시. 작업별 표준서(SOP-P12·P16·P32)와 공통 표준서(SOP-02 P12 밀폐, SOP-01 P32 화기) 핵심 단계가 절차에 다 적혀 있어 결함 없음. 단독으로는 충돌 없음"
+}

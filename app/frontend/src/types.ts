@@ -32,6 +32,7 @@ export interface Task {
   risk_codes: string[];
   predecessors: string[];
   source: SourceRef | null;
+  plan_status?: PlanStatus | null; // 이 작업을 낸 계획서의 승인 상태. 기준 일정 작업은 null(승인된 것으로 본다)
 }
 
 export interface Conflict {
@@ -193,6 +194,8 @@ export interface SharedItem {
 /** 이행 기록의 구분. 순서는 같은 시각의 기록을 늘어놓는 순서다 */
 export type HistoryEventKind =
   | "plan_submitted"
+  | "plan_approved" // 원청 승인 (겹침·출입 금지 구역 점검 뒤)
+  | "plan_rejected" // 원청 반려
   | "conflict_judged"
   | "conflict_shared"
   | "adjustment_replaced"
@@ -391,6 +394,9 @@ export interface PlanSubmission {
   draft_id?: string | null;
 }
 
+/** 계획서 승인 상태: 제출하면 승인 대기, 원청이 겹침·출입 금지 구역을 확인하고 승인하면 3D·현황에 확정으로 들어간다 */
+export type PlanStatus = "pending" | "approved" | "rejected";
+
 export interface PlanRecord {
   id: number;
   contractor: string;
@@ -399,6 +405,42 @@ export interface PlanRecord {
   submitted_at: string;
   submitted_by: string | null;
   task_count: number;
+  status: PlanStatus;
+  decided_at: string | null; // 원청이 승인·반려한 시각
+  decided_by: string | null;
+  decision_note: string | null; // 반려 사유 또는 승인 메모
+}
+
+/** 승인 전 점검: 이 계획서의 작업이 다른 작업들의 금지 판정으로 막힌 구역·시간 안에 들어간다 */
+export interface RestrictedWork {
+  task_id: string;
+  task_name: string;
+  zone_id: string;
+  window_start: string;
+  window_end: string;
+  by_conflict_id: string;
+  rule_id: string;
+  legal_basis: string;
+  reason: string;
+}
+
+/** GET /api/plans/{id}/approval-check — 원청 승인 전 점검 (판정은 F2 규칙, 여기서는 이 계획서 기준으로 모은 것) */
+export interface ApprovalCheck {
+  plan: PlanRecord;
+  tasks: Task[];
+  prohibited: Conflict[]; // 금지 — 하나라도 있으면 승인 불가
+  conditional: Conflict[]; // 조건부 — 통제조치 확인 뒤 승인 가능
+  defects: Conflict[]; // 표준서 필수 단계 누락
+  in_restricted_zone: RestrictedWork[]; // 출입 금지 구역 안 작업 — 있으면 승인 불가
+  endangers_approved: Conflict[]; // 이미 승인된(또는 기준 일정) 작업과 겹치는 판정
+  can_approve: boolean;
+  blockers: string[];
+  warnings: string[];
+}
+
+export interface ApprovalDecision {
+  decided_by: string;
+  note?: string | null;
 }
 
 export interface PlanSubmitResult {

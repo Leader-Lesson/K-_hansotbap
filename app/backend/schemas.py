@@ -40,6 +40,14 @@ class Grade(str, Enum):
     DEFECT = "결함"
 
 
+class PlanStatus(str, Enum):
+    """계획서 승인 상태. 제출하면 '승인 대기', 원청이 겹침·위험 구역을 확인하고 승인하면 3D·현황에 들어간다."""
+
+    PENDING = "pending"  # 제출됨, 원청 확인 전
+    APPROVED = "approved"  # 원청 승인 (3D·공유 대상)
+    REJECTED = "rejected"  # 원청 반려 (일정에서 빠짐, 수정 계획서 재제출)
+
+
 class ConflictStatus(str, Enum):
     """판정된 충돌의 처리 상태. 시스템은 작업을 승인·중지하지 않는다 — 사람의 조정을 기록할 뿐이다."""
 
@@ -96,6 +104,7 @@ class Task(BaseModel):
     risk_codes: list[str] = Field(default=[], description="시행령 제53조의2 1~8호, 기타는 X")
     predecessors: list[str] = []
     source: SourceRef | None = None
+    plan_status: PlanStatus | None = Field(default=None, description="이 작업을 낸 계획서의 승인 상태. 기준 일정 작업은 null(원청 일정이라 승인된 것으로 본다)")
 
 
 class Rule(BaseModel):
@@ -254,6 +263,8 @@ class HistoryEventKind(str, Enum):
     """이행 기록의 구분. 값의 순서는 같은 시각의 기록을 늘어놓는 순서다."""
 
     PLAN_SUBMITTED = "plan_submitted"  # 계획서 제출
+    PLAN_APPROVED = "plan_approved"  # 원청 승인 (겹침·위험 구역 확인 뒤)
+    PLAN_REJECTED = "plan_rejected"  # 원청 반려
     CONFLICT_JUDGED = "conflict_judged"  # 판정 (마지막으로 확인된 시각)
     CONFLICT_SHARED = "conflict_shared"  # 원청 확인 후 협력사 공유
     ADJUSTMENT_REPLACED = "adjustment_replaced"  # 같은 작업의 새 조정으로 대체
@@ -498,6 +509,44 @@ class PlanRecord(BaseModel):
     submitted_at: datetime
     submitted_by: str | None = None
     task_count: int
+    status: PlanStatus = PlanStatus.PENDING
+    decided_at: datetime | None = Field(default=None, description="원청이 승인·반려한 시각")
+    decided_by: str | None = Field(default=None, description="승인·반려한 원청 책임자")
+    decision_note: str | None = Field(default=None, description="반려 사유 또는 승인 메모")
+
+
+class RestrictedWork(BaseModel):
+    """승인 전 점검: 이 계획서의 작업이 다른 작업들의 금지 판정으로 막힌 구역·시간 안에 들어간다."""
+
+    task_id: str
+    task_name: str
+    zone_id: str
+    window_start: datetime
+    window_end: datetime
+    by_conflict_id: str = Field(description="그 구역을 막은 금지 판정")
+    rule_id: str
+    legal_basis: str
+    reason: str
+
+
+class ApprovalCheck(BaseModel):
+    """원청 승인 전 점검 결과. 판정은 규칙(F2)이 한 것이고 여기서는 이 계획서 기준으로 모아 보여 준다. 결정은 사람이 한다."""
+
+    plan: PlanRecord
+    tasks: list[Task]
+    prohibited: list[Conflict] = Field(default=[], description="이 계획서 작업이 걸린 금지 판정 — 하나라도 있으면 승인 불가")
+    conditional: list[Conflict] = Field(default=[], description="조건부 판정 — 통제조치 확인 뒤 승인 가능")
+    defects: list[Conflict] = Field(default=[], description="표준서 필수 단계 누락(결함) — 보완 요청 대상")
+    in_restricted_zone: list[RestrictedWork] = Field(default=[], description="다른 작업의 금지 판정으로 막힌 구역·시간 안에서 일하는 작업 — 있으면 승인 불가")
+    endangers_approved: list[Conflict] = Field(default=[], description="이미 승인된(또는 기준 일정) 작업과 겹치는 금지·조건부 판정")
+    can_approve: bool
+    blockers: list[str] = []
+    warnings: list[str] = []
+
+
+class ApprovalDecision(BaseModel):
+    decided_by: str = Field(min_length=1, description="승인·반려한 원청 책임자 (이행 기록에 남는다)")
+    note: str | None = None
 
 
 class PlanSubmitResult(BaseModel):

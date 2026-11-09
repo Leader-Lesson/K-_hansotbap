@@ -5,6 +5,7 @@ import { api } from "@/api/client";
 import { AppHeader } from "@/components/AppHeader";
 import { UploadDialog } from "@/components/UploadDialog";
 import { restrictionsFrom } from "@/lib/restrictions";
+import { ChatBot } from "@/components/ChatBot";
 import { DATE_KEY, ShellProvider, useShell } from "@/lib/shell";
 import type { AdjustmentResult, ConflictRecord, PlanRecord, PlanSubmitResult, SopInfo, SopMatch, Task, ViewerRole, Zone } from "@/types";
 import { ContractorView } from "@/views/ContractorView";
@@ -43,8 +44,10 @@ function AppInner() {
   const [error, setError] = useState<string | null>(null);
   const [role, setRole] = useState<ViewerRole>(loadRole);
   const [notice, setNotice] = useState<string | null>(() => sessionStorage.getItem(NOTICE_KEY));
+  const [retry, setRetry] = useState(0); // API 연결 실패 뒤 다시 부르기
 
   const contractor = role.kind === "contractor" ? role.contractor : undefined;
+  const roleValue = role.kind === "prime" ? "prime" : role.contractor; // 역할이 바뀌면 챗봇을 새로 만드는 key
 
   // 역할에 맞게 서버에서 걸러 받는다 (협력사는 자기 작업 + 원청이 공유한 충돌의 상대 작업만)
   const load = useCallback(async () => {
@@ -66,17 +69,19 @@ function AppInner() {
       setError(null);
     } catch (e) {
       setError((e as Error).message);
+      // npm run dev 는 웹(Vite)이 API(uvicorn)보다 먼저 뜬다 → 첫 요청이 실패해도 몇 초 뒤 다시 부른다 [팀 설정값: 3초]
+      window.setTimeout(() => setRetry((n) => n + 1), 3000);
     }
   }, [contractor]);
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, retry]);
 
   // 역할 선택 목록은 협력사 목록(작업 분해표 업체 + 제출 업체)에서 — 일정이 비어 있어도(USE_BASELINE=false) 고를 수 있게
   useEffect(() => {
     api.contractors().then(setAllContractors).catch(() => {});
-  }, []);
+  }, [retry]); // API가 늦게 뜨면 다시 받는다
 
   useEffect(() => {
     if (notice) sessionStorage.removeItem(NOTICE_KEY);
@@ -175,6 +180,10 @@ function AppInner() {
           />
         )}
       </main>
+
+      {/* F6 AI 챗봇: 보는 사람이 바뀌면 key 로 새로 만들어 앞 역할의 대화가 남지 않게 한다.
+          '오늘'은 헤더·화면이 같이 쓰는 날짜(ShellProvider) */}
+      <ChatBot key={roleValue} contractor={contractor} today={shell.date} />
     </div>
   );
 }

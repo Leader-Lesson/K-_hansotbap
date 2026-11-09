@@ -13,6 +13,7 @@ import { usePerson } from "@/lib/person";
 import { groupByZone, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
 import { useShell, useShellRegister } from "@/lib/shell";
 import type { AdjustmentResult, ConflictRecord, PlanRecord, RiskWindow, SopInfo, SopMatch, Task, Zone } from "@/types";
+import { ApprovalPanel } from "@/views/ApprovalPanel";
 import { HistoryView } from "@/views/HistoryView";
 import { RestrictionPanel } from "@/views/RestrictionPanel";
 import { Scene3DTab } from "@/views/Scene3DTab";
@@ -32,6 +33,7 @@ interface Props {
   onReload: () => void; // 협력사 공유 뒤 다시 불러오기
 }
 
+// 지금 보는 날짜는 ShellProvider 가 들고 있다 (AI 챗봇의 '오늘'도 App 이 거기서 읽는다) — onDateChange 를 더 받지 않는다
 export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onReload }: Props) {
   // 기본 날짜: 가장 최근 제출한 협력사의 작업이 걸린 충돌 중 가장 높은 등급(같으면 먼저 시작)의 시작일.
   // 제출 직후 그 협력사가 낸 충돌이 있는 날로 바로 간다. 제출이 없으면 기준 일정의 한 날
@@ -54,6 +56,9 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
 
   // 충돌 목록: 가장 최근 제출이 만든 것만 기본으로 보여 준다 (기준 일정끼리의 충돌 100여 건에 묻히지 않게). 규칙별 묶음도 기본
   const latestPlan = useMemo(() => [...plans].sort((a, b) => b.id - a.id)[0] ?? null, [plans]);
+  // F5 원청 승인: 승인 대기 계획서 수(탭 배지). 3D·현황의 "확정" 작업은 승인된 계획서(와 기준 일정)의 것만 — 승인 대기 작업은 3D에 넣지 않는다
+  const pendingPlans = useMemo(() => plans.filter((p) => p.status === "pending"), [plans]);
+  const approvedTasks = useMemo(() => tasks.filter((t) => t.plan_status !== "pending"), [tasks]);
   const filter = useConflictFilter(conflicts, tasks, date, latestPlan?.id ?? null);
   const [groupRules, setGroupRules] = useState(true);
   const allContractors = useMemo(() => [...new Set(tasks.map((t) => t.contractor))].sort(), [tasks]);
@@ -100,6 +105,7 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
   // 헤더 탭 (시안처럼 화면 위 머리에 둔다)
   useShellRegister(defaultDate, [
     { value: "board", label: "현재 상황판" },
+    { value: "approval", label: "승인", count: pendingPlans.length },
     { value: "scene3d", label: "3D · 충돌" },
     { value: "conflicts", label: "충돌 목록", count: open.length },
     { value: "restrictions", label: "출입 제한", count: blockedZones },
@@ -169,7 +175,22 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
           value="scene3d"
           className="h-[calc(100vh-180px)] min-h-[560px] overflow-hidden rounded-lg border border-stone-200"
         >
-          <Scene3DTab date={date} tasks={tasks} conflicts={open} restrictions={restrictions} role={{ kind: "prime" }} selectTaskId={selectedTask} />
+          <Scene3DTab date={date} tasks={approvedTasks} conflicts={open} restrictions={restrictions} role={{ kind: "prime" }} selectTaskId={selectedTask} />
+        </TabsContent>
+
+        <TabsContent value="approval">
+          <ApprovalPanel
+            plans={plans}
+            tasks={tasks}
+            zones={zones}
+            onDecided={onReload}
+            onShow3D={(taskId, day) => {
+              if (day !== date) setDate(day);
+              setSelectedTask(taskId);
+              setTab("scene3d");
+            }}
+            onShowConflict={() => setTab("conflicts")}
+          />
         </TabsContent>
 
         <TabsContent value="restrictions">

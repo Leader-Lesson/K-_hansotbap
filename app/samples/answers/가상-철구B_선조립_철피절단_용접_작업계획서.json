@@ -1,0 +1,114 @@
+{
+  "file": "가상-철구B_선조립_철피절단_용접_작업계획서.pdf",
+  "contractor": "가상-철구B",
+  "format": "pdf",
+  "tasks": [
+    {
+      "wbs_id": "P03",
+      "name": "신 철피 링블록·스테이브 지상 선조립과 배관·전기 의장",
+      "zone_id": "YARD",
+      "start": "2026-06-15",
+      "end": "2026-12-17",
+      "shift": "day",
+      "headcount": 24,
+      "equipment": [
+        "크롤러 크레인 250t 1대",
+        "용접기 12대",
+        "고소작업대 4대",
+        "가스 용기 랙 6조"
+      ],
+      "location_detail": {
+        "text": "조립장 야드 동측 (선조립 패드)",
+        "dirs": [
+          "E"
+        ],
+        "level": null
+      },
+      "system": "NONE",
+      "hazards": [
+        "heavy_lift",
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P01"
+      ]
+    },
+    {
+      "wbs_id": "P15",
+      "name": "노체 철피 절단·구 블록 반출",
+      "zone_id": "SHELL",
+      "start": "2026-12-17",
+      "end": "2026-12-27",
+      "shift": "day",
+      "headcount": 16,
+      "equipment": [
+        "크롤러 크레인 250t 1대",
+        "산소절단기 6조",
+        "다축 트레일러 2대"
+      ],
+      "location_detail": {
+        "text": "노체 철피 외부 전 둘레 (상부 작업대부터 하향)",
+        "dirs": [
+          "N",
+          "E",
+          "S",
+          "W"
+        ],
+        "level": "상부 작업대부터 하향"
+      },
+      "system": "NONE",
+      "hazards": [
+        "heavy_lift",
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P14"
+      ]
+    },
+    {
+      "wbs_id": "P18",
+      "name": "철피 용접·비파괴검사(UT/RT)",
+      "zone_id": "SHELL",
+      "start": "2027-01-01",
+      "end": "2027-01-16",
+      "shift": "day",
+      "headcount": 12,
+      "equipment": [
+        "용접기 8대",
+        "고소작업대 2대",
+        "RT 촬영 장비 1식"
+      ],
+      "location_detail": {
+        "text": "노체 철피 외부 남측·동측 (링블록 이음부)",
+        "dirs": [
+          "S",
+          "E"
+        ],
+        "level": null
+      },
+      "system": "NONE",
+      "hazards": [
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P17"
+      ]
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S7",
+      "type": "same_time_zone",
+      "rule_ids": [
+        "R03",
+        "R17"
+      ],
+      "with": "가상-비계N P30 노체 철피 외부 비계 설치 (SHELL, 2026-12-28~2027-01-05)",
+      "note": "비계N 계획서가 함께 올라와 있을 때만. 철피 용접(P18, 01-01~) 불티 아래·같은 철피 외부에서 비계 작업 — R03(조건부)·R17(금지). 단독으로는 기준 일정 그대로라 충돌 없음"
+    }
+  ],
+  "note": "기준 일정 그대로(P03·P15·P18). PDF 가로 양식 예시(장비·비용 표 포함). 작업별 표준서(SOP-P03·P15·P18)와 공통 화기 표준(SOP-01, P15·P18) 핵심 단계가 절차에 다 적혀 있어 결함 없음"
+}

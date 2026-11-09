@@ -4,6 +4,7 @@ import { api } from "@/api/client";
 import { GradeBadge, TypeBadge } from "@/components/ConflictBadge";
 import { fmtDateTime, fmtRange } from "@/lib/format";
 import { usePerson } from "@/lib/person";
+import { PlanStatusChip } from "@/views/ApprovalPanel";
 import type { AdjustmentRecord, AdjustmentResult, ConflictRecord, HistoryEvent, HistoryEventKind, PlanRecord, Task } from "@/types";
 
 interface Props {
@@ -18,6 +19,8 @@ const CF_STATUS: Record<ConflictRecord["status"], string> = { open: "열림", ad
 // 서버 엑셀 내보내기(api/history.py)와 같은 이름
 const KIND_LABEL: Record<HistoryEventKind, string> = {
   plan_submitted: "계획서 제출",
+  plan_approved: "원청 승인",
+  plan_rejected: "원청 반려",
   conflict_judged: "충돌 판정",
   conflict_shared: "협력사 공유",
   adjustment_replaced: "조정 대체",
@@ -166,6 +169,7 @@ export function HistoryView({ plans, tasks, contractor, onAdjusted }: Props) {
                 <th className="p-2">버전</th>
                 <th className="p-2">작업</th>
                 <th className="p-2">제출자</th>
+                <th className="p-2">승인</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
@@ -178,6 +182,11 @@ export function HistoryView({ plans, tasks, contractor, onAdjusted }: Props) {
                   <td className="p-2">v{p.version}</td>
                   <td className="p-2">{p.task_count}건</td>
                   <td className="p-2">{p.submitted_by ?? "—"}</td>
+                  <td className="p-2">
+                    <PlanStatusChip status={p.status} />
+                    {p.decided_by && <span className="ml-1 text-stone-500">{p.decided_by}</span>}
+                    {p.decision_note && <div className="text-stone-500">{p.decision_note}</div>}
+                  </td>
                 </tr>
               ))}
             </tbody>
