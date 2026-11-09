@@ -455,3 +455,65 @@ body.embed .app { height: 100vh; }
 .ot-btn { width: 100%; padding: 9px; border-radius: 8px; border: 0; background: #2f3d5c; color: #fff; font-size: 15px; cursor: pointer; }
 .ot-btn:disabled { opacity: .45; cursor: not-allowed; }
 .ot-box small { display: block; margin-top: 6px; color: var(--muted); font-size: 13px; }
+
+/* ===== 3D 문제 말풍선 ===== */
+.pcall-host { pointer-events: none; }
+.pcall { pointer-events: auto; cursor: pointer; transform: translate(0, calc(-100% - 18px)); position: relative; max-width: 300px; min-width: 210px;
+  background: #fff; border: 2px solid var(--sev, #c62828); border-left-width: 7px; border-radius: 10px; padding: 8px 11px;
+  box-shadow: 0 6px 22px rgba(0,0,0,.28); font-size: 13px; line-height: 1.4; color: #1f2933; animation: pcallIn .25s ease-out; }
+.pcall::after { content: ''; position: absolute; left: 18px; bottom: -12px; border: 6px solid transparent; border-top: 8px solid var(--sev, #c62828); }
+.pcall-k { color: var(--sev, #c62828); font-weight: 800; font-size: 12.5px; }
+.pcall-t { font-weight: 700; font-size: 14.5px; margin: 2px 0; }
+.pcall-s { color: #5f6b73; font-size: 12.5px; }
+.pcall-a { margin-top: 4px; font-weight: 700; color: var(--sev, #c62828); }
+.pcall.ok { --sev: #2e7d32; }
+.pcall.small { min-width: 0; padding: 4px 9px; font-size: 12.5px; font-weight: 700; color: var(--sev); border-left-width: 2px; border-style: dashed; box-shadow: 0 3px 10px rgba(0,0,0,.18); }
+@keyframes pcallIn { from { opacity: 0; transform: translate(0, calc(-100% - 6px)); } }
+
+/* ===== 오른쪽 위험 대시보드 ===== */
+.db-status { border-radius: 10px; padding: 9px 12px; font-size: 15px; font-weight: 700; margin: 4px 0 10px; }
+.db-status.bad { background: #fdecea; color: #b71c1c; }
+.db-status.warn { background: #fff4e5; color: #9a5800; }
+.db-status.ok { background: #e8f5e9; color: #1b5e20; }
+.db-status b { font-size: 18px; }
+.db-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(74px, 1fr)); gap: 6px; margin-bottom: 12px; }
+.db-tile { border: 1px solid #e3e7ea; border-top: 4px solid #cfd6db; border-radius: 8px; padding: 6px 8px; background: #fff; display: flex; flex-direction: column; }
+.db-tile b { font-size: 24px; line-height: 1.1; color: #9aa4ad; font-variant-numeric: tabular-nums; }
+.db-tile span { font-size: 13px; font-weight: 700; }
+.db-tile small { font-size: 11.5px; color: #7a8590; }
+.db-tile.db-hot { border-top-color: var(--sev); }
+.db-tile.db-hot b { color: var(--sev); }
+.db-prob { border: 1px solid #e3e7ea; border-left: 6px solid var(--sev); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; background: #fff; }
+.db-prob.db-on { box-shadow: 0 0 0 2px var(--sev); }
+.db-prob-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; }
+.db-pill { background: var(--sev); color: #fff; font-weight: 800; border-radius: 999px; padding: 1px 9px; }
+.db-type { color: #5f6b73; }
+.db-when { margin-left: auto; color: #5f6b73; }
+.db-live { color: var(--sev); }
+.db-prob-title { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 0; margin: 6px 0 3px; font-size: 16px; font-weight: 800; color: #1f2933; cursor: pointer; line-height: 1.35; }
+.db-prob-title:hover { text-decoration: underline; }
+.db-prob-key { font-size: 13px; color: #44505a; }
+.db-need { margin: 6px 0; padding: 6px 8px; background: #f6f7f8; border-radius: 6px; font-size: 13.5px; font-weight: 700; }
+.db-people { margin-top: 6px; }
+.db-lbl { display: inline-block; font-size: 11.5px; font-weight: 800; color: #5f6b73; letter-spacing: .02em; }
+.db-people ul { list-style: none; margin: 2px 0 0; padding: 0; }
+.db-people li { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: center; font-size: 13px; padding: 3px 0; border-top: 1px dashed #edf0f2; }
+.db-people li:first-child { border-top: 0; }
+.db-co { display: inline-flex; align-items: center; gap: 4px; min-width: 64px; font-weight: 700; }
+.db-co small { color: #7a8590; font-weight: 400; }
+.db-hq .db-co { color: #2f3a44; }
+.db-mut { color: #7a8590; }
+.db-tel { color: #1565c0; font-weight: 700; font-variant-numeric: tabular-nums; text-decoration: none; white-space: nowrap; }
+.db-tel::before { content: '☎ '; }
+.db-tel:hover { text-decoration: underline; }
+.db-ev { margin-top: 6px; }
+.db-ev-row { margin: 6px 0; }
+.db-ev-row p { margin: 1px 0 0; font-size: 13px; }
+.db-btns { display: flex; justify-content: flex-end; margin-top: 6px; }
+.db-btn { border: 1px solid var(--sev); color: var(--sev); background: #fff; border-radius: 6px; padding: 4px 10px; font-weight: 700; cursor: pointer; }
+.db-btn:hover { background: var(--sev); color: #fff; }
+.db-rest ul { list-style: none; margin: 4px 0 0; padding: 0; }
+.db-rest button { display: flex; gap: 8px; width: 100%; text-align: left; border: 0; background: none; padding: 5px 4px; border-radius: 6px; cursor: pointer; font-size: 13.5px; }
+.db-rest button:hover { background: #f3f5f7; }
+.db-rest-t { flex: 1; }
+.vbar.low { top: auto; bottom: 56px; animation: none; }   /* 3D 문제 말풍선이 떠 있을 때 */

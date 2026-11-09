@@ -210,7 +210,7 @@ function updateLabels() {
 
 // ---------- 색칠 / 강조 ----------
 function applyZoneStates() {
-  const hl = state.conflictId ? CONFLICTS.find((c) => c.id === state.conflictId) : null;
+  const hl = state.conflictId ? CONFLICTS.find((c) => c.id === state.conflictId) : state.taskId ? taskProblem(state.taskId) : null;
   const hlZones = new Set(hl ? hl.zone_ids : []);
   for (const z of ZONES) {
     if (!furnace.zoneMeshes?.has?.(z.id)) continue;
@@ -226,6 +226,61 @@ function applyZoneStates() {
     furnace.setZoneState(z.id, { tint: sev ? SEV[sev].color : null, emphasis, pulse });
   }
 }
+
+/* ---------- 3D 문제 말풍선 ----------
+   왼쪽 목록에서 작업을 누르거나 오른쪽에서 문제를 고르면, 3D 안의 그 구역에 무엇이 문제인지 바로 띄움.
+   주 말풍선 = 문제 내용, 작은 꼬리표 = 원인 구역 (위아래·같은 계통처럼 떨어진 구역일 때) */
+const safeViolations = () => { try { return computeViolations(state.t); } catch (e) { return []; } };
+const worstOf = (list) => [...list].sort((a, b) => (SEV[b.severity]?.score || 0) - (SEV[a.severity]?.score || 0))[0] || null;
+function taskProblem(taskId) {
+  const pool = state.view?.conflicts?.length ? state.view.conflicts : CONFLICTS;
+  return worstOf(pool.filter((c) => (c.task_ids || []).includes(taskId) && (!c.end || c.end > state.t)));
+}
+const callMain = (() => { const el = document.createElement('div'); el.className = 'pcall-host'; const obj = new CSS2DObject(el); obj.visible = false; scene.add(obj); return { el, obj }; })();
+const callCause = (() => { const el = document.createElement('div'); el.className = 'pcall-host'; const obj = new CSS2DObject(el); obj.visible = false; scene.add(obj); return { el, obj }; })();
+const DIR1 = { N: '북', E: '동', S: '남', W: '서' };
+function placeCall(c, zid) { const p = zid && furnace.zoneAnchor(zid); if (!p) { c.obj.visible = false; return false; } c.obj.position.copy(p); c.obj.visible = true; return true; }
+function updateProblemCallout() {
+  callMain.obj.visible = callCause.obj.visible = false;
+  callMain.el.innerHTML = callCause.el.innerHTML = '';
+  document.getElementById('vbar')?.classList.toggle('low', !!(state.taskId || state.conflictId));   // 말풍선을 가리지 않게 위반 띠는 아래로
+  if (state.mode !== '3d' || (!state.taskId && !state.conflictId)) return;
+  furnace.root.updateMatrixWorld(true);
+  const task = state.taskId ? (state.view.tasks.find((k) => k.id === state.taskId) || TASKS.find((k) => k.id === state.taskId)) : null;
+  const viol = task ? safeViolations().find((v) => v.taskId === task.id) : null;
+  const c = state.conflictId ? CONFLICTS.find((k) => k.id === state.conflictId) : task ? taskProblem(task.id) : null;
+  const here = viol?.zone || task?.zone_ids?.find((z) => zoneById.has(z)) || c?.zone_ids?.[0];
+  if (viol) {
+    callMain.el.innerHTML = `<div class="pcall" style="--sev:#c62828"><div class="pcall-k">⚠ 출입 제한 위반 · 지금</div><div class="pcall-t">${esc(coLabel(viol.company))} ${esc(viol.title)}</div><div class="pcall-s">${esc(viol.zoneName)} 막힌 ${esc((viol.hit || viol.dirs || []).map((d) => DIR1[d] || d).join('·'))}쪽 안에서 작업</div>${c ? `<div class="pcall-s" data-conflict="${esc(c.id)}">함께 걸린 문제: <b style="color:${(SEV[c.severity] || SEV.CONDITIONAL).color}">${(SEV[c.severity] || SEV.CONDITIONAL).mark} ${esc((SEV[c.severity] || SEV.CONDITIONAL).label)}</b> ${esc(c.title)}</div>` : ''}<div class="pcall-a">→ 시정 명령 필요 (위치 이동 또는 일시 중지)</div></div>`;
+    placeCall(callMain, here);
+    return;
+  }
+  if (!c) {
+    if (task) { callMain.el.innerHTML = `<div class="pcall ok"><div class="pcall-k">✓ 걸린 문제 없음</div><div class="pcall-t">${esc(coLabel(task.company_id))} ${esc(task.title)}</div><div class="pcall-s">${esc(hhmm(task.start))}–${esc(hhmm(task.end))} · 계획대로 진행</div></div>`; placeCall(callMain, here); }
+    return;
+  }
+  const sv = SEV[c.severity] || SEV.CONDITIONAL;
+  const others = (c.task_ids || []).map((id) => TASKS.find((k) => k.id === id)).filter((k) => k && k.id !== task?.id);
+  const cause = others[0];
+  const live = c.start <= state.t && state.t < c.end;
+  const what = c.severity === 'PROHIBITED' ? '조정 전에는 함께 작업 금지' : c.severity === 'CONDITIONAL' ? (c.suggestion?.text || '조건 지키고 진행') : '계획서 보완 필요';
+  callMain.el.innerHTML = `<div class="pcall" style="--sev:${sv.color}" data-conflict="${esc(c.id)}">
+    <div class="pcall-k">${sv.mark} ${esc(sv.label)} · ${esc(TYPE_NAME?.[c.type] || '')} · ${live ? '지금' : esc(hhmm(c.start)) + '부터'}</div>
+    <div class="pcall-t">${esc(c.title)}</div>
+    <div class="pcall-s">${cause ? `원인: ${esc(coLabel(cause.company_id))} ${esc(cause.title)} · ` : ''}${esc(hhmm(c.start))}–${esc(hhmm(c.end))}</div>
+    <div class="pcall-a">→ ${esc(what)}</div></div>`;
+  placeCall(callMain, here);
+  const causeZone = (cause?.zone_ids || c.zone_ids || []).find((z) => z !== here && zoneById.has(z));
+  if (causeZone) {
+    callCause.el.innerHTML = `<div class="pcall small" style="--sev:${sv.color}">원인 · ${esc(zname(causeZone))}${cause ? ` · ${esc(coLabel(cause.company_id))}` : ''}</div>`;
+    placeCall(callCause, causeZone);
+  }
+}
+for (const c of [callMain, callCause]) c.el.addEventListener('pointerdown', (e) => {
+  const k = e.target.closest('[data-conflict]'); if (!k) return;
+  e.stopPropagation(); $('detail').classList.remove('collapsed');
+  if (state.conflictId !== k.dataset.conflict) selectConflict(k.dataset.conflict);
+});
 
 // ---------- 카메라 이동 (부드럽게) ----------
 let tween = null;
@@ -520,7 +575,8 @@ function renderDetail() {
       selectedTaskId: state.taskId, role: state.role, selectedConflictId: state.conflictId });
   } else {
     html = renderRightIntro({ title: state.role.id === 'PRIME' ? '전체' : `${state.role.name} 화면`, t: state.t, zones: ZONES,
-      conflicts: state.active.conflicts, tasks: state.active.tasks, alternatives: ALTERNATIVES, role: state.role, selectedConflictId: state.conflictId });
+      conflicts: state.active.conflicts, tasks: state.active.tasks, alternatives: ALTERNATIVES, role: state.role, selectedConflictId: state.conflictId,
+      violations: safeViolations(), pending: pendingVisible().length });
   }
   if (!state.taskId && !state.zoneId) html += placementGuideHtml();
   if (state.taskId) {
@@ -972,6 +1028,7 @@ function refresh() {
   renderFloorList();
   renderDetail();
   if (state.mode === '2d') renderPlan();
+  updateProblemCallout();
 }
 
 // ---------- 공개 동작 ----------
@@ -995,6 +1052,7 @@ function selectTask(taskId) {
   applyZoneStates();
   renderDetail();
   if (state.mode === '2d') renderPlan();
+  updateProblemCallout();
   if (state.focus && state.mode === '3d') frameZones(state.focus.ids);
   post({ type: 'select', taskId: state.taskId, zoneId: state.zoneId });
 }
@@ -1010,6 +1068,7 @@ function selectConflict(conflictId) {
   applyZoneStates();
   renderDetail();
   if (state.mode === '2d') renderPlan();
+  updateProblemCallout();
 }
 
 function selectLevel(level) {
@@ -1052,6 +1111,7 @@ function setMode(mode) {
   $('explodeWrap').style.visibility = is2d ? 'hidden' : '';
   $('stageHint').textContent = is2d ? '도면의 구역을 누르면 자세히 보입니다' : '구역을 누르면 오른쪽에 자세히 보입니다';
   updateViolations();
+  updateProblemCallout();
   if (is2d) renderPlan();
   else { if (plan) { plan.destroy?.(); plan = null; } onResize(); }
   updateLabels();
