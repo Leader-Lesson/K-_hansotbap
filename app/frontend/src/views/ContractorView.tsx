@@ -105,6 +105,7 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
                   <th className="p-2">작업</th>
                   <th className="p-2">구역</th>
                   <th className="p-2">기간</th>
+                  <th className="p-2">투입 인원</th>
                   <th className="p-2">위험작업</th>
                   <th className="p-2">선행</th>
                 </tr>
@@ -116,6 +117,7 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
                     <td className="p-2">{t.name}</td>
                     <td className="p-2">{zoneName(t.zone_id)}</td>
                     <td className="whitespace-nowrap p-2">{fmtRange(t.start, t.end)}</td>
+                    <td className="p-2">{t.crew != null ? `${t.crew}명` : "—"}</td>
                     <td className="p-2">{t.hazards.map((h) => HAZARD_LABEL[h]).join(", ") || "—"}</td>
                     <td className="p-2">{t.predecessors.join(", ") || "—"}</td>
                   </tr>

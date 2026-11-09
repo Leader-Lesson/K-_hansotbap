@@ -1,12 +1,12 @@
 // 상황판(F3 ① 메인): 시안(public/prototype #board)의 레이아웃을 서버 데이터로 그린다.
 // 숫자 띠 → 오늘 작업 시간표(07~19시·30분 칸·구역은 위층부터·위험 시간대 띠·지금 선·겹침 띠) → 조치 카드 → 충돌 상세(근거·공유·조정안)
 // 판정·위험 시간대·조정은 서버 규칙이 한 것이고 여기서는 보여 주기만 한다. 협력사는 서버가 거른 데이터만 받는다(자기 작업 + 공유된 충돌의 상대 작업)
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { api } from "@/api/client";
 import { ConflictList } from "@/components/ConflictList";
 import { CONFLICT_TYPE_LABEL, GRADE_RANK } from "@/lib/format";
 import { restrictionsFrom } from "@/lib/restrictions";
-import type { AdjustmentResult, Conflict, ConflictRecord, Grade, PlanRecord, RiskWindow, Task, TbmCheckRecord, ViewerRole, Zone } from "@/types";
+import type { AdjustmentResult, Conflict, ConflictRecord, Grade, Hazard, PlanRecord, RiskWindow, Task, TbmCheckRecord, ViewerRole, Zone } from "@/types";
 import "./board.css";
 
 interface Props {
@@ -43,6 +43,16 @@ const shiftDay = (d: string, n: number) => {
   x.setDate(x.getDate() + n);
   return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
 };
+
+/** 받침에 맞는 조사 (한글이 아니면 '이(가)' 꼴) */
+function josa(word: string, withBatchim: string, without: string): string {
+  const c = word.charCodeAt(word.length - 1);
+  if (c < 0xac00 || c > 0xd7a3) return `${withBatchim}(${without})`;
+  return (c - 0xac00) % 28 ? withBatchim : without;
+}
+/** 타사 막대·문장에 쓰는 위험 유형 (시안 HZ와 같은 우선순위) */
+const HZ_ORDER: [Hazard, string][] = [["heavy_lift", "인양 작업"], ["gas", "가스 배관 작업"], ["hot_work", "화기 작업"], ["confined", "밀폐공간 작업"], ["height", "고소 작업"]];
+const hzLabel = (t: Task) => HZ_ORDER.find(([h]) => t.hazards.includes(h))?.[1] ?? "작업";
 
 /** 그날 하루(07~19시) 안의 시간대. 여러 날 이어지는 작업·충돌은 매일 시작 시각~끝 시각으로 본다 (시안과 같은 방식) */
 function span(start: string, end: string, date: string): [number, number] | null {
@@ -84,6 +94,11 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
   const [risk, setRisk] = useState<RiskWindow[]>([]);
   const [moved, setMoved] = useState<Set<string>>(new Set());
   const [checks, setChecks] = useState<TbmCheckRecord[]>([]);
+  const detailRef = useRef<HTMLElement>(null);
+  // 카드를 누르면 아래의 충돌 상세(근거·공유·조정안)로 내려간다 (시안의 오른쪽 서랍 대신)
+  useEffect(() => {
+    if (sel) detailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [sel]);
 
   // 위험 시간대(F9)·적용 중인 조정(점선 막대)·TBM 확인(F7): 판정이 바뀌면(conflicts) 다시 받는다
   useEffect(() => {
@@ -193,6 +208,73 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
         return t ? (me && t.contractor !== me ? `타사 ${t.name}` : `${short(t.contractor)} ${t.name}`) : id;
       })
       .join(c.type === "sequence" ? " ← 선행 " : " ↔ ") + (c.task_ids.length > 2 ? ` 외 ${c.task_ids.length - 2}건` : "");
+  const who = (t: Task | undefined, id: string): ReactNode => {
+    if (!t) return id;
+    if (me && t.contractor !== me) return `타사 ${t.name}`;
+    return (
+      <>
+        <b>{short(t.contractor)}</b> {t.name}
+        {t.crew != null && <> {t.crew}명</>}
+      </>
+    );
+  };
+  // 카드 문장: 시안처럼 구역·업체·시각을 짧게, 위험 낱말 하나만 빨강, 시각은 파랑, 인원은 굵게 (전체 판정 이유는 상세에)
+  const sentence = (d: DayConflict): ReactNode => {
+    const c = d.c;
+    const [a, b] = c.task_ids.map((id) => taskById.get(id));
+    const za = a ? zoneById.get(a.zone_id)?.name ?? a.zone_id : "";
+    const zb = b ? zoneById.get(b.zone_id)?.name ?? b.zone_id : "";
+    const ja = (x: string, y: string) => josa(a?.name ?? "", x, y);
+    const jb = (x: string, y: string) => josa(b?.name ?? "", x, y);
+    const time = (
+      <span className="t">
+        {hh(d.h0)}–{hh(d.h1)}
+      </span>
+    );
+    if (c.type === "sop_missing")
+      return (
+        <>
+          {who(a, c.task_ids[0])} 계획서에 작업표준서 핵심 단계가 <span className="kw">빠졌습니다</span>. 보완해 다시 제출해야 합니다.
+        </>
+      );
+    if (c.task_ids.length > 2)
+      return (
+        <>
+          전 구역 작업 {who(a, c.task_ids[0])}
+          {ja("이", "가")} 작업 {c.task_ids.length - 1}건과 <span className="kw">겹칠 수 있습니다</span> · {time}
+        </>
+      );
+    if (c.type === "sequence")
+      return (
+        <>
+          {who(b, c.task_ids[1])}
+          {jb("이", "가")} 선행 작업 {who(a, c.task_ids[0])}
+          {ja("이", "가")} <span className="kw">끝나기 전</span>에 시작합니다 · 선행 완료 <span className="t">{a ? a.end.slice(5, 10).replace("-", "/") : "?"}</span>
+        </>
+      );
+    if (c.type === "vertical")
+      return (
+        <>
+          {za}에서 {who(a, c.task_ids[0])}
+          {ja("을", "를")} 하는 동안 <span className="kw">바로 아래</span> {zb}에서 {who(b, c.task_ids[1])} · {time}
+        </>
+      );
+    if (c.type === "hot_gas")
+      return (
+        <>
+          {who(a, c.task_ids[0])}
+          {ja("과", "와")} {who(b, c.task_ids[1])}
+          {jb("이", "가")} <span className="kw">화기·가스</span> 거리 안에서 겹칩니다 · {time}
+        </>
+      );
+    return (
+      <>
+        {za}에서 {who(a, c.task_ids[0])}
+        {ja("과", "와")} {who(b, c.task_ids[1])}
+        {jb("이", "가")} <span className="kw">같은 시간</span>에 겹칩니다 · {time}
+      </>
+    );
+  };
   const pickTask = (t: Task) => {
     const top = dayConflicts.filter((d) => d.c.task_ids.includes(t.id)).sort((a, b) => GRADE_RANK[b.c.grade] - GRADE_RANK[a.c.grade])[0];
     setSel(top ? top.c.id : null);
@@ -211,6 +293,17 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
     </div>
   );
   const firms = new Set(dayTasks.map((t) => t.contractor));
+  const crewOf = (ts: Task[]) => ts.reduce((a, t) => a + (t.crew ?? 0), 0);
+  const zoneById = new Map(zones.map((z) => [z.id, z]));
+  // 계획 변경 배너: 가장 최근 제출이 드러낸 충돌 (원청 화면, 아직 열려 있는 것)
+  const fromLatest = latestPlan ? conflicts.filter((r) => r.plan_id === latestPlan.id) : [];
+  const latestTop = [...fromLatest].sort(
+    (a, b) => GRADE_RANK[b.conflict.grade] - GRADE_RANK[a.conflict.grade] || a.conflict.window_start.localeCompare(b.conflict.window_start),
+  )[0];
+  const goTo = (r: ConflictRecord) => {
+    setDate(r.conflict.window_start.slice(0, 10));
+    window.setTimeout(() => setSel(r.conflict.id), 0); // 날짜를 바꾸면 선택이 지워지므로 그 뒤에 고른다
+  };
   const mine = dayTasks.filter((t) => t.contractor === me);
 
   return (
@@ -221,9 +314,24 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
         </p>
       )}
 
+      {isPrime && latestPlan && latestTop && (
+        <div className="banner">
+          <span className="pill ban">계획 변경</span>
+          <span>
+            <b>{short(latestPlan.contractor)}</b> 계획서 v{latestPlan.version}
+            {josa(String(latestPlan.version), "이", "가")} 들어와 다시 대조했습니다. 이 제출로 드러난 <span className="kw">충돌</span> <b>{fromLatest.length}건</b>
+            {fromLatest.some((r) => r.conflict.grade === "금지") && <> (금지 {fromLatest.filter((r) => r.conflict.grade === "금지").length}건)</>}
+          </span>
+          <span className="grow" />
+          <button type="button" className="btn sm" onClick={() => goTo(latestTop)}>
+            새 충돌 보기
+          </button>
+        </div>
+      )}
+
       <div className="stats">
         {isPrime ? stat("작업 업체", firms.size, "곳", `작업 ${dayTasks.length}건`) : stat("우리 업체 작업", mine.length, "건", short(me!))}
-        {stat("출입 제한", blockedZones, "곳", "금지 판정이 걸린 구역", blockedZones > 0)}
+        {stat("투입 인원", crewOf(isPrime ? dayTasks : mine), "명", isPrime ? `오늘 계획 기준 · 출입 제한 ${blockedZones}곳` : "우리 업체")}
         {stat("겹침", pairs.length, "건", `조건부 ${pairs.filter((d) => d.c.grade === "조건부").length} · 금지 ${pairs.filter((d) => d.c.grade === "금지").length}`)}
         {stat("금지", prohibited.length, "건", "같이 하면 안 되는 조합", prohibited.length > 0)}
         {stat("지금 진행 중 겹침", nowC.length, "건", nowC.length ? label(nowC[0].c) : "없음")}
@@ -335,7 +443,14 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
                       {z.name}
                       {nowRisk && <span className="rk">● {nowRisk.c.grade === "금지" ? "작업 금지" : "위험 높음"}</span>}
                     </span>
-                    <span className="sub">{placed.length ? `작업 ${placed.length}건` : "작업 없음"}</span>
+                    <span className="sub">
+                      {z.description} ·{" "}
+                      {(() => {
+                        const crew = crewOf(placed.map((x) => x.item).filter((t) => !me || t.contractor === me));
+                        if (crew) return <b style={{ color: "var(--ink)" }}>{crew}명</b>;
+                        return placed.length ? (me ? "타사 작업 (우리 작업에 영향)" : `작업 ${placed.length}건`) : "작업 없음";
+                      })()}
+                    </span>
                   </div>
                   <div className="track">
                     {placed.map(({ item: t, lane }) => {
@@ -346,15 +461,22 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
                           type="button"
                           className={`tb ${other ? "ghost" : ""} ${moved.has(t.id) ? "moved" : ""} ${hit.has(t.id) ? "hit" : ""}`}
                           style={{ ["--pc" as string]: colorOf(t.contractor), ...pos(t.h0, t.h1), top: lane * LANE + 4 } as CSSProperties}
-                          title={`${t.id} ${t.contractor} ${t.name} ${hh(t.h0)}–${hh(t.h1)}${moved.has(t.id) ? " · 조정으로 옮겨짐" : ""}`}
+                          title={
+                            other
+                              ? `우리 작업에 영향을 주는 타사 작업 · ${t.name} · ${hzLabel(t)}`
+                              : `${t.id} ${t.contractor} ${t.name} ${hh(t.h0)}–${hh(t.h1)}${t.crew != null ? ` · ${t.crew}명` : ""}${moved.has(t.id) ? " · 조정으로 옮겨짐" : ""}`
+                          }
                           onClick={() => pickTask(t)}
                         >
                           {other ? (
-                            <>타사 {t.name}</>
+                            <>
+                              타사 {t.name} · {hzLabel(t)}
+                            </>
                           ) : (
                             <>
                               <span className="who">{short(t.contractor)}</span>
                               {t.name}
+                              {t.crew != null && <b>{t.crew}명</b>}
                             </>
                           )}
                         </button>
@@ -438,7 +560,7 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
                 {d.rec.status === "adjusted" && <span className="pill ok">조정 적용</span>}
                 <span className="when">{d.c.type !== "sop_missing" ? when(d) : ""}</span>
               </span>
-              <p title={d.c.reason}>{d.c.reason.length > 150 ? `${d.c.reason.slice(0, 150)}…` : d.c.reason}</p>
+              <p title={d.c.reason}>{sentence(d)}</p>
               <span className="ev">
                 {d.c.rule_id} · {d.c.legal_basis.split(" / ")[0]}
               </span>
@@ -449,7 +571,7 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
       </section>
 
       {selected && (
-        <section className="card" style={{ marginTop: 12 }}>
+        <section className="card" style={{ marginTop: 12 }} ref={detailRef}>
           <header>
             <h2>충돌 상세 — 근거{isPrime ? " · 협력사 공유 · 조정안" : ""}</h2>
             <span className="sub">{label(selected.c)}</span>
