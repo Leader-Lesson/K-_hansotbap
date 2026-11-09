@@ -480,7 +480,7 @@ def is_degraded(extraction: PlanExtraction) -> bool:
 
 
 def cache_key(sha256: str, mode: Mode, contractor_hint: str | None) -> str:
-    model = settings.claude_model if settings.llm_provider == "claude" else settings.lmstudio_chat_model
+    model = settings.claude_model if settings.llm_provider == "claude" else settings.unsloth_chat_model
     return "|".join([EXTRACTOR_VERSION, sha256, mode, settings.llm_provider, model, contractor_hint or ""])
 
 

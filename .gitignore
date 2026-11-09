@@ -19,6 +19,8 @@ __pycache__/
 .pytest_cache/
 
 # 로컬 DB·인덱스·모델 — DB 파일은 공유하지 않는다. 대신 db/seed.py 로 같은 상태를 다시 만든다
+.tools/
+
 *.db
 *.db-wal
 *.db-shm
@@ -34,6 +36,8 @@ recordings/
 
 # 개인 설정
 .claude/settings.local.json
+# oh-my-claudecode 세션 상태
+.omc/
 
 # OS·에디터
 .DS_Store

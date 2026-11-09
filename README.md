@@ -13,7 +13,7 @@ app/
   backend/            FastAPI (Python)
     api/              라우터 (/api/health, /zones, /rules, /tasks, /overlaps, /plans)
     parsers/          pdf, xlsx, hwpx → 텍스트 (위치 표식 포함)
-    llm/              LLMProvider: Claude | LM Studio
+    llm/              LLMProvider: Claude | Unsloth Studio
     rules/            F2 판정, F8 누락 판정, F9 점수 (pytest 대상)
     search/           F8 작업표준서 임베딩 인덱스
     stt/              F7 Whisper large-v3-turbo / large-v3
@@ -33,7 +33,23 @@ docs/                 기획서, 기술 스택, 작업 분해 (docs/private/ 는
 
 - Node.js 24 (`.nvmrc`, npm 11 포함). 24보다 낮으면 `npm run setup` 이 `EBADENGINE` 오류로 멈춘다 (`.npmrc` 의 `engine-strict`). nvm-windows: `nvm install 24 && nvm use 24`
 - [uv](https://docs.astral.sh/uv/) (`pip install uv` 또는 `winget install astral-sh.uv`). Python은 `app/backend/.python-version` 에 3.12로 고정돼 있고, 없으면 uv가 자동으로 받는다
-- LM Studio(채팅·임베딩)와 Whisper는 팀의 로컬 LLM 전용 노트북에서 API로 받는다. 각자 PC에 설치하지 않는다. `.env` 의 `LMSTUDIO_BASE_URL` 을 그 노트북 주소로 바꾼다
+- Unsloth Studio(채팅·임베딩)는 팀의 로컬 LLM 전용 노트북에서 API로 받는다. 각자 PC에 설치하지 않는다. `.env` 의 `UNSLOTH_BASE_URL`(노트북 주소)과 `UNSLOTH_API_KEY` 는 팀 채널에서 받아 넣는다(공개 저장소라 적지 않는다)
+- Whisper(F7 음성인식)는 각자 PC에서 띄운다. 아래 "음성인식 준비"
+
+## 음성인식 준비 (F7, 각자 PC)
+
+```bash
+npm run whisper           # 처음 한 번은 설치·모델 다운로드(약 550MB)까지 하고, 서버를 켠 뒤 연결을 확인한다
+```
+
+이 창을 켜 둔 채로 다른 터미널에서 `npm run dev` 를 한다. 하는 일:
+
+1. `whisper-server` 가 없으면 설치한다. macOS는 `brew install whisper-cpp`, Windows·Linux는 [whisper.cpp 공식 릴리스](https://github.com/ggml-org/whisper.cpp/releases)를 `.tools/whisper/` 에 푼다(NVIDIA GPU가 있으면 CUDA판)
+2. ffmpeg 가 없으면 설치를 시도한다(macOS brew, Windows winget). m4a·webm·mp3 변환용이고, 없으면 wav만 받는다
+3. 모델이 없으면 `~/models/`(Windows: `C:\Users\<이름>\models`)에 받는다. `.env` 의 `WHISPER_MODEL`: `large-v3-turbo`(기본, 빠름) / `large-v3`(정확, 약 1GB)
+4. `.env` 의 `WHISPER_BASE_URL` 포트(기본 `http://127.0.0.1:8090/v1`)로 서버를 켜고 1초 무음을 보내 확인한다. 백엔드 API가 8000을 쓰므로 8090에 둔다
+
+`npm run whisper -- --check` 는 설치·다운로드만 하고 서버는 켜지 않는다. Windows에서 CUDA판이 켜지지 않으면 `.tools` 폴더를 지우고 `npm run whisper -- --cpu` 로 CPU판을 받는다. PowerShell·cmd·Git Bash 모두 된다. winget 으로 ffmpeg 를 처음 깔았으면 터미널을 새로 열어야 잡힌다. `.env` 의 `WHISPER_API_KEY` 는 비워 둔다(키를 검사하는 원격 음성 서버를 쓸 때만).
 
 ## 실행
 

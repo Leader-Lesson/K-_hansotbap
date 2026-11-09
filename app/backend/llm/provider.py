@@ -1,7 +1,7 @@
-"""LLMProvider: Claude API 와 LM Studio(OpenAI 호환 로컬 API)를 같은 인터페이스로 감싼다.
+"""LLMProvider: Claude API 와 Unsloth Studio(OpenAI 호환 로컬 API)를 같은 인터페이스로 감싼다.
 
 LLM은 추출·위치 매핑·사유 설명·조정안 문장만 맡는다. 판정은 rules/ 가 한다.
-LLM_PROVIDER 환경변수로 전환한다 (API 장애 시 lmstudio 로 바꿔 시연을 이어간다).
+LLM_PROVIDER 환경변수로 전환한다 (API 장애 시 unsloth 로 바꿔 시연을 이어간다).
 """
 
 import json
@@ -88,11 +88,13 @@ class ClaudeProvider:
         return res.parsed_output
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        # Claude API에는 임베딩이 없다 → F8 임베딩은 LM Studio를 쓴다
-        return LMStudioProvider().embed(texts)
+        # Claude API에는 임베딩이 없다 → F8 임베딩은 Unsloth Studio를 쓴다
+        return UnslothProvider().embed(texts)
 
 
 _THINK = re.compile(r"<think>.*?</think>", re.DOTALL)
+# Qwen 계열은 생각(reasoning)이 켜져 있으면 max_tokens 를 생각에 다 쓰고 본문이 비어 온다
+_NO_THINKING = {"chat_template_kwargs": {"enable_thinking": False}}
 
 
 def _json_text(content: str) -> str:
@@ -105,22 +107,29 @@ def _json_text(content: str) -> str:
     return content[start : end + 1] if start != -1 and end > start else content
 
 
-class LMStudioProvider:
-    name = "lmstudio"
+class UnslothProvider:
+    name = "unsloth"
 
     def __init__(self) -> None:
         from openai import OpenAI
 
-        self._client = OpenAI(base_url=settings.lmstudio_base_url, api_key="lm-studio")
-        self.model = settings.lmstudio_chat_model
+        if not settings.unsloth_api_key:
+            raise RuntimeError("UNSLOTH_API_KEY 가 .env 에 없습니다")
+        self._client = OpenAI(base_url=settings.unsloth_base_url, api_key=settings.unsloth_api_key)
+        self.model = settings.unsloth_chat_model
 
     def complete(self, system: str, user: str, max_tokens: int = 2048) -> str:
         res = self._client.chat.completions.create(
             model=self.model,
             max_tokens=max_tokens,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            extra_body=_NO_THINKING,
         )
-        return res.choices[0].message.content or ""
+        choice = res.choices[0]
+        content = choice.message.content or ""
+        if not content.strip():
+            raise RuntimeError(f"Unsloth 응답 본문이 비어 있습니다 (finish_reason={choice.finish_reason})")
+        return content
 
     def extract(self, system: str, user: str, schema: type[T], max_tokens: int = 16000) -> T:
         res = self._client.chat.completions.create(
@@ -131,6 +140,7 @@ class LMStudioProvider:
                 "type": "json_schema",
                 "json_schema": {"name": schema.__name__, "schema": schema.model_json_schema(), "strict": True},
             },
+            extra_body=_NO_THINKING,
         )
         content = res.choices[0].message.content or ""
         try:
@@ -139,11 +149,11 @@ class LMStudioProvider:
             raise LLMExtractionError(f"로컬 모델 응답이 형식에 맞지 않습니다: {e}") from e
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        res = self._client.embeddings.create(model=settings.lmstudio_embedding_model, input=texts)
+        res = self._client.embeddings.create(model=settings.unsloth_embedding_model, input=texts)
         return [d.embedding for d in res.data]
 
 
 def get_provider() -> LLMProvider:
-    if settings.llm_provider == "lmstudio":
-        return LMStudioProvider()
+    if settings.llm_provider == "unsloth":
+        return UnslothProvider()
     return ClaudeProvider()
