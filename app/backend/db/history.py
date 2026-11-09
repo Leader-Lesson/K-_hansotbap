@@ -13,6 +13,7 @@ from .adjustments import list_adjustments
 from .database import session
 from .plans import current_schedule, list_conflicts, list_plans
 from .shares import shared_by_map
+from .tbm import list_checks
 
 _ORDER = {kind: i for i, kind in enumerate(Kind)}
 
@@ -73,5 +74,15 @@ def list_history(contractor: str | None = None) -> list[HistoryEvent]:
             events.append(
                 conflict_event(Kind.ADJUSTMENT_STALE, record.closed_at, c, f"재제출로 조정 무효: {adj.reason}")
             )
+
+    for check in list_checks(contractor):
+        total, missing = len(check.results), len(check.missing_ids)
+        events.append(
+            HistoryEvent(
+                at=check.checked_at, kind=Kind.TBM_CHECKED, target_id=f"tbm-{check.id}", actor=check.checked_by,
+                contractors=[check.contractor],
+                detail=f"{check.date} TBM: 전달 항목 {total}건 중 {total - missing}건 전달, {missing}건 미전달",
+            )
+        )
 
     return sorted(events, key=lambda e: (e.at, _ORDER[e.kind]))

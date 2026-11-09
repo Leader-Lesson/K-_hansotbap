@@ -23,6 +23,7 @@ _LABELS = {
     Kind.CONFLICT_RESOLVED: "충돌 해소",
     Kind.ADJUSTMENT_REVERTED: "조정 되돌림",
     Kind.ADJUSTMENT_STALE: "조정 무효",
+    Kind.TBM_CHECKED: "TBM 전달 확인",
 }
 
 

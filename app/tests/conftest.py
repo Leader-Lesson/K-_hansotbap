@@ -14,6 +14,7 @@ import pytest
 from openpyxl import Workbook
 
 import llm.extract
+import llm.tbm_check
 from config import settings
 
 
@@ -25,6 +26,7 @@ def isolated(tmp_path, monkeypatch):
         raise RuntimeError("테스트에서는 실제 LLM을 부르지 않는다")
 
     monkeypatch.setattr(llm.extract, "get_provider", no_llm)
+    monkeypatch.setattr(llm.tbm_check, "get_provider", no_llm)
 
 
 @lru_cache
