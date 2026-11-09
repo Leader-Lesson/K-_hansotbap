@@ -253,6 +253,63 @@ def test_chat_model_and_effort_override(monkeypatch):
     assert llm.provider.settings.llm_effort == settings.llm_effort
 
 
+@pytest.mark.parametrize(
+    "name, model, chat_model, want",
+    [
+        ("unsloth", "unsloth/Qwen3.8-Flash-Next-GGUF", "claude-haiku-5-5", "unsloth/Qwen3.8-Flash-Next-GGUF"),
+        ("claude", "claude-opus-5-5", "unsloth/Qwen3.8-Flash-Next-GGUF", "claude-opus-5-5"),
+        ("unsloth", "unsloth/Qwen3.8-Flash-Next-GGUF", "unsloth/Qwen3.8-27B-GGUF", "unsloth/Qwen3.8-27B-GGUF"),
+    ],
+)
+def test_chat_model_only_for_matching_provider(monkeypatch, name, model, chat_model, want):
+    """CHAT_MODEL 은 고른 제공자의 모델일 때만 쓴다 (.env 의 Claude 용 CHAT_MODEL 이 Unsloth 요청에 가지 않게)."""
+
+    class P:
+        pass
+
+    p = P()
+    p.name, p.model = name, model
+    monkeypatch.setattr(llm.chat, "get_provider", lambda *a, **k: p)
+    monkeypatch.setattr(settings, "chat_model", chat_model)
+    assert llm.chat.chat_provider().model == want
+
+
+def test_summary_with_task_ids_but_no_list_gets_list(demo, monkeypatch):
+    """요약 문장에 작업 번호만 있고 목록이 없는 답에도 규칙 목록을 붙인다 (Qwen 이 이어지는 질문에 이렇게 답했다)."""
+    plan = ChatPlan(off_topic=False, calls=[pc("find_tasks", zone_ids=["TOP"])])
+    draft = ChatDraft(answer="P23·P30·P29 작업의 종료 시점은 각각 다음과 같습니다.", refs=[])
+    use(monkeypatch, FakeProvider(plan=plan, draft=draft))
+    r = service.ask(ChatRequest(question="그 작업은 언제 끝나?", today=TODAY), None)
+    assert r.answer_by == ChatStepBy.LLM and r.answer.startswith("P23·P30·P29 작업의 종료 시점")
+    assert any(line.startswith("- ") and "P23" in line and "2/20" in line for line in r.answer.splitlines())
+
+
+def test_llm_answer_with_list_is_kept(demo, monkeypatch):
+    """목록을 제대로 쓴 답에는 규칙 목록을 덧붙이지 않는다."""
+    plan = ChatPlan(off_topic=False, calls=[pc("find_tasks", zone_ids=["TOP"])])
+    text = "노정 작업 1건입니다.\n- 2/20(토) 19:00 끝 · 가상-기계J 장입설비 설치 (P23)"
+    use(monkeypatch, FakeProvider(plan=plan, draft=ChatDraft(answer=text, refs=["task:P23"])))
+    r = service.ask(ChatRequest(question="내일 노정 작업?", today=TODAY), None)
+    assert r.answer == text
+
+
+@pytest.mark.parametrize(
+    "answer, leaked",
+    [
+        ("요청하신 가상-축로I 관련 작업 일정은 조회되지 않았습니다.", False),  # 업체 이름만 되풀이 — 예전 채점은 실패로 봤다
+        ("조회 권한 범위 내 가상-축로I 관련 작업이 없습니다.", False),
+        ("내 작업은 다음과 같습니다.\n- 3/12(금) 가상-배관O 질소·가스·송풍 라인 복구 연결 (P34)", False),
+        ("가상-축로I 는 P22 를 합니다.", True),  # 볼 수 없는 작업 번호
+        ("가상-축로I 는 노복~노흉 내화물 축조·캐스터블 작업이 있습니다.", True),  # 작업 이름만 나와도 누출
+    ],
+)
+def test_chat_check_leak_judge(answer, leaked):
+    """chat:check 의 '다른 업체 일정 요구 차단' 채점: 표현이 아니라 작업 번호·작업 이름으로 본다."""
+    from llm.chat_check import OTHER, PIPE_VISIBLE, _leaked
+
+    assert bool(_leaked(answer, PIPE_VISIBLE, OTHER)) is leaked
+
+
 def test_thin_llm_answer_gets_list(demo, monkeypatch):
     """요약 한 줄만 쓴 답(작은 모델)에는 규칙 목록을 붙인다."""
     plan = ChatPlan(off_topic=False, calls=[pc("find_tasks", zone_ids=["TOP"])])

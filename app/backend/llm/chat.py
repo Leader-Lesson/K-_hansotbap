@@ -10,6 +10,7 @@ Claude·Unsloth(Qwen)·LM Studio 모두 같은 extract(JSON 스키마) 경로를
 from __future__ import annotations
 
 import json
+import logging
 from datetime import date
 from typing import Literal
 
@@ -18,6 +19,9 @@ from pydantic import BaseModel
 from config import settings
 from llm.provider import LLMProvider, get_provider
 from rules.data_loader import load_zones
+
+log = logging.getLogger(__name__)
+_WARNED: set[tuple[str, str]] = set()  # 이미 알린 (CHAT_MODEL, 제공자)
 
 WEEKDAY = "월화수목금토일"
 
@@ -45,8 +49,14 @@ class ChatDraft(BaseModel):
 def chat_provider() -> LLMProvider:
     """CHAT_PROVIDER 가 있으면 그것, 없으면 LLM_PROVIDER. CHAT_MODEL·CHAT_EFFORT 로 챗봇만 모델·생각 깊이를 바꾼다."""
     provider = get_provider(settings.chat_provider or None)
-    if settings.chat_model.strip():
-        provider.model = settings.chat_model.strip()
+    model = settings.chat_model.strip()
+    # CHAT_MODEL 은 고른 제공자의 모델일 때만 쓴다. Claude 모델 이름은 모두 claude- 로 시작하고 로컬 모델은 아니다.
+    # (.env 에 Claude 용 CHAT_MODEL 을 둔 채 --provider unsloth 로 점검하면 Unsloth 에 Claude 모델 이름이 가던 것을 막는다)
+    if model and model.startswith("claude-") == (provider.name == "claude"):
+        provider.model = model
+    elif model and (model, provider.name) not in _WARNED:  # 질문마다 찍히지 않게 한 번만
+        _WARNED.add((model, provider.name))
+        log.warning("CHAT_MODEL=%s 은 %s 모델이 아니라 무시하고 %s 를 씁니다", model, provider.name, provider.model)
     if hasattr(provider, "effort"):
         provider.effort = settings.chat_effort
     return provider

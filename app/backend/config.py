@@ -47,7 +47,8 @@ class Settings(BaseSettings):
 
     # F6 챗봇. 비우면 LLM_PROVIDER 를 따른다 (Qwen=unsloth 로 먼저 확인하고 claude 로 바꾼다)
     chat_provider: Literal["", "claude", "unsloth", "lmstudio"] = ""
-    # 챗봇만 다른 모델 (예: claude-haiku-5-5 — 빠르다). 비우면 제공자 기본(CLAUDE_MODEL·UNSLOTH_CHAT_MODEL·LMSTUDIO_CHAT_MODEL)
+    # 챗봇만 다른 모델 (예: claude-haiku-5-5 — 빠르다). 비우면 제공자 기본(CLAUDE_MODEL·UNSLOTH_CHAT_MODEL·LMSTUDIO_CHAT_MODEL).
+    # 고른 제공자의 모델이 아니면(Claude 에 unsloth/… , Unsloth 에 claude-…) 무시한다
     chat_model: str = ""
     # 챗봇의 Claude 생각 깊이. 조회 결과 정리라 낮게 둬서 빠르게 [팀 설정값]
     chat_effort: Literal["low", "medium", "high", "xhigh", "max"] = "low"

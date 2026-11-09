@@ -248,9 +248,11 @@ def ask(req: ChatRequest, contractor: str | None) -> ChatResponse:
                     log.warning("chat answer 에 %s", why)
                     notices.append(f"AI 답에 {why}가 있어 규칙 답으로 바꿨습니다")
                 else:
-                    terms = key_terms(results, req.question)
-                    if terms and not any(k in text for k in terms):
-                        # 요약 한 줄만 쓰고 목록을 빼먹었으면(작은 모델) 규칙 목록을 붙인다
+                    terms = key_terms(results, req.question)  # 질문에 이미 나온 번호는 구체적인 답으로 치지 않는다
+                    has_list = any(line.lstrip().startswith("- ") for line in text.splitlines())
+                    if any(r.items for r in results) and (not has_list or (terms and not any(k in text for k in terms))):
+                        # 요약만 쓰고 목록을 빼먹었으면(작은 모델) 규칙 목록을 붙인다.
+                        # 요약 문장에 작업 번호만 있고 목록이 없는 답("P23·P30 의 종료 시점은 다음과 같습니다.")도 잡는다
                         text = f"{text}\n{template_lines(results)}"
                     return done(text, ChatStepBy.LLM, results, draft.refs)
             except Exception as e:
