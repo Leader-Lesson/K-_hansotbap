@@ -30,7 +30,7 @@ from typing import Literal
 
 from rules import activities as act
 from rules.data_loader import load_rules
-from rules.overlap import ALL_ZONE, FURNACE_COLUMN, time_overlap
+from rules.overlap import ALL_ZONE, FURNACE_COLUMN, work_overlap, work_periods
 from rules.relations import SYSTEMS, Rel, relate, zone_name
 from schemas import Conflict, ConflictType, Grade, Hazard, Rule, SopMatch, SourceRef, Task, Zone
 
@@ -175,8 +175,8 @@ PAIR_RULES: tuple[PairRule, ...] = (
 
 
 def _window(rule: PairRule, a: Task, b: Task) -> tuple[datetime, datetime] | None:
-    if rule.when == "overlap":
-        return time_overlap(a.start, a.end, b.start, b.end)
+    if rule.when == "overlap":  # 날짜 × 하루 작업 시간대가 겹칠 때 (rules/overlap.py)
+        return work_overlap(a.start, a.end, b.start, b.end)
     if rule.when == "b_before_a_done":  # B는 A 완료 뒤에 시작해야 한다
         return (b.start, max(b.start, min(a.end, b.end))) if b.start < a.end else None
     if rule.when == "a_before_b_done":  # A는 B가 모두 끝난 뒤에 해야 한다
@@ -333,13 +333,16 @@ def detect_mixed_work(tasks: list[Task], rules: list[Rule]) -> list[Conflict]:
     zones = sorted({t.zone_id for t in tasks if t.zone_id and t.zone_id != ALL_ZONE})
     for zone in zones:
         in_zone = [t for t in tasks if t.zone_id == zone]
-        cuts = sorted({x for t in in_zone for x in (t.start, t.end)})
+        # 실제로 일하는 구간(날짜 × 하루 작업 시간대)으로 자른다. 주간·야간 작업은 함께 세지 않는다
+        periods = {t.id: work_periods(t.start, t.end) for t in in_zone}
+        cuts = sorted({x for ps in periods.values() for p in ps for x in p})
         spans: list[tuple[datetime, datetime, tuple[str, ...]]] = []
         for s, e in zip(cuts, cuts[1:]):
-            live = tuple(sorted(t.id for t in in_zone if t.start < e and s < t.end))
+            live = tuple(sorted(t.id for t in in_zone if any(p[0] < e and s < p[1] for p in periods[t.id])))
             if len({t.contractor for t in in_zone if t.id in live}) < MIXED_WORK_MIN_CONTRACTORS:
                 continue
-            if spans and spans[-1][2] == live and spans[-1][1] == s:
+            # 같은 협력사 묶음이 다음 날 같은 시간대에 이어지면 한 건으로 합친다 (밤 사이 끊김은 무시)
+            if spans and spans[-1][2] == live:
                 spans[-1] = (spans[-1][0], e, live)
             else:
                 spans.append((s, e, live))

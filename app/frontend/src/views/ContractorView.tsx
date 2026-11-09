@@ -28,6 +28,8 @@ interface Props {
   restrictions: ZoneRestriction[]; // 금지 판정 → 출입 제한 (내 작업이 걸린 것만 다시 거른다)
 }
 
+// 계획서 올리기는 헤더의 창(UploadDialog)으로 옮겼고, 지금 보는 날짜는 ShellProvider 가 들고 있다
+// (AI 챗봇의 '오늘'도 App 이 거기서 읽는다) — 그래서 onSubmitted·onDateChange 를 더 받지 않는다
 export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches, sops, plans, restrictions }: Props) {
   const mine = tasks.filter((t) => t.contractor === contractor);
   const myRestrictions = useMemo(() => restrictionsForContractor(restrictions, tasks, contractor), [restrictions, tasks, contractor]);
@@ -176,7 +178,7 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
             날짜
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded border border-stone-300 px-2 py-1" />
           </label>
-          <div className="h-[calc(100vh-260px)] min-h-[520px] overflow-hidden rounded-lg border border-stone-200">
+          <div>
             <Scene3DTab
               date={date}
               tasks={tasks}

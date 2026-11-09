@@ -4,7 +4,6 @@
    지금은 고정 시나리오(합성 데이터). 나중에 규칙 엔진이 대안을 계산해 같은 모양으로 내려주면 됨. */
 
 const D = '2027-01-21T';
-const N = '2027-01-22T';
 const LIFT_TASK = { company_id: 'C', zone_ids: ['TOP'], crew: 14, work_types: ['LIFT', 'HEIGHT'], systems: [], equipment: ['크롤러 크레인'] };
 
 /* 노정 인양 × 아래 노저(B사 22명)·냉각판(E사 14명) — 금지 2건을 한 번에 다루는 대안 묶음 */
@@ -32,24 +31,24 @@ const LIFT_ALTS = {
     },
     {
       id: 'ALT-LIFT-2', title: '순서 바꾸기 (지상 선조립 → 빈 시간 인양)', tag: '순서 조정',
-      steps: ['C사는 오전에 장입설비를 지상에서 미리 조립', '인양은 점심(12–13시, 노 안 인원 철수)과 주간조 종료 뒤(19–21시)에 진행', 'B사 노저·E사 냉각판 작업은 그대로 계속'],
-      idlePh: 0, shiftPh: 0, residual: '야간 인양 시 아래 노저 야간조 16명 — 조건부 (조명·신호수·방호 데크 확인)',
+      steps: ['C사는 오전에 장입설비를 지상에서 미리 조립', '인양은 점심(12–13시, 노 안 인원 철수)과 E사 냉각판 작업이 끝난 뒤(17–19시)에 진행', 'B사 노저·E사 냉각판 작업은 그대로 계속'],
+      idlePh: 0, shiftPh: 0, residual: '17–19시 인양 시 아래 노저 B사 22명 — 조건부 (방호 데크·신호수 확인)',
       ops: [
         { op: 'add', task: { id: 'T-C-005', company_id: 'C', title: '장입설비 지상 선조립', zone_ids: [], start: D + '09:00', end: D + '12:00', crew: 14, work_types: [], systems: [] } },
         { op: 'patch', id: 'T-C-001', set: { start: D + '12:00', end: D + '13:00', title: '장입설비 인양 (점심 · 노 안 인원 철수)' } },
         { op: 'patch', id: 'T-C-002', set: { start: D + '13:00' } },
-        { op: 'add', task: { ...LIFT_TASK, id: 'T-C-004', title: '장입설비 인양 (주간조 종료 후)', start: D + '19:00', end: D + '21:00' } },
+        { op: 'add', task: { ...LIFT_TASK, id: 'T-C-004', title: '장입설비 인양 (냉각판 작업 종료 후)', start: D + '17:00', end: D + '19:00' } },
         { op: 'pause', id: 'T-B-001', windows: [[D + '12:00', D + '13:00']] },
         { op: 'pause', id: 'T-E-004', windows: [[D + '12:00', D + '13:00']] },
         { op: 'resolve', conflictId: 'C-VER-01' },
         { op: 'resolve', conflictId: 'C-VER-02' },
         { op: 'addConflict', conflict: {
           id: 'C-VER-04', rule_id: 'VER-01', type: 'VERTICAL', severity: 'CONDITIONAL',
-          title: '야간 인양 · 아래 노저 야간조', task_ids: ['T-C-004', 'T-B-003'], company_ids: ['C', 'B'], zone_ids: ['TOP', 'IN-HEARTH'],
-          start: D + '19:00', end: D + '21:00',
-          reason: '주간조 뒤로 옮긴 인양이 B사 노저 야간조(16명)와 겹칩니다. 중간 방호 데크와 출입 통제로 진행할 수 있습니다.',
+          title: '오후 인양 · 아래 노저 작업', task_ids: ['T-C-004', 'T-B-001'], company_ids: ['C', 'B'], zone_ids: ['TOP', 'IN-HEARTH'],
+          start: D + '17:00', end: D + '19:00',
+          reason: '냉각판 작업 뒤로 옮긴 인양이 B사 노저 작업(22명)과 겹칩니다. 중간 방호 데크와 출입 통제로 진행할 수 있습니다.',
           law_ref: '산업안전보건법 제64조 제1항 제8호',
-          suggestion: { text: '방호 데크 확인 · 인양 경로 아래 출입 통제 · 투광등·신호수 배치를 조건으로 진행합니다.' },
+          suggestion: { text: '방호 데크 확인 · 인양 경로 아래 출입 통제 · 신호수 배치를 조건으로 진행합니다.' },
         } },
       ],
     },
@@ -70,23 +69,23 @@ const LIFT_ALTS = {
 
 /* 노저 축조 완료 전 풍구 레벨 질소 라인 연결 (순서 위반) */
 const SEQ_ALTS = {
-  stopAll: { crew: 24, hours: 4, ph: 96, text: 'A사 8명 · B사 노저 야간조 16명이 22–02시 대기' },
+  stopAll: { crew: 30, hours: 4, ph: 120, text: 'A사 8명 · B사 노저 22명이 14–18시 대기' },
   list: [
     {
-      id: 'ALT-SEQ-1', title: '연결을 노저 축조 완료 뒤로, 오늘 밤은 지상 선조립', tag: '순서 조정',
-      steps: ['질소 라인 연결을 「노저 축조 완료·인원 철수 확인」 뒤(2/1 19시 이후)로 이동', '오늘 밤 A사 8명은 질소 배관 지상 선조립·사전 기밀 점검', 'B사 노저 야간 축조는 그대로 계속'],
+      id: 'ALT-SEQ-1', title: '연결을 노저 축조 완료 뒤로, 오늘 오후는 지상 선조립', tag: '순서 조정',
+      steps: ['질소 라인 연결을 「노저 축조 완료·인원 철수 확인」 뒤(2/2 오전)로 이동', '오늘 오후 A사 8명은 질소 배관 지상 선조립·사전 기밀 점검', 'B사 노저 축조는 그대로 계속'],
       idlePh: 0, shiftPh: 0, residual: null,
       ops: [
-        { op: 'patch', id: 'T-A-003', set: { start: '2027-02-01T19:00', end: '2027-02-01T23:00', title: '질소 퍼지 라인 연결 (노저 축조 완료·인원 철수 확인 후)' } },
-        { op: 'add', task: { id: 'T-A-010', company_id: 'A', title: '질소 배관 지상 선조립·사전 기밀 점검', zone_ids: ['GAS'], start: D + '22:00', end: N + '02:00', crew: 8, work_types: [], systems: [] } },
+        { op: 'patch', id: 'T-A-003', set: { start: '2027-02-02T09:00', end: '2027-02-02T13:00', title: '질소 퍼지 라인 연결 (노저 축조 완료·인원 철수 확인 후)' } },
+        { op: 'add', task: { id: 'T-A-010', company_id: 'A', title: '질소 배관 지상 선조립·사전 기밀 점검', zone_ids: ['GAS'], start: D + '14:00', end: D + '18:00', crew: 8, work_types: [], systems: [] } },
         { op: 'resolve', conflictId: 'C-SEQ-01' },
         { op: 'resolve', conflictId: 'C-HOT-01' },
-        { op: 'downgrade', conflictId: 'C-STD-01', set: { start: '2027-02-01T19:00', end: '2027-02-01T23:00' } },
+        { op: 'downgrade', conflictId: 'C-STD-01', set: { start: '2027-02-02T09:00', end: '2027-02-02T13:00' } },
       ],
     },
     {
       id: 'ALT-SEQ-2', title: '외부 구간만 배관 (풍구 쪽 맹판 차단)', tag: '구역 조정',
-      steps: ['풍구로 이어지는 마지막 연결부에 맹판 이중 차단', '오늘 밤은 풍구층 외부 구간 배관만 진행', '노 안으로 이어지는 연결은 노저 축조 완료 뒤'],
+      steps: ['풍구로 이어지는 마지막 연결부에 맹판 이중 차단', '오늘은 풍구층 외부 구간 배관만 진행', '노 안으로 이어지는 연결은 노저 축조 완료 뒤'],
       idlePh: 0, shiftPh: 0, residual: '금지 → 조건부 (맹판·이중 차단 확인 서명)',
       ops: [
         { op: 'patch', id: 'T-A-003', set: { title: '질소 라인 외부 구간 배관 (풍구 쪽 맹판 차단, 노 안 연결 제외)' } },

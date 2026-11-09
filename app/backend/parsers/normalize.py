@@ -92,9 +92,20 @@ def iso_date(text: str | None) -> date | None:
 _TIME = re.compile(r"(?<!\d)(?P<h>\d{1,2})\s*(?::|시)\s*(?P<mi>[0-5]\d)?\s*분?")
 
 
+# PDF 표 칸이 좁으면 시각이 줄바꿈으로 끊겨 공백이 낀다: '08:00~1 7:00'(→17:00), '18:0 0'(→18:00).
+# 그대로 읽으면 '7:00'으로 읽혀 주간 작업이 야간이 된다 → 시각 모양일 때만 이어 붙인다
+_WRAPPED_HOUR = re.compile(r"(?<![\d:])(\d)\s+(\d:\d{2})")
+_WRAPPED_MINUTE = re.compile(r"(\d{1,2}:\d)\s+(\d)(?!\d)")
+
+
+def _join_wrapped(text: str) -> str:
+    return _WRAPPED_MINUTE.sub(r"\1\2", _WRAPPED_HOUR.sub(r"\1\2", text))
+
+
 def parse_times(text: str | None) -> list[time]:
     if not text:
         return []
+    text = _join_wrapped(text)
     out: list[time] = []
     for m in _TIME.finditer(text):
         h, mi = int(m.group("h")), int(m.group("mi") or 0)
@@ -177,6 +188,8 @@ def build_interval(
     end = datetime.combine(end_date, et)
     if et <= st:  # 자정을 넘기는 야간 작업
         end += timedelta(days=1)
+        if shift == Shift.DAY:
+            warnings.append(f"주간 작업인데 끝 시각({et:%H:%M})이 시작 시각({st:%H:%M})보다 이릅니다 — 작업 시간을 확인해 주세요")
     if shift is None:
         shift = Shift.NIGHT if (st >= NIGHT_START or st < NIGHT_END) else Shift.DAY
     return start, end, shift, warnings

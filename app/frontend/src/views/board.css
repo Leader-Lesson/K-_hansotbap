@@ -96,11 +96,6 @@
 .pb .tlbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 14px;border-bottom:1px solid var(--line-2)}
 .pb .tctl{display:inline-flex;align-items:center;gap:4px}
 .pb .tctl select{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:2px 6px;font-variant-numeric:tabular-nums}
-.pb .sband{position:absolute;top:0;bottom:0;pointer-events:none}
-.pb .sband.day{background:color-mix(in srgb,var(--amber) 4%,transparent)}
-.pb .sband.night{background:color-mix(in srgb,var(--blue) 10%,transparent)}
-.pb .sband.hov{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--amber) 30%,transparent) 0 4px,transparent 4px 8px)}
-.pb .sw.sband{position:static;border:1px solid var(--line)}
 .pb .tl-scale .ticks .hovmk{top:7px;transform:translateX(-100%);font-size:10.5px;font-weight:700;color:var(--amber);padding-right:3px}
 .pb .tl-lines .hovl{position:absolute;top:0;bottom:0;border-left:1.5px dashed var(--amber)}
 .pb .tb.ot{border-left-style:dashed}
