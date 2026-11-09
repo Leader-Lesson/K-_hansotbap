@@ -11,6 +11,10 @@ const hr=(a,b)=>`${hh(a)}–${hh(b)}`;
 const dayFromMD=(m,d)=>Math.round((new Date(m>=11?2026:2027,m-1,d)-D0)/864e5)+1;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const $=s=>document.querySelector(s);
+/* 받침에 맞는 조사: josa("교체","이")→"가", josa("연결","을")→"을" */
+const josa=(w,p)=>{w=String(w??"");const c=w.charCodeAt(w.length-1),b=c>=0xAC00&&c<=0xD7A3&&(c-0xAC00)%28>0;const t={"이":["이","가"],"을":["을","를"],"은":["은","는"],"과":["과","와"]}[p];return t?(b?t[0]:t[1]):p;};
+/* 계획서 추출 정확도(정답셋 대비, %). 측정값이 나오면 숫자로 바꾼다. 예: const EXTRACT_ACC={pct:92.4,n:5,at:"11/9 18:00"} */
+const EXTRACT_ACC=null;
 const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
 const LV={"금지":"ban","조건부":"cond","결함":"def"}, LVC={"금지":"var(--red)","조건부":"var(--amber)","결함":"var(--violet)"}, LVO={"금지":0,"조건부":1,"결함":2};
 const TYPES=["화기","밀폐","고소","중량물","가스","가연물"];
@@ -222,13 +226,13 @@ function sentence(c){
   const A=task(c.a),B=c.b?task(c.b):null,tm=`<span class="t">${hr(c.h0,c.h1)}</span>`,e=esc,dt=c.dist?`${c.dist}m 안`:"같은 구역";
   switch(c.rule){
     case "R-VT-01":return `${zn(A.zone)}에서 ${pn(A)}가 크레인 인양 중인데, <span class="kw">바로 아래</span> ${zn(B.zone)}에서 ${pn(B)} ${crewS(B)} 일하고 있습니다. ${tm}`;
-    case "R-SZ-01":return `${zn(A.zone)}에서 ${pn(A)}가 ${e(tn(A))}을 하는 <span class="kw">인양 반경 안</span>에서 ${pn(B)} ${crewS(B)} 작업합니다. ${tm}`;
+    case "R-SZ-01":return `${zn(A.zone)}에서 ${pn(A)}가 ${e(tn(A))}${josa(tn(A),"을")} 하는 <span class="kw">인양 반경 안</span>에서 ${pn(B)} ${crewS(B)} 작업합니다. ${tm}`;
     case "R-HF-01":return `${zn(A.zone)}에서 ${pn(A)}가 용단하는 <span class="kw">${dt}</span>에서 ${pn(B)} ${crewS(B)} 가연성 보온재를 교체합니다. ${tm}`;
     case "R-HG-01":return `${pn(A)} 화기 작업 ${dt}에서 ${pn(B)}가 <span class="kw">가스 배관</span>을 엽니다. ${tm}`;
     case "R-CG-01":return `${pn(B)} ${crewS(B)} 축조 중인 ${zn(B.zone)}에 ${pn(A)}가 <span class="kw">질소·가스 라인</span>을 연결합니다. ${tm}`;
-    case "R-SQ-01":return `${pn(A)}의 ${e(tn(A))}이 선행 작업 ${own(B)?"":"타사 "}${e(B.name)}의 <span class="kw">완료 전</span>에 시작합니다. 선행 작업은 <span class="t">${mdw(B.e)}</span>에 끝납니다.`;
+    case "R-SQ-01":return `${pn(A)}의 ${e(tn(A))}${josa(tn(A),"이")} 선행 작업 ${own(B)?"":"타사 "}${e(B.name)}의 <span class="kw">완료 전</span>에 시작합니다. 선행 작업은 <span class="t">${mdw(B.e)}</span>에 끝납니다.`;
     case "R-DF-01":return `${pn(A)} ${e(tn(A))} 계획서에 <span class="kw">화재감시자</span> 배치가 없습니다. ${tm}`;
-    case "R-DF-03":return `${pn(A)} ${e(tn(A))} 계획서에 표준서 필수 단계 <span class="kw">${e(c.missing.join(", "))}</span>이 빠져 있습니다. ${tm}`;
+    case "R-DF-03":return `${pn(A)} ${e(tn(A))} 계획서에 표준서 필수 단계 <span class="kw">${e(c.missing.join(", "))}</span>${josa(c.missing[c.missing.length-1],"이")} 빠져 있습니다. ${tm}`;
   }
   return "";
 }
@@ -242,9 +246,9 @@ function proposals(c){
   else if(B){
     if(R.level==="조건부")L.push({id:"mitig",kind:"조건부 허용",short:"안전 조건 후 동시 작업",text:R.mitig});
     const mv=A.h0>B.h0?A:B,ot=mv===A?B:A,dur=mv.h1-mv.h0;
-    if(ot.h1+dur<=19)L.push({id:"hour",task:mv.id,nh:ot.h1,kind:"시간대 분리",short:`${mv.name} ${hr(mv.h0,mv.h1)} → ${hr(ot.h1,ot.h1+dur)}`,text:`${P(mv.p).name}의 ${mv.name}을 ${hr(ot.h1,ot.h1+dur)}로 옮겨, 같은 날 시간이 겹치지 않게 합니다.`});
+    if(ot.h1+dur<=19)L.push({id:"hour",task:mv.id,nh:ot.h1,kind:"시간대 분리",short:`${mv.name} ${hr(mv.h0,mv.h1)} → ${hr(ot.h1,ot.h1+dur)}`,text:`${P(mv.p).name}의 ${mv.name}${josa(mv.name,"을")} ${hr(ot.h1,ot.h1+dur)}로 옮겨, 같은 날 시간이 겹치지 않게 합니다.`});
     const md2=A.s>B.s?A:B,od=md2===A?B:A;
-    L.push({id:"day",task:md2.id,ns:od.e+1,kind:"일정 이동",short:`${md2.name} ${md(md2.s)} → ${md(od.e+1)}`,text:`${P(md2.p).name}의 ${md2.name} 시작을 ${od.name}이 끝난 다음 날인 ${mdw(od.e+1)}로 옮깁니다.`});
+    L.push({id:"day",task:md2.id,ns:od.e+1,kind:"일정 이동",short:`${md2.name} ${md(md2.s)} → ${md(od.e+1)}`,text:`${P(md2.p).name}의 ${md2.name} 시작을 ${od.name}${josa(od.name,"이")} 끝난 다음 날인 ${mdw(od.e+1)}로 옮깁니다.`});
   }
   return L;
 }
@@ -490,13 +494,13 @@ function renderTl(d,ts,cs){
   const x=h=>((h-7)/12*100),{s:risk}=riskSlots(d,S.role),isHQ=S.role==="HQ";
   const selC=S.sel?S.conflicts.find(c=>c.key===S.sel):null,hit=new Set(selC?[selC.a,selC.b].filter(Boolean):[]);
   let h=`<div class="tl ${selC?"sel":""}"><div class="tl-risk"><div class="lab">위험 시간대</div><div class="risk">${risk.map((v,i)=>`<span class="${rcls(v)}" title="${hh(7+i*.5)} 위험도 ${v}"></span>`).join("")}</div></div>`;
-  h+=`<div class="tl-scale"><div class="sub" style="padding:5px 12px">구역</div><div class="ticks">${[7,9,11,13,15,17,19].map(v=>`<span style="left:${x(v)}%">${hh(v)}</span>`).join("")}<span class="nowchip" style="left:${x(NOW)}%">지금 ${hh(NOW)}</span></div></div>`;
+  h+=`<div class="tl-scale"><div class="sub" style="padding:5px 12px">구역</div><div class="ticks">${[7,9,11,13,15,17,19].filter(v=>Math.abs(v-NOW)>=.75).map(v=>`<span style="left:${x(v)}%${v===19?";transform:translateX(-100%);padding-right:4px":v===7?";transform:none;padding-left:4px":""}">${hh(v)}</span>`).join("")}<span class="nowchip" style="left:${x(NOW)}%">지금 ${hh(NOW)}</span></div></div>`;
   for(const z of ZORDER){
     const zt=ts.filter(t=>t.zone===z),n=lanes(zt);
     const zc=cs.filter(c=>(task(c.a).zone===z||(c.b&&task(c.b).zone===z))&&(c.b||c.rule==="R-SQ-01"));
     const gh=isHQ?[]:S.tasks.filter(t=>!own(t)&&t.zone===z&&actOn(t,d)&&inScope(t)).map(o=>({o}));
     const crew=zt.filter(isBase).reduce((a,t)=>a+t.crew,0),nowRisk=zc.find(c=>c.status==="open"&&c.h0<=NOW&&NOW<c.h1);
-    const L=Math.max(1,n+gh.length),rowH=L*30+8+zc.length*8;
+    const L=Math.max(1,n+gh.length),rowH=Math.max(52,L*30+8+zc.length*8);
     h+=`<div class="tl-row" style="height:${rowH}px"><div class="lab"><span class="z">${zn(z)}${nowRisk?`<span class="rk">● ${nowRisk.level==="금지"?"작업 금지":"위험 높음"}</span>`:""}</span><span class="sub">${ZONES[z].floor} · ${crew?`<b style="color:var(--ink)">${crew}명</b>`:gh.length?"타사 작업 (우리 작업에 영향)":"작업 없음"}</span></div><div class="track">`;
     zt.forEach(t=>{h+=`<button class="tb ${t.moved?"moved":""} ${t.delayOf?"late":""} ${t.emerg?"emerg":""} ${holdsOf(t.id,d).some(x=>x.st!=="승인")?"held":""} ${hit.has(t.id)?"hit":""}" style="--pc:${pc(t.p)};left:${x(t.h0)}%;width:${(t.h1-t.h0)/12*100}%;top:${t._lane*30+4}px" data-act="task" data-t="${t.id}" title="${esc(`${P(t.p).name} ${t.name} ${hr(t.h0,t.h1)} · ${t.crew}명`)}">${t.delayOf?`<span class="who">${P(t.p).name}</span>지연 ~<span class="t">${hh(t.h1)}</span>`:`<span class="who">${P(t.p).name}</span>${esc(t.name)}<b>${t.crew}명</b>${holdBadge(t,d)}`}</button>`;});
     gh.forEach((g,i)=>{const o=g.o;h+=`<button class="tb ghost ${hit.has(o.id)?"hit":""}" style="left:${x(o.h0)}%;width:${(o.h1-o.h0)/12*100}%;top:${(n+i)*30+4}px" data-act="task" data-t="${o.id}" title="우리 작업에 영향을 주는 타사 작업">타사 ${esc(o.name.replace(" (지연)",""))}${o.delayOf?" 지연":""} · ${HZ(o)}${o.path?" · "+o.path.map(q=>SECN[q[2]]).join("→"):o.pos.length<4?" · "+o.pos.map(k=>SECN[k]).join("·"):""}</button>`;});
@@ -510,7 +514,8 @@ function whenTxt(c){if(c.h1<=NOW)return "오늘 종료";if(c.h0<=NOW)return `<sp
 function renderActs(d,cs){
   const open=cs.filter(c=>c.status==="open").sort((a,b)=>LVO[a.level]-LVO[b.level]||((a.h1<=NOW)-(b.h1<=NOW))||a.h0-b.h0);
   const isHQ=S.role==="HQ";
-  let h=`<div class="acts-h"><h2>${isHQ?"지금 조치할 것":"원청에서 받은 공지"}</h2><span class="big" style="font-size:22px;${open.length?"color:var(--red)":""}">${open.length}</span><span class="sub">건 · 금지 먼저, 시작이 가까운 순</span><span class="grow"></span>${isHQ?`<span class="sub">카드를 누르면 근거와 조정안이 오른쪽에 열립니다</span>`:""}</div><div class="acts-grid">`;
+  const nPair=open.filter(c=>c.b||c.rule==="R-SQ-01").length,nDef=open.length-nPair;
+  let h=`<div class="acts-h"><h2>${isHQ?"지금 조치할 것":"원청에서 받은 공지"}</h2><span class="big" style="font-size:22px;${open.length?"color:var(--red)":""}">${open.length}</span><span class="sub">건 · 겹침 ${nPair}${nDef?` + 계획 결함 ${nDef}`:""} · 금지 먼저, 시작이 가까운 순${isHQ?" · 카드를 누르면 근거와 조정안이 오른쪽에 열립니다":""}</span></div><div class="acts-grid">`;
   h+=open.map(c=>{const R=RULES[c.rule];return `<button class="ac" style="--c:${LVC[c.level]}" data-act="sel" data-key="${c.key}" aria-pressed="${S.sel===c.key}">
     <span class="top2"><span class="pill ${LV[c.level]}">${c.level}</span><span>${R.kind}</span>${S.newKeys.has(c.key)?`<span class="kw" style="font-size:12px">신규</span>`:""}${!isHQ&&S.shared.has(c.key+"|"+S.role)?`<span class="pill mute">원청 공유</span>`:""}<span class="when">${c.b||c.rule==="R-SQ-01"?whenTxt(c):""}</span></span>
     <p>${sentence(c)}</p><span class="ev">${c.rule} · ${esc(R.law[0])}</span></button>`;}).join("");
@@ -519,8 +524,36 @@ function renderActs(d,cs){
     h+=adj.map(a=>`<div class="ac" style="--c:var(--ok)"><span class="top2"><span class="pill ok">조정 반영</span><span class="hq">포스코 본청</span><span class="when">${esc(a.time)}</span></span><p>${esc(mask(a.short))}</p><span class="ev">${esc(mask(a.who))} · ${a.rule}</span></div>`).join("");
 }
   if(!open.length&&isHQ)h+=`<div class="empty">오늘 조치할 겹침이 없습니다</div>`;
-  $("#bActs").innerHTML=h+`</div>`;
+  $("#bActs").innerHTML=h+`</div>`+(isHQ?"":stdCardHtml(d));
 }
+
+/* 협력사 화면: 오늘 우리 작업에 매칭된 작업표준서 (F8) */
+function stdCardHtml(d){
+  const ts=S.tasks.filter(t=>isBase(t)&&t.p===S.role&&actOn(t,d)&&STD[t.std]);
+  const body=ts.length?ts.map(t=>{const s=STD[t.std],ms=stdMissing(t);
+    return `<div class="stdi"><div class="stdt"><span class="mono">${t.std}</span> <b>${esc(s.title)}</b><span class="sub"> · 유사도 ${t.sc.toFixed(2)}</span></div>
+    <div class="sub">${esc(t.name)} · ${zn(t.zone)} · <span class="t">${hr(t.h0,t.h1)}</span> · 매칭 이유: ${esc(stdWhy(t))}</div>
+    <ol class="stds">${s.steps.map(x=>`<li class="${ms.includes(x)?"miss":""}">${esc(x)}${ms.includes(x)?" · 계획서에 빠짐":""}</li>`).join("")}</ol></div>`;}).join(""):`<div class="empty">오늘 우리 작업이 없습니다</div>`;
+  return `<section class="card stdcard"><header><h2>우리 작업 표준서</h2><span class="fx">F8</span><span class="sub">오늘 작업마다 원청 작업표준서를 붙였습니다 · 빨간 단계는 계획서에 없는 단계</span></header><div class="stdl">${body}</div></section>`;
+}
+/* 표준서 매칭 이유: 작업명·작업 유형·위치가 표준서 적용 범위와 겹치는 부분 */
+function stdWhy(t){const s=STD[t.std];if(!s)return "";
+  const ws=s.title.replace(/작업표준|표준|작업/g," ").split(/[\s·,]+/).filter(w=>w.length>=2);
+  const hn=ws.filter(w=>t.name.includes(w));
+  const TY={"화기":/용접|용단|화기/,"밀폐":/노내/,"중량물":/인양|장입/,"가스":/가스/,"고소":/비계/,"가연물":/보온/};
+  const ht=t.types.filter(ty=>TY[ty]&&TY[ty].test(s.title));
+  const loc=/노내/.test(s.title)&&/노 내부/.test(zn(t.zone));
+  const parts=[hn.length?`작업명 '${hn.join("·")}'`:"",ht.length?`작업 유형 '${ht.join("·")}'`:"",loc?"위치 '노 내부'":""].filter(Boolean);
+  return parts.length?parts.join(" · ")+" 일치":"작업 설명 문장이 가장 비슷함";}
+/* 원문 문장에서 추출에 쓴 부분(기간·시간·위치·인원·선행 조건)을 강조 */
+function hlSrc(t){let h=esc(t.src);const zw=zn(t.zone).split(/\s+/).filter(w=>w.length>=2);
+  const res=[/선행\s*[:：]?[^|·.]*/g,/\d{4}[-.]\d{1,2}[-.]\d{1,2}|\d{1,2}월\s?\d{1,2}일|\d{1,2}\/\d{1,2}(?:\([^)]*\))?/g,/\d{1,2}:\d{2}\s*[–~-]\s*\d{1,2}:\d{2}/g,/\d+\s?명/g,/주간|야간/g];
+  zw.forEach(w=>res.push(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"g")));
+  const marks=[];res.forEach(re=>{let m;while((m=re.exec(h))){marks.push([m.index,m.index+m[0].length]);if(!m[0].length)re.lastIndex++;}});
+  marks.sort((a,b)=>a[0]-b[0]);const mm=[];marks.forEach(r=>{const l=mm[mm.length-1];if(l&&r[0]<=l[1])l[1]=Math.max(l[1],r[1]);else mm.push(r.slice());});
+  let o="",i=0;mm.forEach(([a,b])=>{o+=h.slice(i,a)+"<mark>"+h.slice(a,b)+"</mark>";i=b;});return o+h.slice(i);}
+const dayNight=t=>t.h0>=7&&t.h1<=19?"주간":t.h0>=19||t.h1<=7?"야간":"주·야간";
+const preTxt=t=>t.pre&&t.pre.length?t.pre.map(id=>{const x=task(id);return x?`${x.id} ${own(x)?x.name:"타사 "+tn(x)}`:id;}).join(", "):"";
 
 /* ================= 서랍: 충돌 상세(F2·F4) / 업로드(F1·F8) ================= */
 function etabs(cur){return `<div class="seg" role="group" aria-label="종류">${[["job","긴급 작업"],["delay","작업 지연"],["var","현장 변수"]].map(([k,l])=>`<button data-act="etab" data-t="${k}" aria-pressed="${cur===k}">${l}</button>`).join("")}</div>`;}
@@ -599,8 +632,8 @@ function upBody(){
   const st=s=>s==="ok"?`<span class="fst ok">구조화 완료</span>`:s==="wait"?`<span class="fst wait">대기</span>`:`<span class="fst run">${s}…</span>`;
   let h=`<div class="drop2" id="drop"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 36h-2a9 9 0 0 1-1.5-17.9A12 12 0 0 1 34 15a8 8 0 0 1 2 21h-2"/><path d="M24 40V24M18 30l6-6 6 6"/></svg>
     <div class="big1">파일을 여기로 끌어다 놓으세요</div><div class="sub">또는</div>
-    <label class="pickbtn" for="fileIn">내 PC에서 찾아보기<input type="file" id="fileIn" multiple accept=".hwpx,.hwp,.xlsx,.xls,.pdf,.csv"></label>
-    <div class="sub">HWPX · 엑셀 · PDF 등 지금 쓰는 양식 그대로 · 계획이 바뀌면 수정한 계획서를 다시 올립니다</div>
+    <label class="pickbtn" for="fileIn">내 PC에서 찾아보기<input type="file" id="fileIn" multiple accept=".hwpx,.xlsx,.xls,.pdf,.csv"></label>
+    <div class="sub">HWPX · 엑셀 · PDF 등 지금 쓰는 양식 그대로 (구형 HWP는 HWPX로 저장해서) · 계획이 바뀌면 수정한 계획서를 다시 올립니다</div>
     ${isHQ||S.role==="C"?`<button class="link" data-act="v2" ${S.ver.C>1?"disabled":""}>${S.ver.C>1?"C사 변경본(v2) 반영됨":"시연: C사 변경본(v2) 올리기"}</button>`:""}</div>`;
   const rows=[];
   S.files.filter(f=>!f.p||isHQ||f.p===S.role).forEach(f=>rows.push(`<${f.p?`button data-act="upfile" data-p="${f.p}" aria-expanded="${S.upOpen===f.p}"`:"div"} class="fr"><span class="nm">${ficon(f.fmt)}<span>${esc(f.name)}${f.note?`<br><span class="sub">${esc(f.note)}</span>`:""}</span></span><span class="c2">${f.p?P(f.p).name:"—"}</span><span class="c3 t">${esc(f.time)}</span><span>${f.st==="ok"?`<span class="fst ok">v${f.ver} 반영</span>`:`<span class="fst wait">시연판은 보관만</span>`}</span></${f.p?"button":"div"}>`));
@@ -612,14 +645,16 @@ function upBody(){
     h+=histHtml(p.id);
     const ts=S.tasks.filter(t=>isBase(t)&&!t.emerg&&t.p===p.id).sort((a,b)=>a.s-b.s);
     const zo=z=>Object.entries(ZONES).map(([k,v])=>`<option value="${k}" ${k===z?"selected":""}>${v.name}</option>`).join("");
-    h+=`<div class="sec"><span class="h">${p.name} 추출 결과 <span class="ai">AI 추출</span> 값을 고치면 바로 다시 대조합니다</span><div class="xt-wrap"><table class="xt"><thead><tr><th>확인</th><th>작업</th><th>기간 (날짜 입력 · 일차 자동)</th><th>시간</th><th>위치</th><th>유형</th><th>작업표준서 매칭</th></tr></thead><tbody>${ts.map(t=>{const ms=stdMissing(t);return `<tr>
+    h+=`<div class="sec"><span class="h">${p.name} 추출 결과 <span class="ai">AI 추출</span> 값을 고치면 바로 다시 대조합니다 · 원문에서 <mark>노란 부분</mark>이 추출에 쓴 문장</span><div class="sub" style="margin:-2px 0 6px">추출 정확도 (합성 정답셋 대비): ${EXTRACT_ACC?`<b>${EXTRACT_ACC.pct}%</b> · 계획서 ${EXTRACT_ACC.n}건 · ${esc(EXTRACT_ACC.at)} 측정`:"측정 전"}</div><div class="xt-wrap"><table class="xt wide"><thead><tr><th>확인</th><th>작업 · 원문 근거</th><th>기간 (날짜 입력 · 일차 자동)</th><th>시간 · 주야간</th><th>위치</th><th>인원</th><th>유형</th><th>선행 조건</th><th>작업표준서 매칭</th></tr></thead><tbody>${ts.map(t=>{const ms=stdMissing(t);return `<tr>
       <td><input type="checkbox" data-f="ok" data-t="${t.id}" ${t.ok?"checked":""} aria-label="${t.id} 확인">${!t.ok&&t.conf?`<div class="flag">${t.conf.f} ${t.conf.v.toFixed(2)}</div>`:""}</td>
-      <td><span class="mono">${t.id}</span> ${esc(t.name)}<div class="sub" title="${esc(t.src)}" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">원문: ${esc(t.src)}</div></td>
+      <td><span class="mono">${t.id}</span> ${esc(t.name)}<div class="srcq" title="${esc(t.src)}">${hlSrc(t)}</div></td>
       <td style="white-space:nowrap"><input type="date" min="2026-11-12" max="2027-04-30" value="${iso(t.s)}" data-f="sd" data-t="${t.id}" aria-label="${t.id} 시작 날짜"> ~ <input type="date" min="2026-11-12" max="2027-04-30" value="${iso(t.e)}" data-f="ed" data-t="${t.id}" aria-label="${t.id} 종료 날짜"><div class="sub">D<b>${t.s}</b>~D<b>${t.e}</b> · ${t.e-t.s+1}일</div></td>
-      <td class="t" style="white-space:nowrap">${hr(t.h0,t.h1)}</td>
+      <td style="white-space:nowrap"><span class="t">${hr(t.h0,t.h1)}</span><div class="sub">${dayNight(t)}</div></td>
       <td><select data-f="zone" data-t="${t.id}" aria-label="${t.id} 위치">${zo(t.zone)}</select></td>
+      <td style="white-space:nowrap"><input type="number" class="crewin" min="1" max="200" value="${t.crew}" data-f="crew" data-t="${t.id}" aria-label="${t.id} 인원"> 명</td>
       <td>${t.types.join("·")||"—"}${t.types.includes("화기")?`<div class="${t.fw?"sub":"miss"}">화재감시자 ${t.fw?"배치":"미기재"}</div>`:""}</td>
-      <td>${t.std} ${esc(STD[t.std].title)}<div class="sub">임베딩 유사도 ${t.sc.toFixed(2)}</div>${ms.length?`<div class="miss">필수 단계 누락: ${esc(ms.join(", "))}</div>`:""}</td></tr>`;}).join("")}</tbody></table></div></div>`;
+      <td style="min-width:120px">${preTxt(t)?esc(preTxt(t)):`<span class="sub">없음</span>`}</td>
+      <td>${t.std} ${esc(STD[t.std].title)}<div class="sub">유사도 ${t.sc.toFixed(2)} · 매칭 이유: ${esc(stdWhy(t))}</div>${ms.length?`<div class="miss">필수 단계 누락: ${esc(ms.join(", "))}</div>`:""}</td></tr>`;}).join("")}</tbody></table></div></div>`;
   }
   return h;
 }
@@ -628,8 +663,9 @@ function editTask(id,f,val){const t=task(id);if(!t)return;
   if(f==="sd"||f==="ed"){const n=dayOfIso(val);if(!n){renderAll();return;}f=f==="sd"?"s":"e";val=n;}
   if(f==="s"||f==="e"){const n=Math.max(1,Math.min(160,parseInt(val,10)||1));t[f]=n;if(t.e<t.s){if(f==="s")t.e=t.s;else t.s=t.e;}}
   if(f==="zone"){t.zone=val;t.ok=true;}
+  if(f==="crew"){const n=parseInt(val,10);if(!(n>0)){renderAll();return;}t.crew=Math.min(200,n);t.ok=true;}
   const {added,resolved}=rejudge();
-  S.log.unshift({time:clock(),type:"계획 수정",sum:`${t.id} ${t.name} ${f==="zone"?"위치":"기간"} 수정`,dec:`자동 재대조 · 해소 ${resolved.length} · 새 충돌 ${added.length}`,who:S.role==="HQ"?HQ[0]:P(S.role).lead,rule:"",law:"",parties:[t.p]});
+  S.log.unshift({time:clock(),type:"계획 수정",sum:`${t.id} ${t.name} ${f==="zone"?"위치":f==="crew"?"인원":"기간"} 수정`,dec:`자동 재대조 · 해소 ${resolved.length} · 새 충돌 ${added.length}`,who:S.role==="HQ"?HQ[0]:P(S.role).lead,rule:"",law:"",parties:[t.p]});
   toast(`다시 대조했습니다 · 해소 ${resolved.length}건 · 새 충돌 ${added.length}건`);renderAll();}
 
 /* ================= 2. 3D · 충돌 (F3) ================= */
@@ -759,7 +795,7 @@ function renderHistory(){
   const tc={"전체 알림":"var(--red)","착수 보류":"var(--red)","긴급 작업":"var(--red)","착수 승인":"var(--ok)","착수":"var(--blue)","TBM 확인":"var(--blue)","긴급 알림":"var(--red)","지연 보고":"var(--red)","조정":"var(--blue)","공유":"var(--ok)","계획 변경":"var(--red)","반려":"var(--red)","재제출":"var(--ok)","알림":"var(--red)","위험 공지":"var(--amber)","되돌림":"var(--amber)"};
   const st=(k,v,u)=>`<div class="stat"><span class="k">${k}</span><span class="v"><span class="big">${v}</span><small>${u}</small></span></div>`;
   let h=`<div class="hgrid">${st("착수 전 찾아낸 충돌 누계",S.seen.size,"건")}${st("조정 결정",S.adjusted.length,"건")}${st("미조치",visC().filter(c=>c.status==="open").length,"건")}${st("이행 기록",S.log.length,"건")}</div>
-  <div class="two"><section class="card"><header><h2>이행 기록</h2><span class="sub">산안법 제64조 혼재작업 확인·조정 기록</span><span class="grow"></span><button class="btn sm" data-act="copycsv">CSV 복사</button></header>
+  <div class="two"><section class="card"><header><h2>이행 기록</h2><span class="sub">산안법 제64조 혼재작업 확인·조정 기록</span><span class="grow"></span><button class="btn sm" data-act="dlcsv">CSV 내려받기</button><button class="btn sm" data-act="copycsv">복사</button></header>
   <div style="padding:10px 14px" class="filt">${HTYPES.map(t=>`<button class="fchip" data-act="hf" data-t="${t}" aria-pressed="${S.hfilt===t}">${t}</button>`).join("")}</div>
   <div style="overflow-x:auto"><table class="lt"><thead><tr><th>시각</th><th>구분</th><th>내용</th><th>결정</th><th>책임자</th><th>근거</th></tr></thead><tbody>${logs.map(l=>`<tr><td class="t" style="white-space:nowrap">${esc(l.time)}</td><td><span class="ty" style="color:${tc[l.type]||"var(--ink-3)"}">${esc(l.type)}</span></td><td>${l.type==="반려"?`<span class="hq">포스코 본청</span> `:""}${esc(mask(l.sum))}</td><td>${esc(mask(l.dec))}</td><td>${esc(mask(l.who))}</td><td>${l.rule?`<span class="mono">${esc(l.rule)}</span> `:""}<span class="sub">${esc(l.law)}</span></td></tr>`).join("")||`<tr><td colspan="6" class="empty">기록이 없습니다</td></tr>`}</tbody></table></div>
   <div style="padding:0 14px 14px" id="csvbox" hidden><textarea id="csvta" readonly style="height:140px;font-family:var(--mono);font-size:11.5px"></textarea></div></section>
@@ -778,9 +814,9 @@ function answer(q){
   const me=S.role==="HQ"?null:S.role,pH=PARTNERS.find(p=>q.includes(p.name)),zs=parseZ(q),dd=parseD(q),lvl=/금지/.test(q)?"금지":/조건부/.test(q)?"조건부":null;
   if(/겹치|충돌|부딪|위험|금지/.test(q)){
     if(me&&pH&&pH.id!==me)return `<p>다른 협력사의 충돌 정보는 원청과 해당 협력사만 볼 수 있습니다.</p>`;
-    const tg=pH?pH.id:me;let L=S.conflicts.filter(c=>c.status==="open"&&(!tg||involves(c,tg)));if(lvl)L=L.filter(c=>c.level===lvl);if(dd)L=L.filter(c=>c.from<=dd[0]&&dd[0]<=c.to);if(zs)L=L.filter(c=>zs.includes(task(c.a).zone)||(c.b&&zs.includes(task(c.b).zone)));
+    const tg=pH?pH.id:me;let L=S.conflicts.filter(c=>c.status==="open"&&(!tg||involves(c,tg))).sort((a,b)=>LVO[a.level]-LVO[b.level]||a.from-b.from||a.h0-b.h0);if(lvl)L=L.filter(c=>c.level===lvl);if(dd)L=L.filter(c=>c.from<=dd[0]&&dd[0]<=c.to);if(zs)L=L.filter(c=>zs.includes(task(c.a).zone)||(c.b&&zs.includes(task(c.b).zone)));
     let h=`<p>${dd?`${dd[1]||""} ${mdw(dd[0])} `:""}${tg?P(tg).name+" 작업과 ":""}겹치는 ${lvl||""} 작업은 <b>${L.length}건</b>입니다.</p>`;
-    if(L.length)h+=`<ul>${L.slice(0,5).map(c=>`<li>${sentence(c)}<br>${evC(c)}${evT(task(c.a))}${c.b?evT(task(c.b)):""}<br><button class="goto" data-act="sel" data-key="${c.key}">상황판에서 보기</button></li>`).join("")}</ul>`;
+    if(L.length)h+=`<ul>${L.slice(0,5).map(c=>`<li>${sentence(c)}<br>${evC(c)}${evT(task(c.a))}${c.b?evT(task(c.b)):""}<br><button class="goto" data-act="sel" data-key="${c.key}">상황판에서 보기</button></li>`).join("")}</ul>${L.length>5?`<p class="sub">위는 금지·시작이 가까운 순 5건입니다. 나머지 ${L.length-5}건은 상황판 아래 카드에서 볼 수 있습니다.</p>`:""}`;
     const adj=S.adjusted.filter(a=>!tg||a.parties.includes(tg)).slice(0,2);if(adj.length)h+=`<p class="sub">최근 조정: ${adj.map(a=>`${esc(mask(a.short))} (${esc(mask(a.who))})`).join(" / ")}</p>`;return h;}
   let day=dd?dd[0]:null;const pid=pH?pH.id:(/내 작업|우리/.test(q)&&me?me:null);if(!zs&&!pid&&day===null)day=S.day;if(zs&&day===null)day=S.day;
   let L=S.tasks.filter(t=>isBase(t)&&(!zs||zs.includes(t.zone))&&(!pid||t.p===pid)&&(day===null||actOn(t,day))).sort((a,b)=>a.s-b.s||a.h0-b.h0);
@@ -790,13 +826,13 @@ function answer(q){
   if(!L.length)return `<p>${head}${S.role==="HQ"?"":"우리 회사 "}예정된 작업이 없습니다.</p>`+hnote;
   return `<p>${head}작업은 <b>${L.length}건</b>입니다.</p><ul>${L.map(t=>`<li>${P(t.p).name} · ${esc(t.name)} · ${zn(t.zone)} · <span class="t">${hr(t.h0,t.h1)}</span> · <b>${t.crew}명</b>${day===null?` · ${md(t.s)}~${md(t.e)}`:""}<br>${evT(t)}</li>`).join("")}</ul>`+hnote;
 }
-function ask(q){q=q.trim();if(!q)return;S.chat.push({w:"u",h:esc(q)});S.chat.push({w:"a",h:answer(q)});S.heard=null;renderChat();}
+function ask(q){q=q.trim();if(!q)return;const r=S.role;S.chat.push({w:"u",h:esc(q),r});S.chat.push({w:"a",h:answer(q),r});S.heard=null;renderChat();}
 function voiceAsk(q){S.chatOpen=true;S.heard={q,listening:true};renderChat();setTimeout(()=>{S.heard={q,listening:false};renderChat();},reduced?50:900);}
 function renderChat(){
-  const host=$("#chatHost");if(!S.chatOpen){host.innerHTML="";return;}
+  const host=$("#chatHost");document.body.classList.toggle("chat-dock",!!S.chatOpen);if(!S.chatOpen){host.innerHTML="";return;}
   const ctx=S.role==="HQ"?"원청":P(S.role).name;
   host.innerHTML=`<aside class="chatp" aria-label="AI 챗봇"><header><b style="font-weight:500">AI에게 묻기</b><span class="fx">F6</span><span class="sub">${ctx} 권한 · 기준 ${md(S.day)} <span class="t">${hh(NOW)}</span></span><span class="grow"></span><button class="x" data-act="chat" aria-label="닫기">×</button></header>
-  <div class="msgs" id="msgs"><div class="msg a"><p>언제, 어디서, 어느 협력사가 무슨 작업을 하는지 물어보세요. 마이크를 누르고 말해도 됩니다. 답에는 근거 계획서와 판정을 붙입니다.</p></div>${S.chat.map(m=>`<div class="msg ${m.w}">${m.h}</div>`).join("")}</div>
+  <div class="msgs" id="msgs"><div class="msg a"><p>언제, 어디서, 어느 협력사가 무슨 작업을 하는지 물어보세요. 마이크를 누르고 말해도 됩니다. 답에는 근거 계획서와 판정을 붙입니다.</p></div>${S.chat.filter(m=>m.r===S.role).map(m=>`<div class="msg ${m.w}">${m.h}</div>`).join("")}</div>
   ${S.heard?`<div class="heard">${S.heard.listening?`<span class="kw">듣는 중…</span>`:`<span>들은 문장: “${esc(S.heard.q)}”</span><span class="grow"></span><button class="btn sm pri" data-act="heardok">이대로 묻기</button><button class="btn sm" data-act="heardno">다시</button>`}</div>`:""}
   <div class="sugg">${SUGG.map(s=>`<button data-act="ask" data-q="${esc(s)}">${esc(s)}</button>`).join("")}</div>
   <form class="cin" id="chatForm"><button type="button" class="mic ${S.heard&&S.heard.listening?"on":""}" data-act="mic" aria-label="음성으로 묻기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><input type="text" id="chatIn" placeholder="질문 입력" autocomplete="off" aria-label="질문"><button class="btn pri" type="submit">묻기</button></form></aside>`;
@@ -860,6 +896,7 @@ document.addEventListener("click",e=>{
   if(a==="notify"){const p=P(S.tbm.p),m=S.tbm.res.filter(r=>r.st!=="ok");S.log.unshift({time:clock(),type:"알림",sum:`TBM 미전달 ${m.length}건 · ${p.name}`,dec:m.map(x=>x.label).join(", "),who:`${p.lead} · ${HQ[0]}`,rule:"F7",law:LAW64,parties:[p.id]});toast(`${p.lead}와 원청 담당자에게 알렸습니다`);renderHistory();return;}
   if(a==="hf"){S.hfilt=el.dataset.t;renderHistory();return;}
   if(a==="roleas"){S.role=el.dataset.p;S.drawer=null;S.sel=null;renderAll();return;}
+  if(a==="dlcsv"){try{const b=new Blob(["\ufeff"+csv()],{type:"text/csv;charset=utf-8"}),u=URL.createObjectURL(b),l=document.createElement("a");l.href=u;l.download=`한솥밥_이행기록_${iso(S.day)}.csv`;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);toast(`이행 기록 ${S.log.length}건을 CSV 파일로 내려받았습니다`);}catch(err){toast("내려받기가 막혀 있습니다 · 복사를 눌러 주세요");}return;}
   if(a==="copycsv"){const t=csv(),box=$("#csvbox"),ta=$("#csvta");ta.value=t;const fb=()=>{box.hidden=false;ta.select();toast("복사가 막혀 있어 내용을 펼쳤습니다");};
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(()=>toast(`이행 기록 ${S.log.length}건을 CSV로 복사했습니다`),fb);else fb();return;}
 });
@@ -875,7 +912,7 @@ document.addEventListener("change",e=>{const el=e.target;
   if(el.id==="dTask"){S.dform.t=el.value;S.dform.h1=null;renderDrawer();return;}
   if(el.id==="dEnd"){S.dform.h1=+el.value;renderDrawer();return;}
   if(el.id==="dateIn"){const n=dayOfIso(el.value);if(n){S.day=Math.max(1,Math.min(TOTAL,n));S.tbm.res=null;renderAll();}return;}
-  if(el.id==="role"){const [r,l]=el.value.split(":");S.role=r;S.lvl=l||"hq";S.drawer=S.drawer&&S.drawer.kind==="up"?S.drawer:null;S.sel=null;S.tbm.res=null;S.upOpen=S.role==="HQ"?null:S.role;renderAll();return;}
+  if(el.id==="role"){const [r,l]=el.value.split(":");S.role=r;S.lvl=l||"hq";S.heard=null;S.drawer=S.drawer&&S.drawer.kind==="up"?S.drawer:null;S.sel=null;S.tbm.res=null;S.upOpen=S.role==="HQ"?null:S.role;renderAll();return;}
   if(el.dataset&&el.dataset.f){editTask(el.dataset.t,el.dataset.f,el.type==="checkbox"?el.checked:el.value);return;}
   if(el.id==="fileIn"){addFiles(el.files);el.value="";return;}
   if(el.id==="tbmP"){S.tbm.p=el.value;S.tbm.res=null;S.tbm.text="";renderTbm();return;}
@@ -883,7 +920,9 @@ document.addEventListener("change",e=>{const el=e.target;
   if(el.id==="audioIn"&&el.files[0]){toast(`${el.files[0].name} 수신 · 음성 인식은 Whisper 연동 단계에서 붙습니다`);el.value="";return;}
 });
 document.addEventListener("input",e=>{if(e.target.id==="dWhy"){S.dform.why=e.target.value;return;}if(e.target.id==="ejN"){S.eform.name=e.target.value;return;}if(e.target.id==="mday"){S.day=+e.target.value;S.tbm.res=null;renderHeader();renderModel();}});
-function addFiles(fl){[...fl].forEach(f=>S.files.unshift({p:S.role==="HQ"?null:S.role,name:f.name,fmt:(f.name.split(".").pop()||"").toUpperCase().slice(0,4),time:clock(),ver:1,st:"keep"}));toast(`${fl.length}개 파일을 받았습니다`);renderDrawer();}
+function addFiles(fl){const all=[...fl],old=all.filter(f=>/\.hwp$/i.test(f.name)),ok=all.filter(f=>!/\.hwp$/i.test(f.name));
+  ok.forEach(f=>S.files.unshift({p:S.role==="HQ"?null:S.role,name:f.name,fmt:(f.name.split(".").pop()||"").toUpperCase().slice(0,4),time:clock(),ver:1,st:"keep"}));
+  toast(old.length?`구형 HWP ${old.length}개는 받지 않았습니다 · 한글에서 HWPX로 저장해 다시 올려 주세요${ok.length?` (나머지 ${ok.length}개는 받음)`:""}`:`${ok.length}개 파일을 받았습니다`);renderDrawer();}
 document.addEventListener("dragover",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d){e.preventDefault();d.classList.add("over");}});
 document.addEventListener("dragleave",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d)d.classList.remove("over");});
 document.addEventListener("drop",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d){e.preventDefault();d.classList.remove("over");addFiles(e.dataTransfer.files);}});
