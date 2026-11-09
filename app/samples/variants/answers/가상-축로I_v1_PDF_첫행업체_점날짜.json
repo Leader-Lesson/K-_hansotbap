@@ -1,0 +1,106 @@
+{
+  "file": "가상-축로I_v1_PDF_첫행업체_점날짜.pdf",
+  "contractor": "가상-축로I",
+  "format": "pdf",
+  "tasks": [
+    {
+      "wbs_id": "P20",
+      "name": "노저 카본블록·세라믹컵 축조(연와정초)",
+      "zone_id": "HEARTH",
+      "start": "2027-01-21",
+      "end": "2027-02-15",
+      "shift": "day",
+      "headcount": 18,
+      "hazards": [
+        "confined"
+      ],
+      "predecessors": [
+        "P16",
+        "P18"
+      ]
+    },
+    {
+      "wbs_id": "P21",
+      "name": "풍구 레벨 내화물·풍구·냉각기 신설",
+      "zone_id": "TUYERE",
+      "start": "2027-02-10",
+      "end": "2027-02-25",
+      "shift": "day",
+      "headcount": 14,
+      "hazards": [
+        "confined",
+        "heavy_lift"
+      ],
+      "predecessors": [
+        "P20"
+      ]
+    },
+    {
+      "wbs_id": "P22",
+      "name": "노복~노흉 내화물 축조·캐스터블",
+      "zone_id": "STACK",
+      "start": "2027-02-05",
+      "end": "2027-03-02",
+      "shift": "day",
+      "headcount": 22,
+      "hazards": [
+        "confined",
+        "height"
+      ],
+      "predecessors": [
+        "P19"
+      ]
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S2",
+      "type": "vertical",
+      "rule_ids": [
+        "R16"
+      ],
+      "with": "가상-기계J P23 (TOP, 2027-01-06~02-20)",
+      "note": "기준 일정 그대로여도 노정 설치 아래 노저 축조가 겹친다 — 조정 대상 표시"
+    }
+  ],
+  "note": "원본 가상-축로I_노체축조_주간계획.xlsx 과 같은 작업을 다른 양식으로 다시 그린 합성 변형",
+  "variant": {
+    "source": "가상-축로I_노체축조_주간계획.xlsx",
+    "version": 1,
+    "layout": "table",
+    "header_synonym_set": "S2",
+    "headers": [
+      "공정명",
+      "협력사",
+      "장소",
+      "착수일",
+      "완료일",
+      "근무형태",
+      "작업인원",
+      "필요허가",
+      "착수조건",
+      "담당자"
+    ],
+    "column_order": [
+      "name",
+      "contractor",
+      "loc",
+      "start",
+      "end",
+      "shift",
+      "headcount",
+      "hazards",
+      "pre",
+      "owner"
+    ],
+    "date_style": "시작/종료 칸: 2027.01.15",
+    "contractor_position": "업체 열, 첫 행에만(병합)",
+    "shift_style": "주야간 칸: 주간 / 주야간",
+    "zone_style": "원본 계획서 표현",
+    "predecessor_style": "작업명(P-ID) 완료 후",
+    "hazard_style": "표준 낱말(화기·가스·밀폐공간·고소·중량물)",
+    "noise_columns": [
+      "담당자"
+    ]
+  }
+}

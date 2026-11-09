@@ -1,0 +1,107 @@
+{
+  "file": "가상-제관F_v1_엑셀_기간한칸_시간대.xlsx",
+  "contractor": "가상-제관F",
+  "format": "xlsx",
+  "tasks": [
+    {
+      "wbs_id": "P10",
+      "name": "상승관·하강관 가스 배관 절단·보수",
+      "zone_id": "DOWNCOMER",
+      "start": "2026-11-15",
+      "end": "2027-01-11",
+      "shift": "day",
+      "headcount": 10,
+      "hazards": [
+        "gas",
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P05"
+      ]
+    },
+    {
+      "wbs_id": "P25",
+      "name": "제진기·가스청정설비 보수·교체",
+      "zone_id": "GCP",
+      "start": "2026-11-22",
+      "end": "2027-02-20",
+      "shift": null,
+      "headcount": 14,
+      "hazards": [
+        "confined",
+        "gas",
+        "heavy_lift",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P05"
+      ]
+    },
+    {
+      "wbs_id": null,
+      "name": "보수 자재 가공(야드)",
+      "zone_id": "YARD",
+      "start": "2026-11-12",
+      "end": "2026-12-31",
+      "shift": "day",
+      "headcount": 5,
+      "hazards": [
+        "hot_work"
+      ],
+      "predecessors": []
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S4",
+      "type": "hot_gas",
+      "rule_ids": [
+        "R04"
+      ],
+      "with": "원청-정비 P05 가스 계통 차단·블리더 방산·질소 퍼지 (DOWNCOMER, 2026-11-13~11-15)",
+      "note": "하강관 절단을 기준(11-17)보다 이틀 앞당겨 퍼지 중 화기 — 금지"
+    }
+  ],
+  "note": "원본 가상-제관F_하강관_가스청정_보수계획.pdf 과 같은 작업을 다른 양식으로 다시 그린 합성 변형",
+  "variant": {
+    "source": "가상-제관F_하강관_가스청정_보수계획.pdf",
+    "version": 1,
+    "layout": "table",
+    "header_synonym_set": "S3",
+    "headers": [
+      "회사명",
+      "작업내용",
+      "구역",
+      "기간",
+      "시간대",
+      "인원",
+      "위험요인",
+      "선행작업",
+      "비고",
+      "담당자"
+    ],
+    "column_order": [
+      "contractor",
+      "name",
+      "loc",
+      "period",
+      "time",
+      "headcount",
+      "hazards",
+      "pre",
+      "note",
+      "owner"
+    ],
+    "date_style": "기간 한 칸: 2027.01.15",
+    "contractor_position": "업체 열, 모든 행에 기재",
+    "shift_style": "시간 칸: 07:00~18:00 / 주간+야간 교대",
+    "zone_style": "원본 계획서 표현",
+    "predecessor_style": "작업명(P-ID) 완료 후",
+    "hazard_style": "표준 낱말(화기·가스·밀폐공간·고소·중량물)",
+    "noise_columns": [
+      "비고",
+      "담당자"
+    ]
+  }
+}

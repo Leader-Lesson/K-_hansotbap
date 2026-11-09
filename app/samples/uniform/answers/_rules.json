@@ -1,0 +1,99 @@
+{
+  "mode": "rules",
+  "samples": "uniform",
+  "repeat": 3,
+  "files": [
+    {
+      "file": "가상-기계J_표준양식_작업계획.xlsx",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 24,
+      "correct": 24,
+      "warnings": [],
+      "seconds": 0.027,
+      "consistent": true
+    },
+    {
+      "file": "가상-배관O_표준양식_작업계획.xlsx",
+      "method": "table_rules",
+      "tasks_truth": 2,
+      "tasks_got": 2,
+      "cells": 16,
+      "correct": 16,
+      "warnings": [],
+      "seconds": 0.015,
+      "consistent": true
+    },
+    {
+      "file": "가상-비계N_표준양식_작업계획.xlsx",
+      "method": "table_rules",
+      "tasks_truth": 2,
+      "tasks_got": 2,
+      "cells": 16,
+      "correct": 15,
+      "warnings": [],
+      "seconds": 0.015,
+      "consistent": true
+    },
+    {
+      "file": "가상-제관F_표준양식_작업계획.xlsx",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 23,
+      "correct": 23,
+      "warnings": [],
+      "seconds": 0.022,
+      "consistent": true
+    },
+    {
+      "file": "가상-축로I_표준양식_작업계획.xlsx",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 24,
+      "correct": 24,
+      "warnings": [],
+      "seconds": 0.022,
+      "consistent": true
+    }
+  ],
+  "cells": 103,
+  "correct": 102,
+  "tasks": 13,
+  "tasks_exact": 12,
+  "missed_tasks": 0,
+  "extra_tasks": 0,
+  "needs_review": 0,
+  "seconds": [
+    0.026772499938185017,
+    0.014571666639919082,
+    0.014984833387037119,
+    0.022492399904876947,
+    0.02246290002949536
+  ],
+  "tokens": {
+    "in": 0,
+    "cache_read": 0,
+    "cache_write": 0,
+    "out": 0
+  },
+  "llm_calls": 0,
+  "consistent_files": 5,
+  "failed": [],
+  "wrong": [
+    {
+      "file": "가상-비계N_표준양식_작업계획.xlsx",
+      "task": "노흉 내부 작업 비계 해체",
+      "field": "기준 일정 ID",
+      "truth": "P30",
+      "got": null
+    }
+  ],
+  "accuracy": 99.0,
+  "task_exact_rate": 92.3,
+  "sec_per_file": 0.02,
+  "sec_total": 0.101,
+  "consistency": 100.0
+}

@@ -1,0 +1,482 @@
+{
+  "mode": "rules",
+  "samples": "variants",
+  "repeat": 3,
+  "files": [
+    {
+      "file": "가상-기계J_v1_엑셀_두자리연도.xlsx",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 24,
+      "correct": 18,
+      "warnings": [],
+      "seconds": 0.024,
+      "consistent": true
+    },
+    {
+      "file": "가상-기계J_v2_한글_머리업체_시각근무.hwpx",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 24,
+      "correct": 24,
+      "warnings": [],
+      "seconds": 0.016,
+      "consistent": true
+    },
+    {
+      "file": "가상-기계J_v3_문장형_PDF.pdf",
+      "method": "실패",
+      "tasks_truth": 3,
+      "tasks_got": 0,
+      "cells": 24,
+      "correct": 0,
+      "warnings": [],
+      "seconds": 1.494,
+      "consistent": null
+    },
+    {
+      "file": "가상-기계J_v4_PDF_작업기간_한글날짜.pdf",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 24,
+      "correct": 24,
+      "warnings": [],
+      "seconds": 0.679,
+      "consistent": true
+    },
+    {
+      "file": "가상-배관O_v1_엑셀_병합업체_기간한칸.xlsx",
+      "method": "table_rules",
+      "tasks_truth": 2,
+      "tasks_got": 2,
+      "cells": 16,
+      "correct": 16,
+      "warnings": [],
+      "seconds": 0.038,
+      "consistent": true
+    },
+    {
+      "file": "가상-배관O_v2_PDF_머리업체_한글날짜.pdf",
+      "method": "table_rules",
+      "tasks_truth": 2,
+      "tasks_got": 2,
+      "cells": 16,
+      "correct": 16,
+      "warnings": [],
+      "seconds": 0.664,
+      "consistent": true
+    },
+    {
+      "file": "가상-배관O_v3_문장형_엑셀.xlsx",
+      "method": "실패",
+      "tasks_truth": 2,
+      "tasks_got": 0,
+      "cells": 16,
+      "correct": 0,
+      "warnings": [],
+      "seconds": 0.017,
+      "consistent": null
+    },
+    {
+      "file": "가상-배관O_v4_한글_소속열_점날짜.hwpx",
+      "method": "table_rules",
+      "tasks_truth": 2,
+      "tasks_got": 2,
+      "cells": 16,
+      "correct": 16,
+      "warnings": [],
+      "seconds": 0.017,
+      "consistent": true
+    },
+    {
+      "file": "가상-비계N_v1_PDF_기간한칸_한글날짜.pdf",
+      "method": "table_rules",
+      "tasks_truth": 2,
+      "tasks_got": 2,
+      "cells": 16,
+      "correct": 15,
+      "warnings": [],
+      "seconds": 0.636,
+      "consistent": true
+    },
+    {
+      "file": "가상-비계N_v2_엑셀_날짜셀_머리업체.xlsx",
+      "method": "table_rules",
+      "tasks_truth": 2,
+      "tasks_got": 2,
+      "cells": 16,
+      "correct": 15,
+      "warnings": [],
+      "seconds": 0.014,
+      "consistent": true
+    },
+    {
+      "file": "가상-비계N_v3_한글_첫행업체_기간한칸.hwpx",
+      "method": "table_rules",
+      "tasks_truth": 2,
+      "tasks_got": 2,
+      "cells": 16,
+      "correct": 15,
+      "warnings": [],
+      "seconds": 0.016,
+      "consistent": true
+    },
+    {
+      "file": "가상-비계N_v4_문장형_한글.hwpx",
+      "method": "실패",
+      "tasks_truth": 2,
+      "tasks_got": 0,
+      "cells": 16,
+      "correct": 0,
+      "warnings": [],
+      "seconds": 0.001,
+      "consistent": null
+    },
+    {
+      "file": "가상-제관F_v1_엑셀_기간한칸_시간대.xlsx",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 23,
+      "correct": 23,
+      "warnings": [],
+      "seconds": 0.02,
+      "consistent": true
+    },
+    {
+      "file": "가상-제관F_v2_한글_첫행업체_한글날짜.hwpx",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 23,
+      "correct": 23,
+      "warnings": [],
+      "seconds": 0.015,
+      "consistent": true
+    },
+    {
+      "file": "가상-제관F_v3_PDF_두자리연도_머리업체.pdf",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 23,
+      "correct": 18,
+      "warnings": [],
+      "seconds": 0.717,
+      "consistent": true
+    },
+    {
+      "file": "가상-제관F_v4_문장형_PDF.pdf",
+      "method": "실패",
+      "tasks_truth": 3,
+      "tasks_got": 0,
+      "cells": 23,
+      "correct": 0,
+      "warnings": [],
+      "seconds": 0.467,
+      "consistent": null
+    },
+    {
+      "file": "가상-축로I_v1_PDF_첫행업체_점날짜.pdf",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 24,
+      "correct": 24,
+      "warnings": [],
+      "seconds": 0.732,
+      "consistent": true
+    },
+    {
+      "file": "가상-축로I_v2_한글_기간한칸_머리업체.hwpx",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 24,
+      "correct": 24,
+      "warnings": [],
+      "seconds": 0.008,
+      "consistent": true
+    },
+    {
+      "file": "가상-축로I_v3_엑셀_열순서_한글날짜.xlsx",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 24,
+      "correct": 24,
+      "warnings": [],
+      "seconds": 0.027,
+      "consistent": true
+    },
+    {
+      "file": "가상-축로I_v4_문장형_한글.hwpx",
+      "method": "실패",
+      "tasks_truth": 3,
+      "tasks_got": 0,
+      "cells": 24,
+      "correct": 0,
+      "warnings": [],
+      "seconds": 0.003,
+      "consistent": null
+    }
+  ],
+  "cells": 412,
+  "correct": 295,
+  "tasks": 52,
+  "tasks_exact": 30,
+  "missed_tasks": 13,
+  "extra_tasks": 0,
+  "needs_review": 6,
+  "seconds": [
+    0.02400916675105691,
+    0.016002566708872717,
+    1.4937316665891558,
+    0.6789669333957136,
+    0.037580166555320225,
+    0.6643145667233815,
+    0.01715773328517874,
+    0.017448666660736006,
+    0.635820533381775,
+    0.013786799895266691,
+    0.015908333317687113,
+    0.001061800013606747,
+    0.019761000061407685,
+    0.014772200025618076,
+    0.7174890666889647,
+    0.46742329994837445,
+    0.7316863000548134,
+    0.008469233366971215,
+    0.026984466550250847,
+    0.002730733326946696
+  ],
+  "tokens": {
+    "in": 0,
+    "cache_read": 0,
+    "cache_write": 0,
+    "out": 0
+  },
+  "llm_calls": 0,
+  "consistent_files": 15,
+  "failed": [
+    {
+      "file": "가상-기계J_v3_문장형_PDF.pdf",
+      "error": "ExtractionFailed: 규칙으로 읽을 수 있는 표가 없습니다. mode=llm 으로 다시 올려 주세요"
+    },
+    {
+      "file": "가상-배관O_v3_문장형_엑셀.xlsx",
+      "error": "ExtractionFailed: 규칙으로 읽을 수 있는 표가 없습니다. mode=llm 으로 다시 올려 주세요"
+    },
+    {
+      "file": "가상-비계N_v4_문장형_한글.hwpx",
+      "error": "ExtractionFailed: 규칙으로 읽을 수 있는 표가 없습니다. mode=llm 으로 다시 올려 주세요"
+    },
+    {
+      "file": "가상-제관F_v4_문장형_PDF.pdf",
+      "error": "ExtractionFailed: 규칙으로 읽을 수 있는 표가 없습니다. mode=llm 으로 다시 올려 주세요"
+    },
+    {
+      "file": "가상-축로I_v4_문장형_한글.hwpx",
+      "error": "ExtractionFailed: 규칙으로 읽을 수 있는 표가 없습니다. mode=llm 으로 다시 올려 주세요"
+    }
+  ],
+  "wrong": [
+    {
+      "file": "가상-기계J_v1_엑셀_두자리연도.xlsx",
+      "task": "벨리스 탑 부품 야드 반입·검수",
+      "field": "시작일",
+      "truth": "2026-12-20",
+      "got": "2026-11-12"
+    },
+    {
+      "file": "가상-기계J_v1_엑셀_두자리연도.xlsx",
+      "task": "벨리스 탑 부품 야드 반입·검수",
+      "field": "종료일",
+      "truth": "2027-01-05",
+      "got": "2026-11-12"
+    },
+    {
+      "file": "가상-기계J_v1_엑셀_두자리연도.xlsx",
+      "task": "노정 장입설비(벨리스 탑) 설치",
+      "field": "시작일",
+      "truth": "2027-01-06",
+      "got": "2026-11-12"
+    },
+    {
+      "file": "가상-기계J_v1_엑셀_두자리연도.xlsx",
+      "task": "노정 장입설비(벨리스 탑) 설치",
+      "field": "종료일",
+      "truth": "2027-02-20",
+      "got": "2026-11-12"
+    },
+    {
+      "file": "가상-기계J_v1_엑셀_두자리연도.xlsx",
+      "task": "장입 구동부 시운전",
+      "field": "시작일",
+      "truth": "2027-02-18",
+      "got": "2026-11-12"
+    },
+    {
+      "file": "가상-기계J_v1_엑셀_두자리연도.xlsx",
+      "task": "장입 구동부 시운전",
+      "field": "종료일",
+      "truth": "2027-02-20",
+      "got": "2026-11-12"
+    },
+    {
+      "file": "가상-기계J_v3_문장형_PDF.pdf",
+      "task": "벨리스 탑 부품 야드 반입·검수",
+      "field": "(파일 못 읽음)",
+      "truth": "벨리스 탑 부품 야드 반입·검수",
+      "got": null
+    },
+    {
+      "file": "가상-기계J_v3_문장형_PDF.pdf",
+      "task": "노정 장입설비(벨리스 탑) 설치",
+      "field": "(파일 못 읽음)",
+      "truth": "노정 장입설비(벨리스 탑) 설치",
+      "got": null
+    },
+    {
+      "file": "가상-기계J_v3_문장형_PDF.pdf",
+      "task": "장입 구동부 시운전",
+      "field": "(파일 못 읽음)",
+      "truth": "장입 구동부 시운전",
+      "got": null
+    },
+    {
+      "file": "가상-배관O_v3_문장형_엑셀.xlsx",
+      "task": "질소·가스·송풍 라인 복구 연결",
+      "field": "(파일 못 읽음)",
+      "truth": "질소·가스·송풍 라인 복구 연결",
+      "got": null
+    },
+    {
+      "file": "가상-배관O_v3_문장형_엑셀.xlsx",
+      "task": "냉각수 계통 압력시험·플러싱",
+      "field": "(파일 못 읽음)",
+      "truth": "냉각수 계통 압력시험·플러싱",
+      "got": null
+    },
+    {
+      "file": "가상-비계N_v1_PDF_기간한칸_한글날짜.pdf",
+      "task": "노흉 내부 작업 비계 해체",
+      "field": "기준 일정 ID",
+      "truth": "P30",
+      "got": null
+    },
+    {
+      "file": "가상-비계N_v2_엑셀_날짜셀_머리업체.xlsx",
+      "task": "노흉 내부 작업 비계 해체",
+      "field": "기준 일정 ID",
+      "truth": "P30",
+      "got": null
+    },
+    {
+      "file": "가상-비계N_v3_한글_첫행업체_기간한칸.hwpx",
+      "task": "노흉 내부 작업 비계 해체",
+      "field": "기준 일정 ID",
+      "truth": "P30",
+      "got": null
+    },
+    {
+      "file": "가상-비계N_v4_문장형_한글.hwpx",
+      "task": "노체 철피 외부 비계 설치",
+      "field": "(파일 못 읽음)",
+      "truth": "노체 철피 외부 비계 설치",
+      "got": null
+    },
+    {
+      "file": "가상-비계N_v4_문장형_한글.hwpx",
+      "task": "노흉 내부 작업 비계 해체",
+      "field": "(파일 못 읽음)",
+      "truth": "노흉 내부 작업 비계 해체",
+      "got": null
+    },
+    {
+      "file": "가상-제관F_v3_PDF_두자리연도_머리업체.pdf",
+      "task": "상승관·하강관 가스 배관 절단·보수",
+      "field": "시작일",
+      "truth": "2026-11-15",
+      "got": "2026-11-12"
+    },
+    {
+      "file": "가상-제관F_v3_PDF_두자리연도_머리업체.pdf",
+      "task": "상승관·하강관 가스 배관 절단·보수",
+      "field": "종료일",
+      "truth": "2027-01-11",
+      "got": "2026-11-12"
+    },
+    {
+      "file": "가상-제관F_v3_PDF_두자리연도_머리업체.pdf",
+      "task": "제진기·가스청정설비 보수·교체",
+      "field": "시작일",
+      "truth": "2026-11-22",
+      "got": "2026-11-12"
+    },
+    {
+      "file": "가상-제관F_v3_PDF_두자리연도_머리업체.pdf",
+      "task": "제진기·가스청정설비 보수·교체",
+      "field": "종료일",
+      "truth": "2027-02-20",
+      "got": "2026-11-12"
+    },
+    {
+      "file": "가상-제관F_v3_PDF_두자리연도_머리업체.pdf",
+      "task": "보수 자재 가공(야드)",
+      "field": "종료일",
+      "truth": "2026-12-31",
+      "got": "2026-11-12"
+    },
+    {
+      "file": "가상-제관F_v4_문장형_PDF.pdf",
+      "task": "상승관·하강관 가스 배관 절단·보수",
+      "field": "(파일 못 읽음)",
+      "truth": "상승관·하강관 가스 배관 절단·보수",
+      "got": null
+    },
+    {
+      "file": "가상-제관F_v4_문장형_PDF.pdf",
+      "task": "제진기·가스청정설비 보수·교체",
+      "field": "(파일 못 읽음)",
+      "truth": "제진기·가스청정설비 보수·교체",
+      "got": null
+    },
+    {
+      "file": "가상-제관F_v4_문장형_PDF.pdf",
+      "task": "보수 자재 가공(야드)",
+      "field": "(파일 못 읽음)",
+      "truth": "보수 자재 가공(야드)",
+      "got": null
+    },
+    {
+      "file": "가상-축로I_v4_문장형_한글.hwpx",
+      "task": "노저 카본블록·세라믹컵 축조(연와정초)",
+      "field": "(파일 못 읽음)",
+      "truth": "노저 카본블록·세라믹컵 축조(연와정초)",
+      "got": null
+    },
+    {
+      "file": "가상-축로I_v4_문장형_한글.hwpx",
+      "task": "풍구 레벨 내화물·풍구·냉각기 신설",
+      "field": "(파일 못 읽음)",
+      "truth": "풍구 레벨 내화물·풍구·냉각기 신설",
+      "got": null
+    },
+    {
+      "file": "가상-축로I_v4_문장형_한글.hwpx",
+      "task": "노복~노흉 내화물 축조·캐스터블",
+      "field": "(파일 못 읽음)",
+      "truth": "노복~노흉 내화물 축조·캐스터블",
+      "got": null
+    }
+  ],
+  "accuracy": 71.6,
+  "task_exact_rate": 57.7,
+  "sec_per_file": 0.28,
+  "sec_total": 5.605,
+  "consistency": 100.0
+}
