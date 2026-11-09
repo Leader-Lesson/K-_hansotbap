@@ -39,6 +39,25 @@ def _zones_of(c: Conflict, by_task: dict[str, Task]) -> set[str]:
     return zones - {ALL_ZONE} if len(zones) > 1 else zones
 
 
+def _grouped(c: Conflict, by_task: dict[str, Task]) -> bool:
+    """전 구역 작업 1건과 겹칠 수 있는 여러 작업을 묶은 충돌(F2 '…>ALL'). 구역마다 그 구역 작업만 관련 있다."""
+    return len(c.task_ids) > 2 and any(t in by_task and by_task[t].zone_id == ALL_ZONE for t in c.task_ids)
+
+
+def _members(c: Conflict, zone_id: str, by_task: dict[str, Task]) -> list[Task]:
+    """이 구역 시간대에 관련된 작업. 일반 충돌은 상대 구역 작업까지 전부(위쪽 업체도 아래 구역 공지에 나와야 한다),
+    묶음 충돌은 이 구역 작업과 묶음의 주인(맨 앞 전 구역 작업)만 — 그렇지 않으면 다른 구역 업체와 위치 모르는
+    다른 전 구역 작업까지 모든 구역 공지에 섞인다."""
+    tasks = [by_task[t] for t in c.task_ids if t in by_task]
+    if not _grouped(c, by_task):
+        return tasks
+    return [t for t in tasks if t.zone_id == zone_id or t.id == c.task_ids[0]]
+
+
+def _active(tasks: list[Task], start: datetime, end: datetime) -> bool:
+    return any(t.start < end and start < t.end for t in tasks)
+
+
 def _segments(slices: list[Slice]) -> list[tuple[datetime, datetime, frozenset[str]]]:
     """조각의 경계마다 잘라, 같은 충돌 묶음이 이어지는 구간을 만든다."""
     opened: dict[datetime, list[str]] = defaultdict(list)
@@ -103,7 +122,13 @@ def _window(
     zone_names: dict[str, str],
 ) -> RiskWindow:
     group = [by_conflict[i] for i in sorted(ids)]
-    tasks = [by_task[t] for c in group for t in c.task_ids if t in by_task]
+    tasks = [
+        t
+        for c in group
+        for t in _members(c, zone_id, by_task)
+        # 묶음 충돌은 이 시간대에 실제로 진행 중인 이 구역 작업만 (묶음의 주인은 그대로)
+        if not _grouped(c, by_task) or t.id == c.task_ids[0] or (t.start < end and start < t.end)
+    ]
     contractors = sorted({t.contractor for t in tasks})
     rule_ids = sorted({c.rule_id for c in group})
     sources = list({(s.file, s.locator, s.text): s for c in group for s in c.sources}.values())
@@ -137,10 +162,14 @@ def score_windows(
     slices: dict[str, list[Slice]] = defaultdict(list)
     for c in conflicts:
         zone_ids = _zones_of(c, by_task)
+        grouped = _grouped(c, by_task)
         for start, end in _daily_slices(c):
             if on and not (start.date() <= on and on < end.date() + _ONE_DAY):
                 continue
             for zone_id in zone_ids:
+                # 묶음 충돌은 공사 기간 전체에 걸쳐 있다 → 그 구역 작업이 진행 중인 날에만 그 구역에 올린다
+                if grouped and not _active([t for t in _members(c, zone_id, by_task) if t.id != c.task_ids[0]], start, end):
+                    continue
                 slices[zone_id].append((start, end, c.id))
 
     windows = [
