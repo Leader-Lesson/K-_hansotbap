@@ -55,6 +55,7 @@ function layoutFor(level) {
       ],
       card: { x: 612, y: 150, w: 176 },
       leader: [570, 200],
+      center: [390, 330],
     };
     deco.push(['circle', { cx: 390, cy: 330, r: 82, fill: '#ffffff', stroke: SUB, 'stroke-width': 2 }]);
     deco.push(['circle', { cx: 390, cy: 330, r: 34, fill: 'none', stroke: SUB, 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }]);
@@ -93,6 +94,7 @@ function layoutFor(level) {
     Z.CAST = {
       shapes: [{ tag: 'rect', attrs: { x: 90, y: 110, width: 620, height: 440, rx: 6 } }],
       card: { x: 112, y: 132, w: 186 },
+      center: [470, 300],   // 출입 제한 방위는 고로 기초 중심 기준
     };
     const bx = 470, by = 300;
     deco.push(['circle', { cx: bx, cy: by, r: 95, fill: '#ffffff', stroke: SUB, 'stroke-width': 2 }]);
@@ -123,13 +125,69 @@ function layoutFor(level) {
   return { Z, deco };
 }
 
+/* 화면 각도: 위=북(-90°), 오른쪽=동, 아래=남, 왼쪽=서 — 3D(x=r·sinφ, z=r·cosφ, 남=+z)를 위에서 본 것과 같음 */
+const DIR_SCREEN = { N: -90, E: 0, S: 90, W: 180 };
+const DIR_ONE = { N: '북', E: '동', S: '남', W: '서' };
+const DIR_KO = { N: '북쪽', E: '동쪽', S: '남쪽', W: '서쪽' };
+function shapeGeom(sh) {
+  const a = sh.attrs;
+  if (sh.tag === 'circle') return { x: +a.cx, y: +a.cy, r: +a.r };
+  if (sh.tag === 'rect') return { x: +a.x + a.width / 2, y: +a.y + a.height / 2, r: Math.min(a.width, a.height) / 2 };
+  return { x: 400, y: 330, r: 205 };   // 링(path)은 노 중심
+}
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const whereOf = (r) => (r.blocked.length === 4 ? '전 구역' : r.blocked.length ? r.blocked.map((d) => DIR_KO[d]).join('·') : r.center ? '중앙부' : '');
+function sideHtml(now, restr, tl) {
+  let h = `<h3>${esc(now)} · 지금 이 층에서 하면 안 되는 곳</h3>`;
+  if (!restr.length) h += '<p class="p2-ok">지금은 출입 제한이 없습니다. 아래 시간표에서 다른 시간대를 눌러 보세요.</p>';
+  restr.forEach((r) => {
+    const ban = r.items.some((i) => i.level === 'ban');
+    h += `<div class="p2-card ${ban ? 'ban' : 'cau'}"><div class="p2-hd" data-z="${esc(r.zoneId)}"><b>${esc(r.zoneName)}</b><span class="p2-tag">${ban ? `${esc(whereOf(r))} 출입 금지` : '주의'}</span><span class="p2-until">~${esc(r.until)}</span></div>`;
+    r.items.forEach((i) => {
+      h += `<div class="p2-it"><div class="p2-why"><span class="p2-k">${i.level === 'ban' ? '금지 이유' : '주의'}</span> ${esc(i.who)} 작업 중${i.why ? ` — ${esc(i.why)}` : ''}</div>`;
+      if (i.accident) h += `<div class="p2-acc"><span class="p2-k">사고</span> <b>${esc(i.accident.name)}</b> · ${esc(i.accident.text)}</div>`;
+      h += '</div>';
+    });
+    h += `<div class="p2-adv">→ ${esc(r.advice)}</div></div>`;
+  });
+  h += '<h3>오늘 시간대별 출입 제한 <small>(누르면 그 시각으로)</small></h3>';
+  if (!tl.length) h += '<p class="p2-ok">이 층은 오늘 출입 제한이 없습니다.</p>';
+  else h += '<ol class="p2-tl">' + tl.map((r) => `<li class="${r.active ? 'on' : ''}" data-t="${esc(r.start)}"><span class="p2-t">${esc(r.startLabel)}–${esc(r.endLabel)}</span><span><b>${esc(r.zoneName)}</b> ${esc(whereOf(r))} 금지<br><small>${esc(r.who)}${r.accidentName ? ` · ${esc(r.accidentName)} 위험` : ''}</small></span></li>`).join('') + '</ol>';
+  return h;
+}
+let styled = false;
+function ensureStyle() {
+  if (styled) return; styled = true;
+  const st = document.createElement('style');
+  st.textContent = `.p2-grid{display:flex;height:100%;min-height:0}.p2-svg{flex:1;min-width:0}
+.p2-side{width:360px;flex:none;overflow:auto;border-left:1px solid #dde2e6;background:#fff;padding:12px 14px;font-size:14px;line-height:1.5;color:#263238}
+.p2-side h3{font-size:15px;margin:14px 0 8px}.p2-side h3:first-child{margin-top:2px}.p2-side h3 small{font-weight:400;color:#5f6b73}
+.p2-ok{color:#5f6b73;margin:0 0 8px}
+.p2-card{border:1px solid #e3e7ea;border-left:5px solid #c62828;border-radius:8px;padding:8px 10px;margin-bottom:10px}.p2-card.cau{border-left-color:#e67e00}
+.p2-hd{display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:4px;flex-wrap:wrap}.p2-tag{background:#c62828;color:#fff;border-radius:999px;padding:1px 8px;font-size:12.5px;font-weight:700}.p2-card.cau .p2-tag{background:#e67e00}
+.p2-until{margin-left:auto;color:#5f6b73;font-size:13px}
+.p2-it{padding:4px 0;border-top:1px dashed #e3e7ea}.p2-k{display:inline-block;font-size:12px;font-weight:700;color:#5f6b73;border:1px solid #cfd6db;border-radius:4px;padding:0 4px;margin-right:2px}
+.p2-acc{margin-top:3px}.p2-acc b{color:#b71c1c}.p2-adv{margin-top:6px;font-weight:700;color:#1b5e20}
+.p2-tl{list-style:none;margin:0;padding:0}.p2-tl li{display:flex;gap:10px;padding:6px;border-radius:6px;cursor:pointer}.p2-tl li:hover{background:#f3f5f7}.p2-tl li.on{background:#fdecea}
+.p2-t{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:700;min-width:92px}.p2-tl small{color:#5f6b73}
+.p2-grid.narrow{flex-direction:column;height:auto}.p2-grid.narrow .p2-svg{height:420px;flex:none}.p2-grid.narrow .p2-side{width:auto;border-left:0;border-top:1px solid #dde2e6}
+@media (max-width:900px){.p2-grid{flex-direction:column}.p2-side{width:auto;border-left:0;border-top:1px solid #dde2e6;max-height:45%}}`;
+  document.head.appendChild(st);
+}
+
 export function renderFloorPlan(container, opts = {}) {
   const {
     level = 0, zones = [], tasks = [], conflicts = [], companies = [],
     selectedZoneId = null, onZoneClick, onConflictClick,
+    now = '', restrictions = [], timeline = [], onTimeClick,
   } = opts;
   const uid = 'p2d' + (++UID);
   container.innerHTML = '';
+  ensureStyle();
+  const grid = document.createElement('div'); grid.className = 'p2-grid';
+  const host = document.createElement('div'); host.className = 'p2-svg';
+  const aside = document.createElement('aside'); aside.className = 'p2-side';
+  grid.append(host, aside);
 
   const svg = el('svg', {
     viewBox: '0 0 800 600', width: '100%', height: '100%',
@@ -144,8 +202,15 @@ export function renderFloorPlan(container, opts = {}) {
     el('line', { x1: 0, y1: 0, x2: 0, y2: 12, stroke: SEV[k].color, 'stroke-width': 3, opacity: 0.45 }, p);
   }
 
+  {
+    const p = el('pattern', { id: `${uid}-ban`, width: 10, height: 10, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(-45)' }, defs);
+    el('rect', { width: 10, height: 10, fill: '#c62828', opacity: 0.16 }, p);
+    el('line', { x1: 0, y1: 0, x2: 0, y2: 10, stroke: '#c62828', 'stroke-width': 4, opacity: 0.55 }, p);
+  }
+
   // 제목 / 태그
   txt(svg, 24, 40, `${level}층 · ${FLOOR_NAME[level] || ''} 평면`, { 'font-size': 24, 'font-weight': 700 });
+  if (now) txt(svg, 24, 66, `${now} 기준 출입 제한`, { 'font-size': 16, fill: SUB });
   const tg = el('g', {}, svg);
   el('rect', { x: 690, y: 18, width: 90, height: 28, rx: 14, fill: '#eceff1' }, tg);
   txt(tg, 735, 38, '합성 데이터', { 'text-anchor': 'middle', 'font-size': 15, fill: SUB });
@@ -228,6 +293,42 @@ export function renderFloorPlan(container, opts = {}) {
     });
   });
 
+  // 출입 제한 (막힌 방위 부채꼴 + 경계 안전띠)
+  const banLayer = el('g', { 'pointer-events': 'none' }, svg);
+  svg.insertBefore(banLayer, decoLayer);
+  const banLabels = el('g', { 'pointer-events': 'none' }, svg);   // 글씨는 카드·장식 위
+  restrictions.forEach((r, ri) => {
+    const L = Z[r.zoneId];
+    if (!L || (!r.blocked.length && !r.center)) return;
+    L.shapes.forEach((sh, si) => {
+      const gm = shapeGeom(sh), [ox, oy] = L.center && L.shapes.length === 1 ? L.center : [gm.x, gm.y], rad = gm.r;
+      const cid = `${uid}-c${ri}-${si}`, cp = el('clipPath', { id: cid }, defs);
+      el(sh.tag, { ...sh.attrs, 'clip-rule': 'evenodd' }, cp);
+      const g = el('g', { 'clip-path': `url(#${cid})` }, banLayer);
+      const R = 900;
+      r.blocked.forEach((d) => {
+        const a = DIR_SCREEN[d], p = (deg) => [ox + R * Math.cos(deg * Math.PI / 180), oy + R * Math.sin(deg * Math.PI / 180)];
+        const [x0, y0] = p(a - 45), [x1, y1] = p(a + 45);
+        el('path', { d: `M${ox},${oy} L${x0},${y0} L${x1},${y1} Z`, fill: `url(#${uid}-ban)` }, g);
+      });
+      if (r.center) el('circle', { cx: ox, cy: oy, r: rad * 0.45, fill: `url(#${uid}-ban)` }, g);
+      // 허용·금지 경계 = 안전띠
+      ['N', 'E', 'S', 'W'].forEach((d, i, A) => {
+        const nx = A[(i + 1) % 4];
+        if (r.blocked.includes(d) === r.blocked.includes(nx)) return;
+        const deg = (DIR_SCREEN[d] + 45) * Math.PI / 180, x2 = ox + R * Math.cos(deg), y2 = oy + R * Math.sin(deg);
+        el('line', { x1: ox, y1: oy, x2, y2, stroke: '#ffffff', 'stroke-width': 7 }, g);
+        el('line', { x1: ox, y1: oy, x2, y2, stroke: '#d32f2f', 'stroke-width': 7, 'stroke-dasharray': '10 8' }, g);
+      });
+      r.blocked.forEach((d) => {
+        const a = DIR_SCREEN[d] * Math.PI / 180, rr = sh.tag === 'path' ? 160 : rad * 0.66;
+        const lx = ox + rr * Math.cos(a), ly = oy + rr * Math.sin(a);
+        el('rect', { x: lx - 30, y: ly - 13, width: 60, height: 24, rx: 12, fill: '#c62828' }, banLabels);
+        txt(banLabels, lx, ly + 5, `${DIR_ONE[d]} 금지`, { 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 700, fill: '#fff' });
+      });
+    });
+  });
+
   // 장식
   for (const d of deco) {
     if (d[0] === 'label') txt(decoLayer, d[1], d[2], d[3], d[4]);
@@ -242,15 +343,29 @@ export function renderFloorPlan(container, opts = {}) {
   const ng = el('g', { 'pointer-events': 'none' }, svg);
   el('circle', { cx: 50, cy: 545, r: 24, fill: '#ffffff', stroke: '#90a4ae' }, ng);
   el('path', { d: 'M50,527 L60,553 L50,547 L40,553 Z', fill: INK }, ng);
-  txt(ng, 84, 540, '출선구 방향 ↑', { 'font-size': 15, 'font-weight': 700 });
+  txt(ng, 50, 517, '북', { 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 700 });
+  txt(ng, 84, 540, '위쪽이 북 (3D 방위와 같음)', { 'font-size': 15, 'font-weight': 700 });
   txt(ng, 84, 560, '개략도 · 축척 없음', { 'font-size': 15, fill: SUB });
+  const lg = el('g', { 'pointer-events': 'none' }, svg);
+  el('rect', { x: 560, y: 546, width: 26, height: 18, fill: `url(#${uid}-ban)`, stroke: '#c62828' }, lg);
+  txt(lg, 592, 560, '출입 금지', { 'font-size': 14 });
+  el('line', { x1: 672, y1: 555, x2: 700, y2: 555, stroke: '#d32f2f', 'stroke-width': 6, 'stroke-dasharray': '8 5' }, lg);
+  txt(lg, 706, 560, '안전띠·콘', { 'font-size': 14 });
 
-  container.appendChild(svg);
+  host.appendChild(svg);
+  aside.innerHTML = sideHtml(now, restrictions, timeline);
+  const onAside = (e) => {
+    const t = e.target.closest('[data-t]'); if (t && onTimeClick) { onTimeClick(t.dataset.t); return; }
+    const z = e.target.closest('[data-z]'); if (z && onZoneClick) onZoneClick(z.dataset.z);
+  };
+  aside.addEventListener('click', onAside); cleanups.push(() => aside.removeEventListener('click', onAside));
+  container.appendChild(grid);
+  grid.classList.toggle('narrow', container.clientWidth < 820);   // 화면이 좁으면 설명을 도면 아래로
   return {
     destroy() {
       cleanups.forEach((f) => f());
       cleanups.length = 0;
-      if (svg.parentNode) svg.parentNode.removeChild(svg);
+      if (grid.parentNode) grid.parentNode.removeChild(grid);
     },
   };
 }
