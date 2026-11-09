@@ -64,6 +64,9 @@ def test_submit_persists_conflict_so_refresh_keeps_it():
 
 def test_contractor_sees_only_conflicts_on_own_tasks():
     submit_s1()
+    assert client.post(
+        "/api/shares", json={"conflict_ids": list(ids(client.get("/api/conflicts").json())), "shared_by": "원청 담당자"}
+    ).status_code == 200  # 협력사에게는 원청이 확인해 공유한 뒤에 보인다
     # 배관O(P34)와 축로I(P21·P22) 양쪽에 보인다 — 혼재작업 조정에 두 업체가 다 필요하다
     assert s1_ids(client.get("/api/conflicts", params={"contractor": "가상-배관O"}).json()) == S1_CONFLICTS
     assert s1_ids(client.get("/api/conflicts", params={"contractor": "가상-축로I"}).json()) == S1_CONFLICTS

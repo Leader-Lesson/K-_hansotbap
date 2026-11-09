@@ -33,6 +33,7 @@ from .adjustments import (
 )
 from .database import session
 from .plans import _submit_lock, base_schedule, current_schedule, judge, save_conflicts
+from .shares import insert_shares
 
 
 class ConflictNotFound(Exception):
@@ -128,6 +129,7 @@ def apply_adjustment(req: AdjustmentApply) -> AdjustmentResult:
             insert_adjustment(conn, adj)
             _record_decision(conn, req.conflict_id, req.decided_by, adj.reason, now_s)
             save_conflicts(conn, plan_id, after, now_s)
+            insert_shares(conn, [req.conflict_id], req.decided_by, now_s)  # 적용 자체가 원청의 확인이다
         return _result(adj.id, before, after, ms)
 
 
