@@ -23,6 +23,39 @@ const toMs = (x) => (x instanceof Date ? x.getTime() : typeof x === 'number' ? x
 const smooth = (x) => x * x * (3 - 2 * x);
 const angLerp = (a, b, k) => { let d = (b - a) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return a + d * k; };
 
+/* ── 방위 사분면 (S=+z φ=0, E=+x φ=π/2, N=−z φ=π, W=−x φ=3π/2, 각 ±45°) ── */
+const DIR_Q = { S: 0, E: 1, N: 2, W: 3 };
+const EDGE = 8 * Math.PI / 180;   // 테이프 선 위에 서지 않도록 가장자리 여유
+const normDirs = (d) => (Array.isArray(d) ? [...new Set(d.map((x) => String(x).toUpperCase()).filter((x) => x in DIR_Q))].sort() : []);
+/* 사분면 합집합 → 연속 호 목록 [{a0,a1}] (경계 넘어감 처리, 양끝 EDGE만큼 줄임) */
+function dirArcs(dirs) {
+  if (!dirs.length) return null;
+  const on = [0, 1, 2, 3].map((q) => dirs.some((d) => DIR_Q[d] === q));
+  if (on.every(Boolean)) return [{ a0: 0, a1: TAU, full: true }];
+  const arcs = [];
+  for (let q = 0; q < 4; q++) {
+    if (!on[q] || on[(q + 3) % 4]) continue; // 호의 시작 사분면만
+    let e = q; while (on[(e + 1) % 4]) e++;
+    arcs.push({ a0: q * Math.PI / 2 - Math.PI / 4 + EDGE, a1: e * Math.PI / 2 + Math.PI / 4 - EDGE });
+  }
+  return arcs;
+}
+function sampleArc(arcs, rng) {
+  const tot = arcs.reduce((s, a) => s + a.a1 - a.a0, 0);
+  let u = rng() * tot;
+  for (const a of arcs) { const w = a.a1 - a.a0; if (u <= w) return a.a0 + u; u -= w; }
+  return arcs[0].a0;
+}
+const inArcs = (arcs, phi) => arcs.some((a) => a.full || (((phi - a.a0) % TAU) + TAU) % TAU <= a.a1 - a.a0);
+/* 지상 구역: 해당 방향을 향한 사각형 절반 [x0,x1,z0,z1] (바깥 1, 중앙선 m 여유) */
+function groundHalf(info, d, m = 1) {
+  const [cx, , cz] = info.center, [sx, sz] = info.size, hx = sx / 2 - 1, hz = sz / 2 - 1;
+  if (d === 'E') return [cx + m, cx + hx, cz - hz, cz + hz];
+  if (d === 'W') return [cx - hx, cx - m, cz - hz, cz + hz];
+  if (d === 'S') return [cx - hx, cx + hx, cz + m, cz + hz];
+  return [cx - hx, cx + hx, cz - hz, cz - m];
+}
+
 /* ── 공유 형상 (키 1 기준) ── */
 function box(w, h, d, ty = 0, tz = 0) { const g = new THREE.BoxGeometry(w, h, d); g.translate(0, ty, tz); return g; }
 function cyl(r, h, seg, rot) { const g = new THREE.CylinderGeometry(r, r, h, seg); if (rot === 'x') g.rotateZ(Math.PI / 2); if (rot === 'z') g.rotateX(Math.PI / 2); return g; }
@@ -230,15 +263,18 @@ export function buildWorkers(furnace, { companies, spots = [] } = {}) {
   }
 
   /* 구역 안 위치 뽑기: wall=벽 쪽(벽 바라봄) / free=작업면 아무 곳 */
-  function samplePos(zid, info, rng, H, wallSide, sector, placed) {
+  function samplePos(zid, info, rng, H, wallSide, sector, placed, area = null) {
     for (let tries = 0; tries < 24; tries++) {
       let x, z, y = info.floorY, rot;
-      if (info.kind === 'in') {
-        const m = 0.14, phi = OPEN_PHI[0] + m + rng() * (OPEN_PHI[1] - OPEN_PHI[0] - 2 * m);
+      if (info.kind === 'ground' && area) { // 지정 방향의 사각형 절반 안
+        const [x0, x1, z0, z1] = groundHalf(info, area.dirs[Math.floor(rng() * area.dirs.length)]);
+        x = x0 + rng() * Math.max(0, x1 - x0); z = z0 + rng() * Math.max(0, z1 - z0); rot = rng() * TAU;
+      } else if (info.kind === 'in') {
+        const m = 0.14, phi = area ? sampleArc(area.arcs, rng) : OPEN_PHI[0] + m + rng() * (OPEN_PHI[1] - OPEN_PHI[0] - 2 * m);
         const r = wallSide ? info.rOut - 0.35 * H : (0.2 + rng() * 0.55) * info.rOut;
         x = r * Math.sin(phi); z = r * Math.cos(phi); rot = wallSide ? phi : phi + (rng() - 0.5) * 2;
       } else if (info.kind === 'ring' || info.kind === 'deck') {
-        const phi = sector.c + (rng() - 0.5) * sector.w;
+        const phi = area ? sampleArc(area.arcs, rng) : sector.c + (rng() - 0.5) * sector.w;
         const r = wallSide ? info.rIn + 0.55 * H : info.rIn + 0.8 * H + rng() * Math.max(0.1, info.rOut - info.rIn - 1.4 * H);
         x = r * Math.sin(phi); z = r * Math.cos(phi); rot = wallSide ? phi + Math.PI : rng() * TAU;
         if (info.decks) y = info.decks[Math.floor(rng() * info.decks.length)];
@@ -324,9 +360,17 @@ export function buildWorkers(furnace, { companies, spots = [] } = {}) {
   }
 
   /* 안전관리자: 구역 순회 경로 */
-  function makeManager(task, zid, info, H, rng) {
+  function makeManager(task, zid, info, H, rng, area = null) {
     const pts = [];
-    if (info.kind === 'in') {
+    const big = area && info.kind !== 'ground' && !area.arcs[0].full ? area.arcs.reduce((b, a) => (a.a1 - a.a0 > b.a1 - b.a0 ? a : b)) : null;
+    if (big) { // 지정 사분면 호 안에서만 왕복
+      const r = info.kind === 'in' ? info.rOut * 0.62 : (info.rIn + info.rOut) / 2 + 0.3 * H;
+      for (let i = 0; i <= 10; i++) { const a = big.a0 + (big.a1 - big.a0) * i / 10; pts.push(new THREE.Vector3(r * Math.sin(a), 0, r * Math.cos(a))); }
+      for (let i = 9; i >= 0; i--) pts.push(pts[i].clone());
+    } else if (area && info.kind === 'ground') {
+      const [x0, x1, z0, z1] = groundHalf(info, area.dirs[0]);
+      [[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]].forEach(([x, z]) => pts.push(new THREE.Vector3(x, 0, z)));
+    } else if (info.kind === 'in') {
       const r = info.rOut * 0.62, a0 = OPEN_PHI[0] + 0.15, a1 = OPEN_PHI[1] - 0.15;
       for (let i = 0; i <= 8; i++) { const a = a0 + (a1 - a0) * i / 8; pts.push(new THREE.Vector3(r * Math.sin(a), 0, r * Math.cos(a))); }
       for (let i = 7; i >= 0; i--) pts.push(pts[i].clone());
@@ -358,6 +402,14 @@ export function buildWorkers(furnace, { companies, spots = [] } = {}) {
     const total = Math.max(2, Math.round((task.crew || 4) / CREW_PER_FIG));
     const plan = rolePlan(task);
     const out = [];
+    // 작업 방위(place_dirs)가 있으면 그 사분면 안에만 배치
+    const pdirs = normDirs(task.place_dirs), parcs = dirArcs(pdirs);
+    const area = parcs ? { dirs: pdirs, arcs: parcs } : null;
+    const spotOk = (s, info) => {
+      if (!area || !s.pos) return true;
+      if (info.kind === 'ground') return pdirs.some((d) => { const [x0, x1, z0, z1] = groundHalf(info, d, 0); return s.pos.x >= x0 - 1 && s.pos.x <= x1 + 1 && s.pos.z >= z0 - 1 && s.pos.z <= z1 + 1; });
+      return inArcs(parcs, Math.atan2(s.pos.x, s.pos.z));
+    };
     zones.forEach((zid, zi) => {
       const info = ZONE_INFO[zid], H = zoneH(info), parent = furnace.zoneGroup(zid);
       const want = Math.round(total / zones.length) + (zi === 0 ? total % zones.length : 0);
@@ -367,7 +419,8 @@ export function buildWorkers(furnace, { companies, spots = [] } = {}) {
       zoneUsed.set(zid, (zoneUsed.get(zid) || 0) + n + (zi === 0 ? 1 : 0));
       const sector = { c: rng() * TAU, w: Math.min(TAU, Math.max(1.2, n * 0.32)) };
       const zs = spotsIn(zid), placed = [];
-      const takeSpot = (kinds) => { const s = zs.find((p) => kinds.includes(p.kind) && !used.has(p)); if (s) used.add(s); return s; };
+      // 장비 지점: 운전·신호·줄걸이는 지점 그대로, 나머지는 지정 사분면 안의 지점만
+      const takeSpot = (kinds, free = false) => { const s = zs.find((p) => kinds.includes(p.kind) && !used.has(p) && (free || spotOk(p, info))); if (s) used.add(s); return s; };
       // 역할 목록: 선두 역할(구역 첫 번째에만) + 반복 패턴, 높은 곳 작업은 가끔 비계 등반
       const roles = [];
       if (zi === 0) plan.lead.forEach((r) => roles.push(r));
@@ -379,9 +432,9 @@ export function buildWorkers(furnace, { companies, spots = [] } = {}) {
       roles.length = Math.max(1, n);
       roles.forEach((role) => {
         let spot = null;
-        if (role === 'operator') spot = takeSpot(['crane-cab']);
-        else if (role === 'signal') spot = takeSpot(['signal']) || takeSpot(['crane-hook']);
-        else if (role === 'rigger') spot = takeSpot(['crane-hook']);
+        if (role === 'operator') spot = takeSpot(['crane-cab'], true);
+        else if (role === 'signal') spot = takeSpot(['signal'], true) || takeSpot(['crane-hook'], true);
+        else if (role === 'rigger') spot = takeSpot(['crane-hook'], true);
         else if (role === 'carry' || role === 'pipecarry') spot = takeSpot(['pallet', 'truck-door']);
         else if (role === 'weld') spot = takeSpot(['welder']);
         else if (role === 'climb') spot = takeSpot(['scaffold', 'hoist']);
@@ -400,7 +453,7 @@ export function buildWorkers(furnace, { companies, spots = [] } = {}) {
         } else {
           spot = null;
           const wallSide = ['lay', 'weld', 'grind', 'bolt', 'gas', 'climb'].includes(role) && info.kind !== 'ground';
-          place = samplePos(zid, info, rng, H, wallSide, sector, placed);
+          place = samplePos(zid, info, rng, H, wallSide, sector, placed, area);
           if (!place) return;
           if (role === 'carry' || role === 'pipecarry') { if (info.kind === 'in') place.rot = Math.atan2(place.x, place.z); else if (info.kind !== 'ground') place.rot = Math.atan2(-place.x, -place.z); }
         }
@@ -409,7 +462,7 @@ export function buildWorkers(furnace, { companies, spots = [] } = {}) {
         const st = makeStation(task, role, zid, info, H, rng, place, spot);
         par.add(st); out.push(st);
       });
-      if (zi === 0) { const m = makeManager(task, zid, info, H, rng); parent.add(m); out.push(m); }
+      if (zi === 0) { const m = makeManager(task, zid, info, H, rng, area); parent.add(m); out.push(m); }
     });
     return out;
   }
@@ -420,13 +473,64 @@ export function buildWorkers(furnace, { companies, spots = [] } = {}) {
     stations = [];
     tasksActive.forEach((t) => (byTask.get(t.id) || []).forEach((st) => stations.push(st)));
     stations.forEach((st, i) => { st.userData.capped = i >= CAP; });
-    applyHighlight(); refresh();
+    applyHighlight(); applyAlert(); refresh();
   }
+
+  /* ── 경보: 바닥 붉은 링(인형마다) + 작업·구역마다 '!' 표지 하나 ── */
+  let alertIds = null;
+  let alertSprites = [];          // { sprite, sts }
+  const alertRings = [];          // 현재 붙어 있는 링 (update용)
+  const ringGeo = (() => { const g = new THREE.RingGeometry(0.42, 0.5, 28); g.rotateX(-Math.PI / 2); return g; })();
+  const ringMat = new THREE.MeshBasicMaterial({ color: '#d32f2f', transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+  let warnTex = null;
+  try {
+    if (typeof document !== 'undefined') {
+      const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#d32f2f'; c.beginPath(); c.arc(32, 32, 29, 0, TAU); c.fill();
+      c.lineWidth = 3; c.strokeStyle = '#ffffff'; c.stroke();
+      c.fillStyle = '#ffffff'; c.font = 'bold 44px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('!', 32, 35);
+      warnTex = new THREE.CanvasTexture(cv); warnTex.colorSpace = THREE.SRGBColorSpace;
+    }
+  } catch (e) { warnTex = null; }
+  const warnMat = new THREE.SpriteMaterial({ map: warnTex, color: warnTex ? '#ffffff' : '#d32f2f', sizeAttenuation: false, transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
+
+  function applyAlert() {
+    alertSprites.forEach((a) => a.sprite.removeFromParent()); alertSprites = [];
+    alertRings.length = 0;
+    const set = alertIds ? new Set(alertIds) : null;
+    const groups = new Map(); // taskId|zoneId → stations
+    stations.forEach((st) => {
+      const ud = st.userData, on = !!set && set.has(ud.taskId);
+      if (on && !ud.ring) { const r = new THREE.Mesh(ringGeo, ringMat); r.position.y = 0.02; r.renderOrder = 2; st.add(r); ud.ring = r; }
+      else if (!on && ud.ring) { ud.ring.removeFromParent(); ud.ring = null; }
+      if (!on) return;
+      alertRings.push(st);
+      const k = ud.taskId + '|' + ud.zoneId;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(st);
+    });
+    groups.forEach((sts) => {
+      const zg = furnace.zoneGroup(sts[0].userData.zoneId);
+      // 그 구역 그룹에 붙은 고정 인형 기준 중심 (순회 관리자·다른 구역 장비 지점 제외)
+      let pick = sts.filter((s) => s.name === 'worker' && s.parent === zg);
+      if (!pick.length) pick = sts.filter((s) => s.name === 'worker');
+      if (!pick.length) pick = sts;
+      const par = pick[0].parent; if (!par) return;
+      pick = pick.filter((s) => s.parent === par);
+      const c = new THREE.Vector3(); let top = -Infinity, h = 0;
+      pick.forEach((s) => { c.add(s.position); top = Math.max(top, s.position.y); h = Math.max(h, s.scale.y); });
+      c.multiplyScalar(1 / pick.length); c.y = top + h * 2.4;
+      const sp = new THREE.Sprite(warnMat); sp.name = 'worker-alert'; sp.position.copy(c); sp.scale.set(0.026, 0.026, 1); sp.renderOrder = 999;
+      par.add(sp); alertSprites.push({ sprite: sp, sts });
+    });
+  }
+  function setAlert(ids) { alertIds = ids && ids.length ? [...ids] : null; applyAlert(); refresh(); }
 
   function setActive({ tasks = [], t } = {}) {
     const now = toMs(t);
     const act = tasks.filter((k) => toMs(k.start) <= now && now < toMs(k.end)).sort((a, b) => (a.id < b.id ? -1 : 1));
-    const key = act.map((k) => k.id).join('|');
+    const key = act.map((k) => k.id + ':' + normDirs(k.place_dirs).join('')).join('|'); // 방위 바뀌면 재배치
     if (key === activeKey) return;
     activeKey = key;
     const ids = new Set(act.map((k) => k.id));
@@ -462,6 +566,7 @@ export function buildWorkers(furnace, { companies, spots = [] } = {}) {
 
   function refresh() {
     stations.forEach((st) => { st.visible = !st.userData.capped && !(filter && !filter.has(st.userData.taskId)) && !(furnace.isGhosted && furnace.isGhosted(st.userData.zoneId)); });
+    alertSprites.forEach((a) => { a.sprite.visible = a.sts.some((s) => s.visible); }); // 인형과 함께 숨김
   }
 
   function update(timeSec) {
@@ -469,16 +574,29 @@ export function buildWorkers(furnace, { companies, spots = [] } = {}) {
       const st = stations[i]; if (!st.visible) continue;
       const f = st.userData.fig; f.pose(f, timeSec);
     }
+    if (alertRings.length) { // 링: 공유 재질 투명도 + 인형 발밑 따라가며 맥동
+      const p = 0.5 + 0.5 * Math.sin(timeSec * 5);
+      ringMat.opacity = 0.35 + 0.55 * p;
+      const sc = 0.9 + 0.35 * p;
+      for (let i = 0; i < alertRings.length; i++) {
+        const st = alertRings[i]; if (!st.visible) continue;
+        const r = st.userData.ring, fp = st.userData.fig.fig.position;
+        if (r) { r.position.x = fp.x; r.position.z = fp.z; r.scale.set(sc, 1, sc); }
+      }
+    }
+    if (alertSprites.length) warnMat.opacity = (timeSec * 2.5) % 1 < 0.65 ? 1 : 0.15; // '!' 깜빡임
   }
 
   const count = () => stations.reduce((n, st) => n + (st.visible ? 1 : 0), 0);
 
   function dispose() {
     [...byTask.keys()].forEach(removeTask); stations = [];
+    alertSprites.forEach((a) => a.sprite.removeFromParent()); alertSprites = []; alertRings.length = 0;
+    ringGeo.dispose(); ringMat.dispose(); warnMat.dispose(); if (warnTex) warnTex.dispose();
     Object.values(G).forEach((g) => g.dispose());
     Object.values(M).forEach((m) => m.dispose());
     vestCache.forEach((m) => m.dispose()); fadeCache.forEach((m) => m.dispose());
   }
 
-  return { setActive, setSpots, setHighlight, setFilter, refresh, update, count, dispose };
+  return { setActive, setSpots, setHighlight, setFilter, setAlert, refresh, update, count, dispose };
 }

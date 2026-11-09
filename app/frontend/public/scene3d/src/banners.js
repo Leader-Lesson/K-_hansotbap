@@ -5,7 +5,7 @@ import * as THREE from 'three';
 const STYLE = {
   PROHIBITED: { bg: '#c62828', fg: '#ffffff', line: '#c62828', mark: '◆', label: '금지' },
   CONDITIONAL: { bg: '#e67e00', fg: '#ffffff', line: '#e67e00', mark: '▲', label: '조건부' },
-  DEFECT: { bg: '#f2c200', fg: '#3d3a36', line: '#c99f00', mark: '△', label: '결함' },
+  DEFECT: { bg: '#6a4db2', fg: '#ffffff', line: '#4e3790', mark: '△', label: '결함' },
 };
 const NONE = { bg: 'rgba(250,248,244,0.94)', fg: '#3d3a36', line: '#8a857e', bar: '#9a958e' };
 
@@ -111,7 +111,7 @@ export function buildBanners({ container, camera, renderer, furnace, zones, onZo
     it.line.setAttribute('stroke', c.line);
     it.dot.setAttribute('fill', c.line);
     it.pulse = d.worst === 'PROHIBITED';
-    const chip = st ? `<span class="bn-chip"${d.worst === 'DEFECT' ? ' style="background:rgba(0,0,0,.1)"' : ''}>${st.mark} ${st.label}</span>` : '';
+    const chip = st ? `<span class="bn-chip">${st.mark} ${st.label}</span>` : '';
     const crewTxt = d.crew == null ? (d.crewHidden ? '인원 비공개' : '인원 미기재') : `인원 <b>${d.crew}</b>명`;   // 권한 밖(다른 업체) 작업은 인원 숨김
     const l2 = `작업 ${d.taskCount ?? 0}건 · ${crewTxt}${type ? ` · ${esc(type)}` : ''}`;
     it.el.innerHTML = `<div class="bn-l1">${chip}<span class="bn-name">${esc(name)}</span></div><div class="bn-l2">${l2}</div>`;

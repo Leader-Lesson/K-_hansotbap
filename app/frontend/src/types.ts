@@ -76,13 +76,38 @@ export interface RiskWindow {
   weights_note: string;
 }
 
+/** F8 표준서 필수 단계 1개가 계획서에 적혀 있는지 (규칙 판정) */
+export interface SopStepCheck {
+  no: number;
+  text: string;
+  critical: boolean; // 핵심 단계 — 빠지면 결함
+  found: boolean;
+  evidence: SourceRef | null; // 이 단계를 찾은 계획서 원문 줄
+}
+
 export interface SopMatch {
   task_id: string;
   sop_id: string;
   title: string;
   score: number;
   reason: string;
-  missing_steps: string[];
+  missing_steps: string[]; // 빠진 핵심 단계. 주 표준서(primary)일 때만 → F2 결함
+  primary: boolean; // 결함 판정 대상인 주 표준서 (원청 적용 목록 + 작업명 일치)
+  basis: string[]; // wbs_example | name | hazard | embedding
+  steps: SopStepCheck[];
+}
+
+/** GET /api/sops: 원청 작업표준서 (합성) */
+export interface SopInfo {
+  id: string;
+  title: string;
+  file: string;
+  hazards: string[];
+  wbs_examples: string[];
+  steps: string[];
+  critical_steps: number[]; // 빠지면 결함인 단계 번호 (1부터)
+  source: string;
+  text: string | null; // 본문(마크다운). 목록 조회에서는 null
 }
 
 // 로그인 없이 역할 선택 (원청 / 협력사 A~E)
@@ -122,6 +147,7 @@ export interface PlanExtraction {
   warnings: string[];
   cached: boolean;
   created_at: string;
+  sop_matches: SopMatch[]; // F8 작업별 표준서 매칭·필수 단계 확인 (제출 전 확인 화면용)
 }
 
 /** POST /api/plans/submit 본문 */

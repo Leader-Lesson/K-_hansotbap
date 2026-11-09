@@ -6,7 +6,7 @@ try { THEME = await import('./theme.js'); } catch (e) { THEME = {}; }
 const SEV_DEFAULT = {
   PROHIBITED: { color: '#c62828', label: '금지', mark: '◆' },
   CONDITIONAL: { color: '#e08a00', label: '조건부', mark: '▲' },
-  DEFECT: { color: '#3b6fd6', label: '결함', mark: '△' },
+  DEFECT: { color: '#6a4db2', label: '결함', mark: '△' },
 };
 const SEV = { ...SEV_DEFAULT, ...(THEME.SEV || {}) };
 const ZONE_COLOR = THEME.ZONE_COLOR || {};

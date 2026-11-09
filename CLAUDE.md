@@ -11,7 +11,7 @@
 - **판정은 규칙, LLM은 추출·설명·문장만.** `rules/` 는 LLM을 부르지 않고 pytest로 검증한다
 - **모든 판정에 근거**: `Conflict.rule_id`, `legal_basis`(법 조문), `sources`(원문 문장)
 - **데이터 계약**: `app/backend/schemas.py` ↔ `app/frontend/src/types.ts` 같은 모양 유지. 한쪽을 바꾸면 다른 쪽도
-- **LLMProvider**: Claude와 Unsloth Studio를 `llm/provider.py` 인터페이스 뒤에 둔다. 다른 곳에서 SDK를 직접 부르지 않는다
+- **LLMProvider**: Claude·Unsloth Studio·LM Studio를 `llm/provider.py` 인터페이스 뒤에 둔다. 다른 곳에서 SDK를 직접 부르지 않는다
 - **F6 챗봇**은 SQL을 직접 실행하지 않고 조회 함수를 도구로 쓴다
 - **권한**: 원청 전체, 협력사는 자기 업체 데이터만. 서버에서 거른다(프론트 필터만으로 대신하지 않는다)
 - **판정 시점**: 계획서 제출 순간 실행. 동시 제출은 먼저 들어온 계획 기준. 판정 후 화면을 한 번 강제 새로고침
