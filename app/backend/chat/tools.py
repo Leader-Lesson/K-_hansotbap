@@ -224,11 +224,16 @@ def find_conflicts(c: ChatToolCall, contractor: str | None) -> ToolResult:
 
 def risk_windows(c: ChatToolCall, contractor: str | None) -> ToolResult:
     conflicts = [r.conflict for r in list_conflicts(contractor)]
+    schedule = current_schedule()
     single_day = c.date_from if c.date_from and c.date_to == c.date_from else None
-    windows = score_windows(conflicts, current_schedule(), load_zones(), single_day)
+    windows = score_windows(conflicts, schedule, load_zones(), single_day)
     windows = [w for w in windows if _overlaps(w.start, w.end, c)]
     if c.zone_ids:
         windows = [w for w in windows if w.zone_id in c.zone_ids]
+    if c.task_ids:  # "P34 구역 위험 시간대" → 그 작업이 있는 구역·기간의 시간대만
+        visible = {t.id: t for t in (visible_tasks(contractor) if contractor else schedule)}
+        spans = [(visible[t].zone_id, visible[t].start, visible[t].end) for t in c.task_ids if t in visible]
+        windows = [w for w in windows if any(w.zone_id == z and w.start <= e and w.end >= s for z, s, e in spans)]
     windows.sort(key=lambda w: (-w.score, w.start))
     c.count = len(windows)
     items = []

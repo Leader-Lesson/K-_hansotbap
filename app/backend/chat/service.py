@@ -133,14 +133,14 @@ def sanitize(plan: llm_chat.ChatPlan, p: ParsedQuestion, today: date, contractor
     return out
 
 
-def _leaks(text: str, results: list[ToolResult], question: str = "") -> str | None:
+def _leaks(text: str, results: list[ToolResult], question: str = "", contractor: str | None = None) -> str | None:
     """LLM 답에 조회 결과 밖의 작업 번호·업체가 있으면 그 이유. 협력사에게 다른 업체 정보가 새는 것도 여기서 막는다.
 
-    질문에 나온 이름은 묻는 사람이 이미 아는 것이라 되풀이해도 괜찮다 ("가상-축로I 일정은 볼 수 없습니다").
+    질문에 나온 이름과 묻는 사람 자신의 업체는 이미 아는 것이라 되풀이해도 괜찮다 ("가상-축로I 일정은 볼 수 없습니다").
     """
     blob = " ".join(str(i.data) for r in results for i in r.items) + " " + " ".join(
         (r.call.contractor or "") for r in results
-    ) + " " + question
+    ) + " " + question + " " + (contractor or "")
     ids = set(_TASK_ID.findall(text)) - set(_TASK_ID.findall(blob))
     if ids:
         return f"조회 결과에 없는 작업 번호({', '.join(sorted(ids))})"
@@ -244,7 +244,7 @@ def ask(req: ChatRequest, contractor: str | None) -> ChatResponse:
                 timings["answer"] = round((perf_counter() - s) * 1000, 1)
                 if not text:
                     notices.append("AI 답이 비어 있어 규칙으로 답했습니다")
-                elif why := _leaks(text, results, req.question):
+                elif why := _leaks(text, results, req.question, contractor):
                     log.warning("chat answer 에 %s", why)
                     notices.append(f"AI 답에 {why}가 있어 규칙 답으로 바꿨습니다")
                 else:

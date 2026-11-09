@@ -13,13 +13,13 @@ from datetime import date, timedelta
 
 from schemas import ChatTool
 
-# 구역 별칭. zones.csv 의 구역명을 현장에서 부르는 말로 [팀 설정값]
+# 구역 별칭. zones.csv 의 구역명을 현장에서 부르는 말로, 음성 질문(Whisper)이 잘못 받아쓰는 형태도 넣는다 [팀 설정값]
 ZONE_ALIASES: dict[str, list[str]] = {
     "TOP": ["노정", "장입설비"],
-    "STACK": ["노흉", "샤프트"],
+    "STACK": ["노흉", "샤프트", "노흥", "노증", "노횽"],
     "BELLY_BOSH": ["노복", "조안"],
     "TUYERE": ["풍구", "환상관", "송풍지관"],
-    "HEARTH": ["노상", "노저"],
+    "HEARTH": ["노상", "노저", "노져"],
     "SHELL": ["철피", "노체 외부"],
     "CASTHOUSE": ["주상", "출선장", "출선구"],
     "DOWNCOMER": ["하강관", "상승관", "다운커머"],

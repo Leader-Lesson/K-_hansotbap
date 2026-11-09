@@ -267,3 +267,27 @@ def test_llm_today_only_without_date_word_uses_default(demo, monkeypatch):
     use(monkeypatch, FakeProvider(plan=plan, draft=ChatDraft(answer="R07 금지 겹침 1건입니다.", refs=[])))
     r = service.ask(ChatRequest(question="내 작업과 겹치는 작업은?", today=TODAY), PIPE)
     assert r.tools[0].date_from == TODAY and r.tools[0].date_to is None and r.tools[0].count == 1
+
+
+def test_stt_typo_zone_alias():
+    """음성 질문의 흔한 받아쓰기 오류(노흉→노증·노흥)도 구역으로 읽는다."""
+    assert parse_question("내일 노증에서 누가 작업해", TODAY).zone_ids == ["STACK"]
+    assert parse_question("노흥 작업 일정", TODAY).zone_ids == ["STACK"]
+
+
+def test_contractor_own_name_is_not_leak(demo, monkeypatch):
+    plan = ChatPlan(off_topic=False, calls=[pc("find_tasks")])
+    draft = ChatDraft(answer="가상-배관O 의 오늘 작업은 없습니다.", refs=[])
+    use(monkeypatch, FakeProvider(plan=plan, draft=draft))
+    r = service.ask(ChatRequest(question="오늘 우리 작업 있어?", today=TODAY), PIPE)
+    assert r.answer_by == ChatStepBy.LLM and not r.degraded
+
+
+def test_risk_windows_by_task(demo):
+    """작업 번호로 물으면 그 작업의 구역·기간에 걸친 위험 시간대만 준다."""
+    from chat.tools import run_tool
+    from schemas import ChatToolCall
+
+    r = run_tool(ChatToolCall(tool=ChatTool.RISK_WINDOWS, date_from=TODAY, task_ids=["P34"]), None)
+    assert r.items and all(i.evidence.target_id == "TUYERE" for i in r.items)
+    assert all(i.data["window"].startswith("3/") for i in r.items)  # P34 기간(3/4~3/12)에 걸친 것만
