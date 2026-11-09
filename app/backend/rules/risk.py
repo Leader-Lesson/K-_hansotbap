@@ -10,6 +10,7 @@ from collections import defaultdict
 from collections.abc import Iterator
 from datetime import date, datetime, time, timedelta
 
+from rules.overlap import work_overlap
 from schemas import Conflict, Grade, RiskWindow, Task, Zone
 
 # 등급별 점수. 근거 수치가 없는 [팀 설정값]
@@ -55,7 +56,7 @@ def _members(c: Conflict, zone_id: str, by_task: dict[str, Task]) -> list[Task]:
 
 
 def _active(tasks: list[Task], start: datetime, end: datetime) -> bool:
-    return any(t.start < end and start < t.end for t in tasks)
+    return any(work_overlap(t.start, t.end, start, end) for t in tasks)
 
 
 def _segments(slices: list[Slice]) -> list[tuple[datetime, datetime, frozenset[str]]]:
@@ -127,7 +128,7 @@ def _window(
         for c in group
         for t in _members(c, zone_id, by_task)
         # 묶음 충돌은 이 시간대에 실제로 진행 중인 이 구역 작업만 (묶음의 주인은 그대로)
-        if not _grouped(c, by_task) or t.id == c.task_ids[0] or (t.start < end and start < t.end)
+        if not _grouped(c, by_task) or t.id == c.task_ids[0] or work_overlap(t.start, t.end, start, end)
     ]
     contractors = sorted({t.contractor for t in tasks})
     rule_ids = sorted({c.rule_id for c in group})
