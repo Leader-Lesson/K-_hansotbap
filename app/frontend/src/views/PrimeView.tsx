@@ -8,9 +8,13 @@ import { SopMatchPanel } from "@/components/SopMatchPanel";
 import { TimetableGantt } from "@/components/TimetableGantt";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GRADE_RANK, fmtRange, worstGrade } from "@/lib/format";
+import { groupByZone, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
 import { FURNACE_LEVELS, FurnaceScene } from "@/scene/FurnaceScene";
-import type { AdjustmentResult, ConflictRecord, Grade, OverlapCandidate, PlanRecord, SopMatch, Task, Zone } from "@/types";
+import type { AdjustmentResult, ConflictRecord, Grade, OverlapCandidate, PlanRecord, SopInfo, SopMatch, Task, Zone } from "@/types";
+import { HistoryView } from "@/views/HistoryView";
+import { RestrictionPanel } from "@/views/RestrictionPanel";
 import { Scene3DTab } from "@/views/Scene3DTab";
+import { SopLibrary } from "@/views/SopLibrary";
 
 export const DATE_KEY = "hansotbap.date";
 
@@ -20,11 +24,13 @@ interface Props {
   overlaps: OverlapCandidate[];
   conflicts: ConflictRecord[]; // 서버 판정 결과 (해소된 것 제외)
   sopMatches: SopMatch[];
+  sops: SopInfo[]; // 원청 작업표준서 목록 (공통 4 + 작업별)
   plans: PlanRecord[]; // 제출 이력 (가장 최근 제출을 찾는 데 쓴다)
+  restrictions: ZoneRestriction[]; // 금지 판정 → 구역별 출입 제한 (안내 패널·3D 공용)
   onAdjusted: (result: AdjustmentResult) => void;
 }
 
-export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, plans, onAdjusted }: Props) {
+export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops, plans, restrictions, onAdjusted }: Props) {
   // 기본 날짜: 가장 최근 제출한 협력사의 작업이 걸린 충돌 중 가장 높은 등급(같으면 먼저 시작)의 시작일.
   // 제출 직후 그 협력사가 낸 충돌이 있는 날로 바로 간다. 제출이 없으면 기준 일정의 한 날
   const defaultDate = useMemo(() => {
@@ -44,6 +50,8 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, plans
   const [zoneId, setZoneId] = useState<string | null>(null);
   const [tab, setTab] = useState("board");
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  const [sopView, setSopView] = useState<"matches" | "library">("matches");
+  const blockedZones = useMemo(() => groupByZone(restrictionsOn(restrictions, date), zones).length, [restrictions, date, zones]);
 
   const open = useMemo(() => conflicts.map((r) => r.conflict), [conflicts]);
   const todays = useMemo(() => {
@@ -119,7 +127,9 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, plans
           <TabsTrigger value="board">현황판</TabsTrigger>
           <TabsTrigger value="scene3d">3D·충돌</TabsTrigger>
           <TabsTrigger value="conflicts">충돌 목록 {open.length > 0 && <span className="ml-1 rounded bg-red-600 px-1.5 text-[10px] text-white">{open.length}</span>}</TabsTrigger>
-          <TabsTrigger value="sops">표준서 매칭</TabsTrigger>
+          <TabsTrigger value="restrictions">출입 제한 {blockedZones > 0 && <span className="ml-1 rounded bg-red-600 px-1.5 text-[10px] text-white">{blockedZones}</span>}</TabsTrigger>
+          <TabsTrigger value="sops">표준서</TabsTrigger>
+          <TabsTrigger value="history">이력</TabsTrigger>
         </TabsList>
 
         <TabsContent value="board" className="grid gap-4">
@@ -157,7 +167,20 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, plans
           value="scene3d"
           className="h-[calc(100vh-180px)] min-h-[560px] overflow-hidden rounded-lg border border-stone-200"
         >
-          <Scene3DTab date={date} tasks={tasks} conflicts={open} role={{ kind: "prime" }} selectTaskId={selectedTask} />
+          <Scene3DTab date={date} tasks={tasks} conflicts={open} restrictions={restrictions} role={{ kind: "prime" }} selectTaskId={selectedTask} />
+        </TabsContent>
+
+        <TabsContent value="restrictions">
+          <RestrictionPanel
+            restrictions={restrictions}
+            tasks={tasks}
+            zones={zones}
+            date={date}
+            onShow3D={(taskId) => {
+              setSelectedTask(taskId);
+              setTab("scene3d");
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="conflicts" className="rounded-lg bg-white p-4 shadow-sm">
@@ -173,9 +196,30 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, plans
           />
         </TabsContent>
 
-        <TabsContent value="sops" className="rounded-lg bg-white p-4 shadow-sm">
-          <h3 className="mb-2 font-semibold">작업표준서 매칭 (F8) — 제출된 계획서의 작업마다</h3>
-          <SopMatchPanel matches={sopMatches} tasks={tasks} emptyText="제출된 계획서가 없습니다. 협력사가 계획서를 제출하면 작업별 표준서 매칭이 여기에 나옵니다." />
+        <TabsContent value="sops" className="grid gap-3">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <div className="inline-flex rounded-lg bg-stone-200/70 p-[3px] text-xs">
+              {(["matches", "library"] as const).map((v) => (
+                <button key={v} type="button" onClick={() => setSopView(v)} className={`rounded-md px-3 py-1 font-medium ${sopView === v ? "bg-white shadow-sm" : "text-stone-600"}`}>
+                  {v === "matches" ? `제출 계획서 매칭 ${sopMatches.length}` : `표준서 목록 ${sops.length}`}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-stone-500">
+              {sopView === "matches" ? "제출된 계획서의 작업마다 매칭된 표준서와 필수 단계 기재 여부 (F8). 주 표준서의 핵심 단계가 빠지면 결함" : "원청 작업표준서: 공통(유형별) 4종 + 작업별(P01~P37). 보라색 단계가 빠지면 결함"}
+            </span>
+          </div>
+          {sopView === "matches" ? (
+            <div className="rounded-lg bg-white p-4 shadow-sm">
+              <SopMatchPanel matches={sopMatches} tasks={tasks} emptyText="제출된 계획서가 없습니다. 협력사가 계획서를 제출하면 작업별 표준서 매칭이 여기에 나옵니다." />
+            </div>
+          ) : (
+            <SopLibrary sops={sops} tasks={tasks} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="history">
+          <HistoryView plans={plans} tasks={tasks} />
         </TabsContent>
       </Tabs>
     </div>
