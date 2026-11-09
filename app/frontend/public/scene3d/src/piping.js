@@ -21,7 +21,7 @@ const MATS = {
   HB_w: ['#9a3b30', 'HB'], STEAM_w: ['#9a3b30', 'STEAM'],
   steel: ['#8f8c86', null], equip: ['#bdb8b0', null], roof: ['#7f8a90', null], pad: ['#cfcbc4', null], dark: ['#5f5c58', null],
 };
-const LABEL = { BFG: '고로가스', N2: '질소', O2: '산소', WTR: '냉각수', HB: '열풍', STEAM: '증기' };
+const LABEL = { BFG: '고로가스(BFG·CO)', N2: '질소', O2: '산소', WTR: '냉각수', HB: '열풍', STEAM: '증기' };
 
 const Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
 const V = (a) => (a.isVector3 ? a.clone() : new THREE.Vector3(...a));
@@ -106,22 +106,27 @@ export function buildPiping(furnace) {
     add(owner, 'steel', cyl(p, top, Math.max(0.05, r * 0.12), 6));
     add(owner, sys + '_w', orient(new THREE.TorusGeometry(Math.max(0.32, r * 1.1), Math.max(0.06, r * 0.1), 5, 14), Z, up, top));
   }
-  // 라벨 스프라이트 (화면상 일정 크기)
-  function label(owner, sys, text, pos) {
+  // 라벨 스프라이트 (화면상 일정 크기). sub가 있으면 위에 계통명을 작게 한 줄 더
+  function label(owner, sys, text, pos, sub) {
     const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
-    const fs = 44; ctx.font = `700 ${fs}px sans-serif`;
-    const w = Math.ceil(ctx.measureText(text).width) + 56, h = 64;
-    cv.width = w; cv.height = h;
+    const fs = 44, fsS = 30;
     ctx.font = `700 ${fs}px sans-serif`;
+    let tw = ctx.measureText(text).width;
+    if (sub) { ctx.font = `600 ${fsS}px sans-serif`; tw = Math.max(tw, ctx.measureText(sub).width); }
+    const w = Math.ceil(tw) + 56, h = sub ? 100 : 64;
+    cv.width = w; cv.height = h;
     ctx.fillStyle = 'rgba(250,248,244,0.92)'; ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(0, 0, w, h, 14); else ctx.rect(0, 0, w, h); ctx.fill();
     ctx.fillStyle = SYS_COL[sys] || '#8f8c86'; ctx.fillRect(10, 12, 12, h - 24);
-    ctx.fillStyle = '#3d3a36'; ctx.textBaseline = 'middle'; ctx.fillText(text, 34, h / 2 + 2);
+    ctx.textBaseline = 'middle';
+    if (sub) { ctx.font = `600 ${fsS}px sans-serif`; ctx.fillStyle = '#6b665f'; ctx.fillText(sub, 34, 30); }
+    ctx.font = `700 ${fs}px sans-serif`; ctx.fillStyle = '#3d3a36';
+    ctx.fillText(text, 34, sub ? 70 : h / 2 + 2);
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; textures.push(tex);
     const m = new THREE.SpriteMaterial({ map: tex, sizeAttenuation: false, depthTest: false, transparent: true });
     const s = new THREE.Sprite(m);
-    const sh = 0.018 / MODEL_SCALE;               // 모형 배율 보정
-    s.scale.set(sh * w / h, sh, 1);
+    const sh = 0.018 / MODEL_SCALE / 64;          // 모형 배율 보정 (캔버스 1px당)
+    s.scale.set(sh * w, sh * h, 1);
     s.position.copy(V(pos)); s.renderOrder = 20; s.raycast = noRay;
     s.userData.sys = sys; s.userData.owner = owner;
     labels.push(s);

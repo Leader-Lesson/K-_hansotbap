@@ -74,7 +74,17 @@ function deriveActions(conflicts, tasks, alternatives, t) {
         need: pro ? (alternatives?.[c.id] ? '조정안 선택 필요' : '작업 조정 필요') : '조건 지키고 진행',
       };
     })
-    .filter((a) => { const k = a.time + a.text; if (seen.has(k)) return false; seen.add(k); return true; });  // 같은 작업 중복 줄 제거
+    .filter((a) => { const k = a.time + a.text; if (seen.has(k)) return false; seen.add(k); return true; })  // 같은 작업 중복 줄 제거
+    .reduce((out, a) => {
+      // 경고가 너무 많지 않게: 금지는 한 줄씩, 조건부는 한 줄로 묶음 (현장 조치는 3D의 안전띠·러버콘으로 보여 줌)
+      if (a.severity !== 'CONDITIONAL') out.push(a);
+      else {
+        const g = out.find((x) => x.group);
+        if (g) { g.n += 1; g.text = `조건부 ${g.n}건`; if (a.time < g.time) g.time = a.time; }
+        else out.push({ ...a, group: true, n: 1, conflictId: '', text: '조건부 1건', need: '안전띠·러버콘 밖에서 조건 지키고 진행' });
+      }
+      return out;
+    }, []);
 }
 
 function actionBox(actions, t) {
