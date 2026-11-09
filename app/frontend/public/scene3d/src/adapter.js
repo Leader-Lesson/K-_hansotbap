@@ -64,7 +64,7 @@ export function conflictFrom(c, taskById) {
 }
 
 /* hansotbap { tasks, conflicts? } → scene3d setData 인자 */
-export function fromHansotbap({ tasks = [], conflicts } = {}) {
+export function fromHansotbap({ tasks = [], conflicts, restrictions } = {}) {
   const out = tasks.map(taskFrom);
   const byId = new Map(out.map((t) => [t.id, t]));
   return {
@@ -72,6 +72,10 @@ export function fromHansotbap({ tasks = [], conflicts } = {}) {
     tasks: out,
     // conflicts가 없으면 scene3d 규칙 엔진(rules.js)이 계산 — 서버 판정이 생기면 그걸 넘기는 게 우선
     conflicts: Array.isArray(conflicts) ? conflicts.map((c) => conflictFrom(c, byId)) : undefined,
+    // 방위별 출입 제한 [{zone_id, start, end, blocked:['N',…], reason}] → scene3d 구역
+    restrictions: Array.isArray(restrictions)
+      ? restrictions.map((r) => ({ zone_ids: ZONE_MAP[r.zone_id] ?? [], start: iso16(r.start), end: iso16(r.end), blocked: r.blocked || [], reason: r.reason || '' }))
+      : undefined,
   };
 }
 

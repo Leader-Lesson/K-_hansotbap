@@ -655,7 +655,17 @@ function s3Payload(){const d=S.day,ds=iso(d),at=h=>`${ds}T${hh(h)}:00`;
     reason:strip(sentence(c)),suggestion:(proposals(c)[0]||{}).text||null,
     sources:[c.a,c.b].filter(Boolean).map(task).filter(t=>t&&own(t)).map(t=>({file:fileName(t.p),locator:t.id,text:t.src}))}));
   const role=S.role==="HQ"?{kind:"prime"}:{kind:"contractor",contractor:s3Contractor(S.role),level:S.lvl==="worker"?"worker":"lead"};
-  return {tasks,conflicts,role};}
+  return {tasks,conflicts,role,restrictions:s3Restrictions(d)};}
+/* 방위별 출입 제한: 구역·30분마다 zoneMap의 위험 방위(북·동·남·서) → scene3d가 허용·금지 방위 경계에 안전띠·러버콘을 세운다
+   (경고 문구를 여러 개 띄우는 대신 현장 조치를 3D로 보여 준다). 07~19시, 같은 상태가 이어지면 한 구간으로 묶는다 */
+function s3Restrictions(d){const at=h=>`${iso(d)}T${hh(h)}:00`,out=[];
+  Object.keys(ZONES).forEach(z=>{let cur=null;
+    for(let h=7;h<19;h+=0.5){const {map,src}=zoneMap(z,d,h),blocked=SEC.filter(k=>map[k]==="danger"),key=blocked.join("");
+      if(cur&&cur.key===key){cur.end=at(h+0.5);continue;}
+      if(cur&&cur.key)out.push(cur);
+      cur={key,zone_id:S3ZONE[z],start:at(h),end:at(h+0.5),blocked,reason:[...new Set(src.map(i=>own(i.s)?`${P(i.s.p).name} ${tn(i.s)}`:tn(i.s)))].join(" · ")};}
+    if(cur&&cur.key)out.push(cur);});
+  return out.map(({key,...r})=>r);}
 function s3Post(msg){const f=$("#s3frame iframe");if(f&&f.contentWindow)f.contentWindow.postMessage({source:"hansotbap",...msg},location.origin);}
 function s3Fail(why){$("#s3info").textContent="연결 안 됨";$("#s3frame").innerHTML=`<div class="empty"><div>scene3d 화면을 불러오지 못했습니다.</div><div class="sub">${why}</div><div class="row2"><button class="btn sm" data-act="s3retry">다시 불러오기</button></div></div>`;}
 // 3D 준비가 늦어도 iframe은 지우지 않는다 (GPU 없는 PC에서는 첫 표시가 수십 초 걸릴 수 있음). 늦어지면 안내만 띄운다 [팀 설정값: 20초]
@@ -670,7 +680,7 @@ function s3Sync(force){
     clearTimeout(S3.timer);S3.timer=setTimeout(()=>{if(!S3.ready)s3Slow();},20000);return;}
   if(!S3.ready)return;
   const p=s3Payload(),sig=JSON.stringify(p);
-  if(force||sig!==S3.sig){S3.sig=sig;s3Post({type:"data",tasks:p.tasks,conflicts:p.conflicts});s3Post({type:"role",role:p.role});}
+  if(force||sig!==S3.sig){S3.sig=sig;s3Post({type:"data",tasks:p.tasks,conflicts:p.conflicts,restrictions:p.restrictions});s3Post({type:"role",role:p.role});}
   if(S3.hour!==S.mhour){S3.hour=S.mhour;s3Post({type:"time",iso:`${ds}T${hh(S.mhour)}`});}
   if(S3.pendingSelect&&p.tasks.some(t=>t.id===S3.pendingSelect)){s3Post({type:"selectTask",taskId:S3.pendingSelect});S3.pendingSelect=null;}
   $("#s3info").textContent=`${ymd(S.day)} · ${S.role==="HQ"?"포스코 직영관리자":`${P(S.role).name} ${S.lvl==="worker"?"작업자":"파트장"}`} · 작업 ${p.tasks.length}건 · 충돌 ${p.conflicts.length}건`;

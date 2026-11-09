@@ -91,6 +91,7 @@ app/frontend/public/prototype/
 | 방향 | 메시지 | 내용 |
 | --- | --- | --- |
 | 시안 → scene3d | `data` | 그날 작업(`src/types.ts`의 `Task` 모양, `crew` 추가)과 충돌(`Conflict` 모양). 협력사로 보면 권한 범위 안의 작업만 |
+| 시안 → scene3d | `data.restrictions` | 방위별 출입 제한 `[{zone_id, start, end, blocked:["N"…], reason}]` — `zoneMap`의 위험 방위를 30분 단위로 묶은 것. scene3d가 허용·금지 방위 경계에 안전띠·러버콘을 세운다 |
 | 시안 → scene3d | `role` | `{kind:"prime"}` 또는 `{kind:"contractor", contractor:"가상-C사", level:"lead"\|"worker"}` |
 | 시안 → scene3d | `time` · `selectTask` | 2D 도면 시각 · 시연/충돌 상세에서 고른 작업 |
 | scene3d → 시안 | `ready` · `select` · `decision` | 준비 완료 시 데이터 전송, 선택한 작업의 충돌 포커스, 승인·반려는 이력에 기록 |
