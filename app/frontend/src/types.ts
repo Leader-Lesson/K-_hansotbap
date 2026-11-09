@@ -27,6 +27,7 @@ export interface Task {
   start: string; // ISO datetime
   end: string;
   shift: Shift | null;
+  crew: number | null; // 투입 인원(명). 계획서 인원 칸, 없으면 기준 일정 값(가정). 협력사에게 타사 인원은 null
   hazards: Hazard[];
   risk_codes: string[];
   predecessors: string[];

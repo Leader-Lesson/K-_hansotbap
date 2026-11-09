@@ -104,3 +104,9 @@ def test_export_shows_field_record_label():
     res = TestClient(app).get("/api/history/export")
     labels = {row[1] for row in load_workbook(BytesIO(res.content)).active.iter_rows(min_row=5, values_only=True)}
     assert {"교대 인계", "착수 승인", "계획서 제출"} <= labels
+
+
+def test_baseline_tasks_have_crew():
+    """기준 일정 37건 모두 투입 인원(합성 가정값)이 있다 — 상황판 숫자 띠·구역 칸·막대에 쓴다."""
+    tasks = load_wbs_tasks()
+    assert len(tasks) == 37 and all(t.crew and t.crew > 0 for t in tasks)

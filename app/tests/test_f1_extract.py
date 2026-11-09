@@ -36,6 +36,7 @@ def llm_task(**overrides) -> LLMTask:
         start_time=None,
         end_time=None,
         shift="day",
+        headcount=None,
         hazards=["confined"],
         hazard_text=None,
         precondition_text=None,
@@ -119,3 +120,35 @@ def test_llm_failure_falls_back_to_table_rules():
     out = extract_plan(doc, mode="llm", provider_factory=broken)
     assert out.method == "table_rules" and len(out.tasks) == 2
     assert any("LLM 추출 실패" in w for w in out.warnings)
+
+
+def test_crew_is_read_from_plan_table():
+    """투입 인원: 계획서 인원 칸을 읽는다 (합성 계획서 5건 모두 인원 칸이 있다)."""
+    from pathlib import Path
+
+    from llm.extract import extract_plan as run
+    from parsers import parse_document
+
+    samples = Path(__file__).resolve().parents[1] / "samples"
+    name = "가상-배관O_가스라인_복구_작업계획서.hwpx"
+    ext = run(parse_document(name, (samples / name).read_bytes()), mode="rules", contractor_hint="가상-배관O")
+    assert {e.task.id: e.task.crew for e in ext.tasks} == {"P34": 8, "P33": 6}
+    assert all(e.raw.get("crew") for e in ext.tasks)  # 원문 근거
+
+
+def test_crew_falls_back_to_baseline_with_warning():
+    """계획서에 인원 칸이 없으면 기준 일정 값(가정값)을 넣고 확인하라고 알린다."""
+    from conftest import s1_xlsx
+
+    from llm.extract import extract_plan as run
+    from parsers import parse_document
+
+    ext = run(parse_document("배관O.xlsx", s1_xlsx()), mode="rules", contractor_hint="가상-배관O")
+    p34 = next(e for e in ext.tasks if e.task.id == "P34")
+    assert p34.task.crew == 8 and any("투입 인원" in w for w in p34.warnings)
+
+
+def test_parse_crew_reads_first_number():
+    from parsers.normalize import parse_crew
+
+    assert [parse_crew(v) for v in ("8", "8명", "작업인원 12명", "8명(신호수 2명 포함)", 6.0, None, "-")] == [8, 8, 12, 8, 6, None, None]

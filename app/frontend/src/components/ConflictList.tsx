@@ -16,12 +16,13 @@ interface Props {
   onShared?: () => void; // 협력사 공유 뒤 다시 불러오기
   emptyText?: string;
   groupByRule?: boolean; // 규칙별로 묶어 접는다 (R16 26건을 한 줄로). 가장 높은 등급·건수 순
+  initialOpenId?: string | null; // 처음부터 펼쳐 둘 충돌 (상황판에서 카드를 눌러 연 경우)
 }
 
 const GROUP_OPEN_MAX = 3; // 이 건수 이하인 묶음은 펼쳐 둔다 [팀 설정값]
 
-export function ConflictList({ records, tasks, role, onShow3D, onAdjusted, onShared, emptyText = "판정된 충돌이 없습니다.", groupByRule = false }: Props) {
-  const [openId, setOpenId] = useState<string | null>(null);
+export function ConflictList({ records, tasks, role, onShow3D, onAdjusted, onShared, emptyText = "판정된 충돌이 없습니다.", groupByRule = false, initialOpenId = null }: Props) {
+  const [openId, setOpenId] = useState<string | null>(initialOpenId);
   const taskOf = (id: string) => tasks.find((t) => t.id === id);
 
   if (records.length === 0) return <p className="text-sm text-stone-500">{emptyText}</p>;

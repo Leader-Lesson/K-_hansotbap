@@ -60,6 +60,8 @@ body.full .full-exit { display: block; }
 .site { color: var(--muted); font-size: 14px; }
 .top-mid { display: flex; align-items: center; gap: 10px; }
 .date { color: var(--muted); }
+.date-nav { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 0 9px; margin: 0 4px; font-size: 13px; color: var(--accent); cursor: pointer; }
+.date-nav:hover { border-color: var(--accent); }
 .tag-synth {
   font-size: 12px; padding: 2px 8px; border-radius: 999px;
   border: 1px dashed #9aa4ae; color: var(--muted); background: #f6f7f8;

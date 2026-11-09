@@ -160,8 +160,12 @@ export default function App() {
                 ))}
               </select>
             </label>
-            <a href="/prototype/index.html" className="rounded border border-stone-300 px-2 py-1 text-xs text-stone-600 hover:bg-stone-50" title="합성 데이터로 흐름을 보여 주는 정적 시안">
-              시연판 열기
+            <a
+              href="/prototype/index.html"
+              className="rounded border border-stone-300 px-2 py-1 text-xs text-stone-600 hover:bg-stone-50"
+              title="합성 데이터로 흐름만 보여 주는 정적 시안. 서버에 연결되지 않아 올린 계획서가 판정되지 않습니다"
+            >
+              정적 시안 보기
             </a>
           </div>
         </div>
