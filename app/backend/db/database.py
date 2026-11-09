@@ -27,9 +27,12 @@ CREATE TABLE IF NOT EXISTS tasks (
     PRIMARY KEY (id, plan_id)
 );
 CREATE TABLE IF NOT EXISTS conflicts (
-    id TEXT PRIMARY KEY,
+    id TEXT PRIMARY KEY,                 -- 규칙·작업 쌍으로 만든 키(R08:P22>P34). 재판정에서 같은 충돌을 알아본다
+    plan_id INTEGER REFERENCES plans(id),-- 이 충돌을 드러낸 제출
+    judged_at TEXT NOT NULL DEFAULT '',  -- 마지막 판정에서 확인된 시각
     payload TEXT NOT NULL,               -- schemas.Conflict JSON
-    status TEXT NOT NULL DEFAULT 'open'  -- open | adjusted | resolved
+    status TEXT NOT NULL DEFAULT 'open', -- open | adjusted | resolved
+    resolved_at TEXT                     -- 재판정에서 사라진 시각 (F5 이행 기록)
 );
 CREATE TABLE IF NOT EXISTS decisions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,8 +48,11 @@ CREATE TABLE IF NOT EXISTS extraction_cache (
 );
 """
 
-# 예전 스키마로 만든 DB 파일에 나중에 생긴 칸을 붙인다
-_ADDED_COLUMNS = {"plans": {"submitted_by": "TEXT", "draft_id": "TEXT"}}
+# 예전 스키마로 만든 DB 파일에 나중에 생긴 칸을 붙인다 (ALTER 로 붙이므로 NOT NULL 은 기본값을 둔다)
+_ADDED_COLUMNS = {
+    "plans": {"submitted_by": "TEXT", "draft_id": "TEXT"},
+    "conflicts": {"plan_id": "INTEGER", "judged_at": "TEXT NOT NULL DEFAULT ''", "resolved_at": "TEXT"},
+}
 
 
 def connect(path: Path | None = None) -> sqlite3.Connection:
