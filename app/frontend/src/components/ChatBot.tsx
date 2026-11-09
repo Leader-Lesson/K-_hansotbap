@@ -4,10 +4,19 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Bot, ChevronDown, LoaderCircle, MessageCircle, RotateCcw, SendHorizontal, X } from "lucide-react";
 import { api, CHAT_CLIENT_TIMEOUT_MS } from "@/api/client";
 import { MarkdownLite } from "@/components/MarkdownLite";
-import type { ChatEvidence, ChatResponse, ChatStatus, ChatTurn } from "@/types";
+import type { ChatChoiceId, ChatChoices, ChatEvidence, ChatResponse, ChatStatus, ChatTurn } from "@/types";
 
 const MAX_HISTORY = 6; // 서버 ChatRequest.history 최대 (오래된 것부터)
 const MAX_LEN = 500; // 서버 ChatRequest.question 최대 글자 수
+const CHOICE_KEY = "hansotbap.chatChoice"; // 고른 모델 (보는 사람을 바꿔도·새로고침해도 남게, 탭을 닫으면 지워짐)
+
+function loadChoice(): ChatChoiceId | null {
+  try {
+    return (sessionStorage.getItem(CHOICE_KEY) as ChatChoiceId | null) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const PROVIDER_LABEL: Record<string, string> = { claude: "Claude", unsloth: "Unsloth", lmstudio: "LM Studio" };
 
@@ -90,21 +99,46 @@ export function ChatBot({ contractor, today }: { contractor?: string; today?: st
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<ChatStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [models, setModels] = useState<ChatChoices | null>(null);
+  const [choice, setChoice] = useState<ChatChoiceId | null>(loadChoice);
   const nextId = useRef(1);
   const abortRef = useRef<AbortController | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // 처음 열 때 한 번만 연결 확인 (서버가 LLM 에 짧은 질문을 보내 본다 — 몇 초 걸릴 수 있다)
-  const checked = useRef(false);
+  // 처음 열 때 고를 수 있는 모델을 받는다. 전에 고른 것이 목록에 없거나 못 쓰면 서버 기본값(.env 설정)
   useEffect(() => {
-    if (!open || checked.current) return;
-    checked.current = true;
+    if (!open || models) return;
     api
-      .chatStatus()
-      .then(setStatus)
-      .catch((e: Error) => setStatusError(e.message));
-  }, [open]);
+      .chatModels()
+      .then((m) => {
+        setModels(m);
+        setChoice((prev) => (prev && m.choices.some((c) => c.id === prev && c.available) ? prev : m.default));
+      })
+      .catch((e: Error) => setStatusError(`모델 목록을 받지 못했습니다: ${e.message}`));
+  }, [open, models]);
+
+  // 고른 모델로 연결 확인 (서버가 LLM 에 짧은 질문을 보낸다 — 몇 초 걸릴 수 있다). 모델을 바꾸면 다시 확인
+  const checkedFor = useRef<ChatChoiceId | null>(null);
+  useEffect(() => {
+    if (!open || !choice || checkedFor.current === choice) return;
+    checkedFor.current = choice;
+    setStatus(null);
+    setStatusError(null);
+    api
+      .chatStatus(choice)
+      .then((s) => checkedFor.current === choice && setStatus(s)) // 확인 중에 다른 모델로 바꿨으면 버린다
+      .catch((e: Error) => checkedFor.current === choice && setStatusError(e.message));
+  }, [open, choice]);
+
+  const pickModel = (id: ChatChoiceId) => {
+    setChoice(id);
+    try {
+      sessionStorage.setItem(CHOICE_KEY, id);
+    } catch {
+      // 저장소를 못 쓰면 이 창에서만 기억한다
+    }
+  };
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -138,7 +172,7 @@ export function ChatBot({ contractor, today }: { contractor?: string; today?: st
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     try {
-      const res = await api.chat({ question, history, today: baseDate }, { contractor, signal: ctrl.signal });
+      const res = await api.chat({ question, history, today: baseDate, choice }, { contractor, signal: ctrl.signal });
       push({ kind: "bot", res });
     } catch (e) {
       push({ kind: "error", text: ctrl.signal.aborted ? "질문을 취소했습니다" : (e as Error).message });
@@ -199,18 +233,42 @@ export function ChatBot({ contractor, today }: { contractor?: string; today?: st
           <p className="text-[11.5px] text-ink-3" title="'오늘'·'내일'·'이번 주'는 이 날짜 기준입니다. 화면의 날짜를 바꾸면 따라갑니다">
             기준일 {baseDate ? `${baseDate} (화면 날짜)` : "오늘"}
           </p>
-          <p className="flex items-center gap-1 text-[11px] text-ink-3">
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <label htmlFor="chatbot-model" className="shrink-0 text-[11.5px] font-medium text-ink-2">
+              모델
+            </label>
+            <select
+              id="chatbot-model"
+              value={choice ?? ""}
+              onChange={(e) => pickModel(e.target.value as ChatChoiceId)}
+              disabled={!models || busy}
+              title={busy ? "답을 받는 중에는 바꿀 수 없습니다" : "이 창에서 묻는 질문에 쓸 모델"}
+              className="min-w-0 flex-1 rounded border border-line bg-white px-1.5 py-1 text-xs text-ink focus:border-brand focus:outline-none disabled:opacity-60"
+            >
+              {!models && <option value="">불러오는 중…</option>}
+              {models?.choices.map((c) => (
+                <option key={c.id} value={c.id} disabled={!c.available} title={c.note ?? c.model}>
+                  {c.label}
+                  {c.id === models.default ? " · 기본" : ""}
+                  {c.available ? "" : " — 쓸 수 없음"}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="mt-1 flex items-center gap-1 text-[11px] text-ink-3">
             <span
-              className={`h-1.5 w-1.5 rounded-full ${status?.ok ? "bg-ok" : status || statusError ? "bg-danger" : "bg-stone-300"}`}
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${status?.ok ? "bg-ok" : status || statusError ? "bg-danger" : "bg-stone-300"}`}
               aria-hidden="true"
             />
-            {status
-              ? status.ok
-                ? `${providerText(status.provider, status.model)} 연결됨`
-                : `AI 연결 안 됨 — 규칙으로 답합니다 (${status.error ?? "원인 모름"})`
-              : statusError
-                ? `연결 확인 실패: ${statusError}`
-                : "AI 연결 확인 중…"}
+            <span className="truncate">
+              {status
+                ? status.ok
+                  ? `${providerText(status.provider, status.model)} 연결됨 (${((status.latency_ms ?? 0) / 1000).toFixed(1)}초)`
+                  : `연결 안 됨 — 규칙으로 답합니다 (${status.error ?? "원인 모름"})`
+                : statusError
+                  ? `연결 확인 실패: ${statusError}`
+                  : "AI 연결 확인 중…"}
+            </span>
           </p>
         </div>
         <button type="button" onClick={reset} className="rounded p-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink" title="새 대화" aria-label="새 대화">

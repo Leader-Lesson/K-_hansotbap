@@ -457,10 +457,28 @@ export interface ChatTurn {
   answer?: string;
 }
 
+/** 화면에서 고르는 챗봇 모델 (서버가 정한 목록의 id 만 보낸다) */
+export type ChatChoiceId = "local" | "claude-haiku" | "claude-sonnet" | "claude-opus";
+
+export interface ChatChoice {
+  id: ChatChoiceId;
+  label: string;
+  provider: string; // claude | unsloth | lmstudio
+  model: string;
+  available: boolean; // 키·주소가 .env 에 있는지 (연결 여부는 /chat/status)
+  note: string | null; // 못 쓰는 까닭
+}
+
+export interface ChatChoices {
+  choices: ChatChoice[];
+  default: ChatChoiceId; // .env 의 CHAT_PROVIDER·CHAT_MODEL 과 같은 모델
+}
+
 export interface ChatRequest {
   question: string; // 1~500자
   today?: string | null; // YYYY-MM-DD. '오늘' 기준 (비우면 서버 CHAT_TODAY 또는 실제 오늘)
   history?: ChatTurn[]; // 최근 대화 최대 6개 (오래된 것부터)
+  choice?: ChatChoiceId | null; // 고른 모델. 비우면 .env 설정
 }
 
 export type ChatTool = "find_tasks" | "find_conflicts" | "risk_windows" | "shared_notices";

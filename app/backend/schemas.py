@@ -565,10 +565,34 @@ class ChatTurn(BaseModel):
     answer: str = Field(default="", max_length=2000)
 
 
+class ChatChoiceId(str, Enum):
+    """화면에서 고르는 챗봇 모델. 모델 이름 대신 이 id 만 받아 임의의 모델을 부르지 못하게 한다."""
+
+    LOCAL = "local"  # 로컬 LLM 노트북 (Unsloth Studio, UNSLOTH_CHAT_MODEL)
+    CLAUDE_HAIKU = "claude-haiku"
+    CLAUDE_SONNET = "claude-sonnet"
+    CLAUDE_OPUS = "claude-opus"
+
+
+class ChatChoice(BaseModel):
+    id: ChatChoiceId
+    label: str
+    provider: str  # claude | unsloth | lmstudio
+    model: str
+    available: bool  # 키·주소가 .env 에 있는지 (연결 여부는 /chat/status 로 본다)
+    note: str | None = None  # 못 쓰는 까닭
+
+
+class ChatChoices(BaseModel):
+    choices: list[ChatChoice]
+    default: ChatChoiceId  # .env 의 CHAT_PROVIDER·CHAT_MODEL 과 같은 모델
+
+
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=500)
     today: date | None = Field(default=None, description="'오늘' 기준 날짜. 비우면 서버 설정(CHAT_TODAY) 또는 실제 오늘")
     history: list[ChatTurn] = Field(default=[], max_length=6, description="최근 대화 (오래된 것부터)")
+    choice: ChatChoiceId | None = Field(default=None, description="화면에서 고른 모델. 비우면 .env 의 CHAT_PROVIDER·CHAT_MODEL")
 
 
 class ChatTool(str, Enum):

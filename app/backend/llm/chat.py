@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from config import settings
 from llm.provider import LLMProvider, get_provider
 from rules.data_loader import load_zones
+from schemas import ChatChoice, ChatChoiceId
 
 log = logging.getLogger(__name__)
 _WARNED: set[tuple[str, str]] = set()  # 이미 알린 (CHAT_MODEL, 제공자)
@@ -46,17 +47,64 @@ class ChatDraft(BaseModel):
     refs: list[str]
 
 
-def chat_provider() -> LLMProvider:
-    """CHAT_PROVIDER 가 있으면 그것, 없으면 LLM_PROVIDER. CHAT_MODEL·CHAT_EFFORT 로 챗봇만 모델·생각 깊이를 바꾼다."""
-    provider = get_provider(settings.chat_provider or None)
+# 화면에서 고르는 Claude 모델 3개 [팀 설정값]. 로컬 LLM 은 .env 의 UNSLOTH_CHAT_MODEL(또는 LMSTUDIO_CHAT_MODEL)
+CLAUDE_CHOICES: dict[ChatChoiceId, tuple[str, str]] = {
+    ChatChoiceId.CLAUDE_HAIKU: ("Claude Haiku (빠름)", "claude-haiku-5-5"),
+    ChatChoiceId.CLAUDE_SONNET: ("Claude Sonnet", "claude-sonnet-5-5"),
+    ChatChoiceId.CLAUDE_OPUS: ("Claude Opus (정확, 느림)", "claude-opus-5-5"),
+}
+
+
+def _local_provider() -> str:
+    """'로컬 LLM' 이 가리키는 서버: 챗봇 설정이 LM Studio 면 그것, 아니면 팀 노트북의 Unsloth Studio."""
+    name = settings.chat_provider or settings.llm_provider
+    return name if name in ("unsloth", "lmstudio") else "unsloth"
+
+
+def choices() -> list[ChatChoice]:
+    """화면의 모델 선택 목록. available 은 키·주소가 .env 에 있는지만 본다 (실제 연결은 /chat/status)."""
+    local = _local_provider()
+    local_model = getattr(settings, f"{local}_chat_model")
+    if local == "unsloth":
+        local_note = None if settings.unsloth_api_key and local_model else "UNSLOTH_API_KEY·UNSLOTH_CHAT_MODEL 이 .env 에 없습니다"
+    else:
+        local_note = None if local_model else "LMSTUDIO_CHAT_MODEL 이 .env 에 없습니다"
+    out = [ChatChoice(id=ChatChoiceId.LOCAL, label=f"로컬 LLM ({'Unsloth' if local == 'unsloth' else 'LM Studio'})",
+                      provider=local, model=local_model, available=local_note is None, note=local_note)]
+    claude_note = None if settings.anthropic_api_key else "ANTHROPIC_API_KEY 가 .env 에 없습니다"
+    for cid, (label, model) in CLAUDE_CHOICES.items():
+        out.append(ChatChoice(id=cid, label=label, provider="claude", model=model, available=claude_note is None, note=claude_note))
+    return out
+
+
+def default_choice() -> ChatChoiceId:
+    """.env 의 CHAT_PROVIDER·CHAT_MODEL(없으면 LLM_PROVIDER·CLAUDE_MODEL)과 같은 선택. 목록에 없는 Claude 모델이면 Haiku."""
+    if (settings.chat_provider or settings.llm_provider) != "claude":
+        return ChatChoiceId.LOCAL
     model = settings.chat_model.strip()
-    # CHAT_MODEL 은 고른 제공자의 모델일 때만 쓴다. Claude 모델 이름은 모두 claude- 로 시작하고 로컬 모델은 아니다.
-    # (.env 에 Claude 용 CHAT_MODEL 을 둔 채 --provider unsloth 로 점검하면 Unsloth 에 Claude 모델 이름이 가던 것을 막는다)
-    if model and model.startswith("claude-") == (provider.name == "claude"):
-        provider.model = model
-    elif model and (model, provider.name) not in _WARNED:  # 질문마다 찍히지 않게 한 번만
-        _WARNED.add((model, provider.name))
-        log.warning("CHAT_MODEL=%s 은 %s 모델이 아니라 무시하고 %s 를 씁니다", model, provider.name, provider.model)
+    model = model if model.startswith("claude-") else settings.claude_model
+    return next((cid for cid, (_, m) in CLAUDE_CHOICES.items() if m == model), ChatChoiceId.CLAUDE_HAIKU)
+
+
+def chat_provider(choice: ChatChoiceId | str | None = None) -> LLMProvider:
+    """choice(화면에서 고른 모델)가 있으면 그것. 없으면 CHAT_PROVIDER → LLM_PROVIDER 와 CHAT_MODEL. 생각 깊이는 CHAT_EFFORT."""
+    if choice:
+        choice = ChatChoiceId(choice)
+        if choice == ChatChoiceId.LOCAL:
+            provider = get_provider(_local_provider())  # 그 서버의 기본 채팅 모델
+        else:
+            provider = get_provider("claude")
+            provider.model = CLAUDE_CHOICES[choice][1]
+    else:
+        provider = get_provider(settings.chat_provider or None)
+        model = settings.chat_model.strip()
+        # CHAT_MODEL 은 고른 제공자의 모델일 때만 쓴다. Claude 모델 이름은 모두 claude- 로 시작하고 로컬 모델은 아니다.
+        # (.env 에 Claude 용 CHAT_MODEL 을 둔 채 --provider unsloth 로 점검하면 Unsloth 에 Claude 모델 이름이 가던 것을 막는다)
+        if model and model.startswith("claude-") == (provider.name == "claude"):
+            provider.model = model
+        elif model and (model, provider.name) not in _WARNED:  # 질문마다 찍히지 않게 한 번만
+            _WARNED.add((model, provider.name))
+            log.warning("CHAT_MODEL=%s 은 %s 모델이 아니라 무시하고 %s 를 씁니다", model, provider.name, provider.model)
     if hasattr(provider, "effort"):
         provider.effort = settings.chat_effort
     return provider
