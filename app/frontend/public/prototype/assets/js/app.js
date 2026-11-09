@@ -142,10 +142,44 @@ const tbmSay=it=>TBM_SAY[it.label]||(it.say||`${it.label} 전달합니다.`);
 
 /* ================= 상태 ================= */
 let S, upTimer=null;
+/* 시연 전 6일치 이행 기록 (합성) — 기록 시각은 오늘 기준 1~6일 전으로 옮긴다 (내용 속 날짜는 공정 일정 날짜) — 이력 화면이 비어 보이지 않게 첫 상태에 넣는다. 최신이 위 */
+function seedLog(){const L=r=>RULES[r]?RULES[r].law.join(" / "):"",pt=id=>P(id).part,ld=id=>P(id).lead,H=HQ[0],H2=HQ[1];
+  return [
+  {time:"1/15 06:55",type:"교대 인계",sum:"1/15 06:30 야간조 → 주간조 인계 · 항목 7건",dec:"A사 3건 (미완료 1 · 출입 제한 1 · 다음 조 착수 1) / C사 2건 / E사 2건",who:`${pt("A")} · ${H2}`,rule:"F5",law:LAW64,parties:["A","C","E"]},
+  {time:"1/15 06:50",type:"TBM 확인",sum:"A사 TBM 1/15 · 전달 5 / 빠짐·불충분 0",dec:"노저 축조 · 노정 인양 하부 출입 통제 · 위험 시간대 09:00–12:00 모두 전달",who:`${ld("A")} (AI 판단)`,rule:"F7",law:LAW64,parties:["A"]},
+  {time:"1/14 22:40",type:"착수",sum:"A사 노흉 축조 (야간) 착수",dec:"승인 조건: 노정 인양 없음 확인 · 상부 방호 데크 점검",who:pt("A"),rule:"",law:"",parties:["A"]},
+  {time:"1/14 21:30",type:"착수 승인",sum:"A사 노흉 축조 (야간) 22:30–06:30",dec:"조건: 노정 인양 없음 확인 · 상부 방호 데크 점검",who:H2,rule:"",law:LAW64,parties:["A"]},
+  {time:"1/14 18:45",type:"교대 인계",sum:"1/14 18:30 주간조 → 야간조 인계 · 항목 9건",dec:"A사 4건 (미완료 2 · 잔업 1 · 다음 조 착수 1) / B사 2건 / D사 3건",who:`${pt("B")} · ${H2}`,rule:"F5",law:LAW64,parties:["A","B","D"]},
+  {time:"1/14 18:20",type:"잔업 승인",sum:"A사 노저 카본블록 축조 19:00–21:00 · 8명",dec:"조건: 야간조 착수 전 정리 · 노 안 인원 명단 교대",who:H,rule:"",law:LAW64,parties:["A"]},
+  {time:"1/14 17:40",type:"잔업 계획",sum:"A사 노저 카본블록 축조 19:00–21:00 · 8명",dec:"사유: 작업 지연 · 카본블록 2단 남음 · 직영관리자 또는 A사 파트장 승인 전 착수 불가",who:pt("A"),rule:"",law:"",parties:["A"]},
+  {time:"1/14 15:10",type:"조정",sum:"B사 노정 장입설비 인양 × A사 노흉 축조 (위아래)",dec:"인양 시간을 09:00–11:00로 묶고 그동안 A사는 외부 작업대에서 벽돌 반입 준비",who:H,rule:"R-VT-01",law:L("R-VT-01"),parties:["A","B"]},
+  {time:"1/14 15:10",type:"공유",sum:"결과 → A사·B사",dec:"자기 작업과 겹친 내용과 조정 결과만 전달",who:"시스템",rule:"R-VT-01",law:"",parties:["A","B"]},
+  {time:"1/14 13:20",type:"지연 보고",sum:"E사 링블록 인양 종료 11:00 → 12:30 (1/14)",dec:"사유: 강풍(순간 10m/s) 대기 · 자동 재대조 · 새 겹침 1건",who:ld("E"),rule:"",law:"",parties:["E","D"]},
+  {time:"1/14 13:25",type:"전체 알림",sum:"E사 인양 지연 → 주상 출선구 작업 시간 겹침",dec:"전 협력사·포스코 본청에 전체 알림 · 위험 해당 공정 1건 착수 보류 (D사)",who:"시스템",rule:"R-SZ-01",law:LAW64,parties:["D","E"]},
+  {time:"1/14 13:25",type:"착수 보류",sum:"D사 출선구 계장 케이블 포설 12:00–13:00",dec:"포스코 본청 승인 전 착수 불가 · 링블록 인양 반경 안",who:"시스템",rule:"R-SZ-01",law:LAW64,parties:["D"]},
+  {time:"1/14 12:40",type:"착수 승인",sum:"D사 출선구 계장 케이블 포설 13:00–15:00",dec:"조건: 링블록 인양 종료 무전 확인 후 착수",who:H2,rule:"",law:LAW64,parties:["D"]},
+  {time:"1/14 09:05",type:"위험 공지",sum:"1/14 09:00–12:00 위험 시간대",dec:"노정 인양 아래 노흉·노저 / 풍구층 용단 옆 보온재",who:H,rule:"F9",law:LAW64,parties:["A","B","C","D"]},
+  {time:"1/13 19:35",type:"알림",sum:"출입 제한 구역 안 작업 · E사 비계 해체 (풍구층 동쪽)",dec:"시정 명령: 서쪽으로 작업 위치 이동 (금지 0분) · 3D 화면",who:`${pt("E")} · ${H2}`,rule:"F3",law:LAW64,parties:["E"]},
+  {time:"1/13 16:10",type:"긴급 작업",sum:"C사 풍구 냉각수 배관 누수 보수 · 풍구층 16:30–18:00 · 4명",dec:"자동 재대조 · 새 겹침 1건 (화기 11m 안 가연물)",who:ld("C"),rule:"R-HF-01",law:L("R-HF-01"),parties:["C","D"]},
+  {time:"1/13 16:20",type:"착수 승인",sum:"C사 풍구 냉각수 배관 누수 보수 16:30–18:00",dec:"조건: D사 보온재 제거·불티 방지포 설치 확인",who:H,rule:"",law:LAW64,parties:["C"]},
+  {time:"1/13 10:15",type:"계획 수정",sum:"T09 주상 계장 케이블 포설 위치 수정",dec:"자동 재대조 · 해소 1 · 새 충돌 0",who:pt("D"),rule:"",law:"",parties:["D"]},
+  {time:"1/12 17:30",type:"재제출",sum:"D사 계획서 v2 제출",dec:"화재감시자·작업 전 가스 측정 단계 추가 · 충돌 2건 해소",who:ld("D"),rule:"R-DF-01",law:L("R-DF-01"),parties:["D"]},
+  {time:"1/12 14:00",type:"반려",sum:"D사 계획서 v1 반려",dec:"사유: 화기 작업 화재감시자 미기재 · 수정 요구: 감시자 배치 기재",who:H,rule:"R-DF-01",law:L("R-DF-01"),parties:["D"]},
+  {time:"1/12 13:55",type:"판정",sum:"D사 v1 대조 6.8ms",dec:"충돌 2건 (결함 2)",who:"시스템",rule:"F2",law:"",parties:["D"]},
+  {time:"1/12 13:50",type:"구조화",sum:"D사 계획서 1건 → 작업 4건",dec:"확인 필요 1건 · 표준서 매칭 4건",who:"시스템",rule:"F1",law:"",parties:["D"]},
+  {time:"1/12 08:40",type:"TBM 확인",sum:"C사 TBM 1/12 · 전달 3 / 빠짐·불충분 1",dec:"빠진 항목: 풍구층 용단 시간 화기 감시자 위치 → 보충 전달 후 재대조 완료",who:`${ld("C")} (AI 판단)`,rule:"F7",law:LAW64,parties:["C"]},
+  {time:"1/11 18:40",type:"교대 인계",sum:"1/11 18:30 주간조 → 야간조 인계 · 항목 6건",dec:"A사 3건 / C사 1건 / E사 2건",who:`${pt("E")} · ${H2}`,rule:"F5",law:LAW64,parties:["A","C","E"]},
+  {time:"1/11 11:30",type:"조정",sum:"E사 링블록 인양 × D사 출선구 작업 (같은 시간·구역)",dec:"D사 작업을 인양 종료 뒤 13:00으로 이동",who:H2,rule:"R-SZ-01",law:L("R-SZ-01"),parties:["D","E"]},
+  {time:"1/11 11:30",type:"공유",sum:"결과 → D사·E사",dec:"자기 작업과 겹친 내용과 조정 결과만 전달",who:"시스템",rule:"R-SZ-01",law:"",parties:["D","E"]},
+  {time:"1/10 16:00",type:"계획 변경",sum:"B사 공정표 v2 수신 · 노정 장입설비 인양 1/16 → 1/14",dec:"자동 재대조 · 새 충돌 2건 (위아래)",who:ld("B"),rule:"R-VT-01",law:L("R-VT-01"),parties:["B","A"]},
+  {time:"1/10 15:30",type:"판정",sum:"계획서 5건 첫 대조 12.4ms",dec:"충돌 9건 (금지 2 · 조건부 5 · 결함 2)",who:"시스템",rule:"F2",law:"",parties:[]},
+  {time:"1/10 15:25",type:"구조화",sum:"계획서 5건 → 작업 21건",dec:"확인 필요 3건 · 표준서 매칭 21건",who:"시스템",rule:"F1",law:"",parties:[]},
+  {time:"1/10 09:00",type:"재제출",sum:"A사 계획서 v1 제출 (HWPX)",dec:"노저·노흉 축조, 풍구 연와 · 주간/야간 2교대",who:ld("A"),rule:"",law:"",parties:["A"]},
+  ].sort((a,b)=>b.time.localeCompare(a.time)).map(e=>{const [m,d,hm]=e.time.split(/[/ ]/),x=new Date();x.setDate(x.getDate()-(16-+d));return {...e,time:`${x.getMonth()+1}/${x.getDate()} ${hm}`};});}
 function fresh(){
   const tasks=BASE.map(t=>({...t,types:[...t.types],pre:[...t.pre],fw:t.fw===undefined?null:t.fw,ok:!t.conf,src:fill(t.tpl,t),moved:null}));
   return {tasks,ver:{A:1,B:1,C:1,D:1,E:1},fst:{A:"ok",B:"ok",C:"ok",D:"ok",E:"ok"},files:[],role:"HQ",day:65,sel:null,
-    conflicts:[],mitig:{},seen:new Set(),newKeys:new Set(),log:[],adjusted:[],shared:new Set(),riskSent:new Set(),banner:null,lastMs:0,lastApply:null,undo:null,
+    conflicts:[],mitig:{},seen:new Set(),newKeys:new Set(),log:seedLog(),adjusted:[],shared:new Set(),riskSent:new Set(),banner:null,lastMs:0,lastApply:null,undo:null,
     chat:[],chatOpen:false,heard:null,drawer:null,upOpen:null,mmode:"conf",mview:"3d",mzone:null,
     tbm:{p:"C",sample:"A",text:"",rec:false,runs:{},key:null},hfilt:"전체",step:0,focus:null,ptab:"A",delays:{},urgent:[],useq:0,dform:{t:null,h1:null,why:""},events:[],holds:[],started:{},eseq:0,xseq:0,lvl:"hq",notes:[],notiOpen:false,mhour:10.5,extOpen:false,tlv:"day",hov:{},oform:{t:null,x:2,crew:null,why:"작업 지연",txt:""},
     eform:{tab:"job",p:"C",name:"노 내부 중부 가스 배관 누설 긴급 차단",zone:"Z3",h0:13,h1:15,crew:4,types:["가스"],vk:"wind",vz:"Z3",vh1:15,secs:["N"]},
