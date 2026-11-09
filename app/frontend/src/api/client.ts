@@ -1,5 +1,7 @@
 import type {
   AdjustmentApply,
+  ApprovalCheck,
+  ApprovalDecision,
   ChatRequest,
   ChatResponse,
   ChatStatus,
@@ -94,6 +96,10 @@ export const api = {
   },
   submitPlan: (sub: PlanSubmission) => json<PlanSubmitResult>("/plans/submit", "POST", sub),
   plans: (contractor?: string) => get<PlanRecord[]>(`/plans${qs({ contractor })}`),
+  // ── F5 원청 승인 (원청 전용 — 협력사로 부르면 서버가 403) ──────────
+  approvalCheck: (planId: number) => get<ApprovalCheck>(`/plans/${planId}/approval-check`),
+  approvePlan: (planId: number, body: ApprovalDecision) => json<PlanRecord>(`/plans/${planId}/approve`, "POST", body),
+  rejectPlan: (planId: number, body: ApprovalDecision) => json<PlanRecord>(`/plans/${planId}/reject`, "POST", body),
 
   // ── F8 작업표준서 ──────────────────────────────────────────────────
   sops: () => get<SopInfo[]>("/sops"),

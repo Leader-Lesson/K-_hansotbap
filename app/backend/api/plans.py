@@ -4,11 +4,12 @@ import hashlib
 
 from fastapi import APIRouter, Form, HTTPException, Query, UploadFile
 
+from db.approval import ApprovalRefused, approval_check, decide_plan
 from db.plans import cache_get, cache_put, list_plans, save_plan_document, submit_plan
 from llm.extract import ExtractionFailed, Mode, cache_key, extract_plan, is_degraded
 from parsers import SUPPORTED, parse_document
 from rules.data_loader import load_zones
-from schemas import PlanExtraction, PlanRecord, PlanSubmission, PlanSubmitResult
+from schemas import ApprovalCheck, ApprovalDecision, PlanExtraction, PlanRecord, PlanSubmission, PlanSubmitResult
 from search.sop_match import match_plan
 
 router = APIRouter(tags=["plans"])
@@ -97,3 +98,45 @@ def submit(sub: PlanSubmission) -> PlanSubmitResult:
 def plans(contractor: str | None = None) -> list[PlanRecord]:
     """제출 이력 (F5 이행 기록의 바탕)."""
     return list_plans(contractor)
+
+
+# ── 원청 승인 (F5) ────────────────────────────────────────────────────
+_PRIME_ONLY = Query(default=None, description="협력사로 부르면 403 — 승인은 원청만 한다")
+
+
+def _prime(contractor: str | None) -> None:
+    if contractor:
+        raise HTTPException(403, "계획서 승인·반려는 원청만 할 수 있습니다")
+
+
+@router.get("/plans/{plan_id}/approval-check", response_model=ApprovalCheck)
+def approval(plan_id: int, contractor: str | None = _PRIME_ONLY) -> ApprovalCheck:
+    """승인 전 점검: 이 계획서 작업이 걸린 금지·조건부·결함, 출입 금지 구역 안 작업, 이미 승인된 작업과의 겹침. 금지·출입 금지 구역이 있으면 can_approve=false."""
+    _prime(contractor)
+    check = approval_check(plan_id)
+    if check is None:
+        raise HTTPException(404, f"계획서 #{plan_id} 가 없습니다")
+    return check
+
+
+def _decide(plan_id: int, approve: bool, body: ApprovalDecision) -> PlanRecord:
+    try:
+        return decide_plan(plan_id, approve, body.decided_by.strip(), body.note)
+    except KeyError:
+        raise HTTPException(404, f"계획서 #{plan_id} 가 없습니다") from None
+    except ApprovalRefused as e:
+        raise HTTPException(422, {"message": e.message, "problems": e.blockers}) from None
+
+
+@router.post("/plans/{plan_id}/approve", response_model=PlanRecord)
+def approve(plan_id: int, body: ApprovalDecision, contractor: str | None = _PRIME_ONLY) -> PlanRecord:
+    """원청 승인. 점검을 통과한 계획서만(서버가 다시 확인한다). 승인된 작업이 3D·현황에 확정으로 들어간다."""
+    _prime(contractor)
+    return _decide(plan_id, True, body)
+
+
+@router.post("/plans/{plan_id}/reject", response_model=PlanRecord)
+def reject(plan_id: int, body: ApprovalDecision, contractor: str | None = _PRIME_ONLY) -> PlanRecord:
+    """원청 반려. 그 제출분은 일정에서 빠지고 다시 판정한다. 협력사는 사유를 보고 수정 계획서를 다시 낸다."""
+    _prime(contractor)
+    return _decide(plan_id, False, body)

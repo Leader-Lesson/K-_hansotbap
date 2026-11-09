@@ -28,6 +28,7 @@ from schemas import (
     ConflictStatus,
     PlanExtraction,
     PlanRecord,
+    PlanStatus,
     PlanSubmission,
     PlanSubmitResult,
     SopMatch,
@@ -68,7 +69,26 @@ def _record(row) -> PlanRecord:
         submitted_at=datetime.fromisoformat(row["submitted_at"]),
         submitted_by=row["submitted_by"],
         task_count=row["task_count"],
+        status=PlanStatus(row["status"] or "pending"),
+        decided_at=datetime.fromisoformat(row["decided_at"]) if row["decided_at"] else None,
+        decided_by=row["decided_by"],
+        decision_note=row["decision_note"],
     )
+
+
+# 협력사별 "지금 효력 있는" 제출분: 반려된 것은 빼고 가장 최근 것. 승인 대기도 판정 대상에 넣는다 — 원청이 승인 전에 겹침을 봐야 한다
+_LATEST_EFFECTIVE = "SELECT contractor, MAX(id) AS plan_id FROM plans WHERE status != 'rejected' GROUP BY contractor"
+
+
+def get_plan(plan_id: int) -> PlanRecord | None:
+    with session() as conn:
+        row = conn.execute(_PLAN_SELECT + " WHERE p.id = ?", (plan_id,)).fetchone()
+    return _record(row) if row else None
+
+
+def plan_tasks(plan_id: int) -> list[Task]:
+    with session() as conn:
+        return [Task.model_validate_json(t["payload"]) for t in conn.execute("SELECT payload FROM tasks WHERE plan_id = ?", (plan_id,))]
 
 
 _PLAN_SELECT = """
@@ -92,11 +112,12 @@ def base_schedule() -> list[Task]:
     """
     tasks = {t.id: t for t in load_wbs_tasks()} if settings.use_baseline else {}
     with session() as conn:
-        latest = conn.execute("SELECT contractor, MAX(id) AS plan_id FROM plans GROUP BY contractor").fetchall()
+        latest = conn.execute(_LATEST_EFFECTIVE).fetchall()
         for row in sorted(latest, key=lambda r: r["plan_id"]):
+            status = conn.execute("SELECT status FROM plans WHERE id = ?", (row["plan_id"],)).fetchone()["status"]
             for t in conn.execute("SELECT payload FROM tasks WHERE plan_id = ?", (row["plan_id"],)):
                 task = Task.model_validate_json(t["payload"])
-                tasks[task.id] = task
+                tasks[task.id] = task.model_copy(update={"plan_status": PlanStatus(status or "pending")})
     return list(tasks.values())
 
 
@@ -166,10 +187,7 @@ def sop_matches_for_schedule() -> list[SopMatch]:
     """협력사별 최근 제출 계획서마다 그 원문으로 표준서 매칭. 원문이 없는 작업(기준 일정·draft 없이 제출)은 보지 않는다."""
     out: list[SopMatch] = []
     with session() as conn:
-        latest = conn.execute(
-            "SELECT p.id, p.draft_id FROM plans p"
-            " JOIN (SELECT contractor, MAX(id) AS plan_id FROM plans GROUP BY contractor) l ON l.plan_id = p.id"
-        ).fetchall()
+        latest = conn.execute("SELECT p.id, p.draft_id FROM plans p JOIN (" + _LATEST_EFFECTIVE + ") l ON l.plan_id = p.id").fetchall()
         plans = [(r["id"], r["draft_id"]) for r in latest if r["draft_id"]]
         tasks_by_plan = {
             pid: [Task.model_validate_json(t["payload"]) for t in conn.execute("SELECT payload FROM tasks WHERE plan_id = ?", (pid,))]
