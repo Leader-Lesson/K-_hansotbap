@@ -177,7 +177,7 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
             날짜
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded border border-stone-300 px-2 py-1" />
           </label>
-          <div className="h-[calc(100vh-260px)] min-h-[520px] overflow-hidden rounded-lg border border-stone-200">
+          <div>
             <Scene3DTab
               date={date}
               tasks={tasks}

@@ -171,10 +171,7 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
         </TabsContent>
 
         {/* scene3d(/scene3d/index.html, three.js)를 iframe으로 — 전체 작업과 서버 판정을 넘기면 위치별 목록·3D·조치 카드가 그려짐 */}
-        <TabsContent
-          value="scene3d"
-          className="h-[calc(100vh-180px)] min-h-[560px] overflow-hidden rounded-lg border border-stone-200"
-        >
+        <TabsContent value="scene3d">
           <Scene3DTab date={date} tasks={approvedTasks} conflicts={open} restrictions={restrictions} role={{ kind: "prime" }} selectTaskId={selectedTask} />
         </TabsContent>
 
