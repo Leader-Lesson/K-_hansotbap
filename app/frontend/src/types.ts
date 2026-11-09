@@ -47,6 +47,17 @@ export interface Conflict {
   sources: SourceRef[];
 }
 
+// 저장된 충돌 하나 (GET /api/conflicts). 판정 결과는 제출 응답에만 두지 않고 DB에 남는다
+export type ConflictStatus = "open" | "adjusted" | "resolved";
+
+export interface ConflictRecord {
+  conflict: Conflict;
+  status: ConflictStatus;
+  plan_id: number | null; // 이 충돌을 드러낸 제출
+  judged_at: string;
+  resolved_at: string | null; // 재판정에서 사라진 시각
+}
+
 export interface OverlapCandidate {
   task_a: string;
   task_b: string;

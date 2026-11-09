@@ -40,6 +40,14 @@ class Grade(str, Enum):
     DEFECT = "결함"
 
 
+class ConflictStatus(str, Enum):
+    """판정된 충돌의 처리 상태. 시스템은 작업을 승인·중지하지 않는다 — 사람의 조정을 기록할 뿐이다."""
+
+    OPEN = "open"  # 아직 조정되지 않음
+    ADJUSTED = "adjusted"  # 원청이 조정안을 적용함 (F4)
+    RESOLVED = "resolved"  # 재판정에서 사라짐 (해소)
+
+
 class Role(str, Enum):
     PRIME = "prime"  # 원청
     CONTRACTOR = "contractor"  # 협력사
@@ -99,6 +107,16 @@ class Conflict(BaseModel):
     reason: str
     suggestion: str | None = None
     sources: list[SourceRef] = []
+
+
+class ConflictRecord(BaseModel):
+    """저장된 충돌 하나. 판정 결과는 제출 응답에만 두지 않고 DB에 남겨 새로고침·F4 재판정·F5 이력에 쓴다."""
+
+    conflict: Conflict
+    status: ConflictStatus
+    plan_id: int | None = Field(default=None, description="이 충돌을 드러낸 제출")
+    judged_at: datetime
+    resolved_at: datetime | None = None
 
 
 class OverlapCandidate(BaseModel):

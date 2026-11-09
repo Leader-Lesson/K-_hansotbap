@@ -54,7 +54,12 @@
   </section>
 
   <section class="view" id="view-model" hidden>
-    <div class="m3">
+    <section class="card s3card" id="s3card">
+      <header><h2>고로 3D · 충돌</h2><span class="fx">F3 scene3d</span><span class="sub" id="s3info">불러오는 중…</span><span class="grow"></span>
+        <div class="seg" role="group" aria-label="3D 화면"><button data-act="m3src" data-s="scene3d">scene3d</button><button data-act="m3src" data-s="legacy">시안 3D</button></div></header>
+      <div class="s3frame" id="s3frame"></div>
+    </section>
+    <div class="m3" id="m3legacy">
       <section class="card">
         <header><h2>고로 3D</h2><span class="fx">F3</span>
           <div class="seg" role="group" aria-label="구분"><button data-act="mmode" data-m="task">작업별</button><button data-act="mmode" data-m="conf">충돌별</button></div>

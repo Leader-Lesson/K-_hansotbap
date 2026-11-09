@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from config import DATA_DIR
-from schemas import Hazard, Rule, Task, Zone
+from schemas import Hazard, Rule, SourceRef, Task, Zone
 
 HAZARD_COLUMNS = {
     "화기": Hazard.HOT_WORK,
@@ -80,6 +80,8 @@ def load_wbs_tasks() -> list[Task]:
                 hazards=[h for col, h in HAZARD_COLUMNS.items() if r.get(col, "0").strip() == "1"],
                 risk_codes=[c for c in r["위험코드(시행령53조의2)"].split(",") if c.strip()],
                 predecessors=_split(r.get("선행 작업", "")),
+                # 판정 근거로 보여 줄 출처. 업로드한 계획서에서 뽑은 작업(F1)은 그 문서 위치가 들어간다
+                source=SourceRef(file="gy2bf_wbs.csv", locator=r["작업ID"], text=r["작업명"]),
             )
         )
     return tasks
