@@ -8,6 +8,7 @@
 - 엑셀: `시트!B5` (행의 첫 값 셀), 셀 단위는 TableRow.cell_locs
 - PDF: `p2:L5` (2쪽 5번째 줄), 표 행은 `p2:T1:R3`
 - HWPX: `s0:p12` (구역 0의 12번째 문단), 표 행은 `s0:t1:r3`
+- Word(docx): `p12` (12번째 문단), 표 행은 `t1:r3`
 """
 
 from __future__ import annotations
@@ -59,7 +60,7 @@ class Table:
 @dataclass
 class ParsedDocument:
     filename: str
-    file_type: Literal["pdf", "xlsx", "hwpx"]
+    file_type: Literal["pdf", "xlsx", "hwpx", "docx"]
     segments: list[Segment] = field(default_factory=list)
     tables: list[Table] = field(default_factory=list)
 

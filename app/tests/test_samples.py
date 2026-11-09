@@ -1,4 +1,4 @@
-"""app/samples/ 의 합성 계획서 5건이 표 규칙(LLM 없이)으로 읽히고, 정답셋과 핵심 칸이 맞는지 본다.
+"""app/samples/ 의 합성 계획서 8건(PDF·엑셀·HWPX·Word)이 표 규칙(LLM 없이)으로 읽히고, 정답셋과 핵심 칸이 맞는지 본다.
 
 파일을 다시 만들었거나 파서·정규화 규칙을 바꿨을 때 시연 데이터가 깨지지 않았는지 확인하는 용도.
 """
@@ -9,12 +9,13 @@ from pathlib import Path
 import pytest
 
 from llm.extract import extract_plan
+from parsers.docx import parse_docx
 from parsers.hwpx import parse_hwpx
 from parsers.pdf import parse_pdf
 from parsers.xlsx import parse_xlsx
 
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"
-PARSERS = {".pdf": parse_pdf, ".xlsx": parse_xlsx, ".hwpx": parse_hwpx}
+PARSERS = {".pdf": parse_pdf, ".xlsx": parse_xlsx, ".hwpx": parse_hwpx, ".docx": parse_docx}
 ANSWERS = sorted((SAMPLES / "answers").glob("가상-*.json"))
 
 

@@ -1,0 +1,86 @@
+{
+  "file": "가상-기계E_노정해체_스테이브설치_작업계획서.docx",
+  "contractor": "가상-기계E",
+  "format": "docx",
+  "tasks": [
+    {
+      "wbs_id": "P09",
+      "name": "노정 장입설비(벨리스 탑·호퍼) 해체",
+      "zone_id": "TOP",
+      "start": "2026-11-14",
+      "end": "2026-11-26",
+      "shift": "day",
+      "headcount": 14,
+      "equipment": [
+        "250t 크레인",
+        "산소절단기 4조",
+        "체인블록 5t"
+      ],
+      "hazards": [
+        "gas",
+        "heavy_lift",
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P06"
+      ]
+    },
+    {
+      "wbs_id": "P11",
+      "name": "풍구·냉각기·송풍지관 철거",
+      "zone_id": "TUYERE",
+      "start": "2026-11-17",
+      "end": "2026-11-27",
+      "shift": "day",
+      "headcount": 10,
+      "equipment": [
+        "체인블록 3t",
+        "산소절단기 2조",
+        "지게차 3t"
+      ],
+      "hazards": [
+        "heavy_lift",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P06"
+      ]
+    },
+    {
+      "wbs_id": "P19",
+      "name": "스테이브·냉각판 설치와 냉각수 배관 연결",
+      "zone_id": "BELLY_BOSH",
+      "start": "2027-01-06",
+      "end": "2027-02-05",
+      "shift": "day",
+      "headcount": 18,
+      "equipment": [
+        "노내 호이스트",
+        "용접기 4대",
+        "달비계 2조"
+      ],
+      "hazards": [
+        "confined",
+        "heavy_lift",
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P18"
+      ]
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S5",
+      "type": "same_time_zone",
+      "rule_ids": [
+        "R12"
+      ],
+      "with": "가상-출선D P07 잔선구 출선(산소 랜싱) (HEARTH, 2026-11-13~11-14)",
+      "note": "노정 해체를 기준(11-15)보다 하루 앞당겨 출선 통제 시간대(24h)에 착수 — 금지"
+    }
+  ],
+  "note": "P09 착수일을 2026-11-14로 앞당겨 제출(기준 11-15). Word 양식 예시. 작업별 표준서 핵심 단계가 절차에 다 적혀 있어 결함 없음"
+}

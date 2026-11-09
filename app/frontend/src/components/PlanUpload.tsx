@@ -70,7 +70,7 @@ export function PlanUpload({ contractor, zones, onSubmitted }: Props) {
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="file"
-          accept=".hwpx,.xlsx,.xls,.pdf"
+          accept=".hwpx,.xlsx,.xls,.pdf,.docx"
           onChange={(e) => {
             setFile(e.target.files?.[0] ?? null);
             setExtraction(null);

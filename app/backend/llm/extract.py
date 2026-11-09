@@ -181,16 +181,20 @@ class Candidate:
     llm: LLMTask | None = None  # LLM 해석 (규칙 결과와 대조한다)
 
 
-_CONTRACTOR_LINE = re.compile(r"(?:업체명|업체|협력사|협력업체|회사명|시공사)\s*[:：]\s*(?P<v>[^\s|,]+)")
+_CONTRACTOR_LINE = re.compile(r"(?:업체명|업체|협력사|협력업체|회사명|시공사)\s*[:：|]\s*(?P<v>[^\s|,]+)")  # "업체명: X" 또는 표 칸 "업체명 | X"
 _VIRTUAL_NAME = re.compile(r"(?:가상|원청)-[0-9A-Za-z가-힣]+")
 
 
 def detect_contractor(doc: ParsedDocument) -> str | None:
     """문서 머리(앞 15줄)에 적힌 업체명."""
     for s in doc.segments[:15]:
+        m = _CONTRACTOR_LINE.search(s.text)
+        # 표 행은 데이터 행의 '업체' 칸을 잘못 잡지 않게, 첫 칸이 라벨인 "업체명 | 값" 꼴(Word·HWPX 머리 표)만 받는다
         if s.kind == "row":
+            if m and m.start() == 0:
+                return m.group("v")
             continue
-        if m := _CONTRACTOR_LINE.search(s.text):
+        if m:
             return m.group("v")
         if m := _VIRTUAL_NAME.search(s.text):
             return m.group(0)

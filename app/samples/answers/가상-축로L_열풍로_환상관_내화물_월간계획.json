@@ -1,0 +1,64 @@
+{
+  "file": "가상-축로L_열풍로_환상관_내화물_월간계획.hwpx",
+  "contractor": "가상-축로L",
+  "format": "hwpx",
+  "tasks": [
+    {
+      "wbs_id": "P26",
+      "name": "열풍로 돔·축열 연와·버너 보수",
+      "zone_id": "STOVE",
+      "start": "2026-11-17",
+      "end": "2027-03-06",
+      "shift": "day",
+      "headcount": 16,
+      "equipment": [
+        "돔 내부 달비계 2조",
+        "연와 호이스트 1t",
+        "용접기 2대",
+        "환기팬"
+      ],
+      "hazards": [
+        "confined",
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P06"
+      ]
+    },
+    {
+      "wbs_id": "P27",
+      "name": "열풍 본관·환상관 내화물",
+      "zone_id": "TUYERE",
+      "start": "2026-12-22",
+      "end": "2027-02-15",
+      "shift": "day",
+      "headcount": 12,
+      "equipment": [
+        "환상관 이동 발판",
+        "환기팬 2대",
+        "벽돌 운반 대차"
+      ],
+      "hazards": [
+        "confined",
+        "height"
+      ],
+      "predecessors": [
+        "P11"
+      ]
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S6",
+      "type": "sequence",
+      "rule_ids": [
+        "R08",
+        "R07"
+      ],
+      "with": "원청-제선 P35 열풍로 승온·가스 계통 기밀시험·퍼지 (STOVE, 2027-03-04~03-20)",
+      "note": "열풍로 보수를 03-06까지 연장해 제출 → 보수 완료 전 승온·가스 투입 — 금지. 조정안: 승온을 보수 완료·퇴출 확인 후로"
+    }
+  ],
+  "note": "P26 완료일을 2027-03-06으로 연장해 제출(기준 02-25). HWPX 양식 예시. 작업별 표준서 핵심 단계가 절차에 다 적혀 있어 결함 없음"
+}
