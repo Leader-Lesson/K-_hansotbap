@@ -4,11 +4,16 @@ import type {
   AdjustmentRecord,
   AdjustmentResult,
   ConflictRecord,
+  HistoryEvent,
   OverlapCandidate,
   PlanExtraction,
   PlanRecord,
   PlanSubmission,
   PlanSubmitResult,
+  RiskWindow,
+  Rule,
+  SharedItem,
+  ShareRequest,
   SopInfo,
   SopMatch,
   Task,
@@ -55,8 +60,10 @@ function qs(params: Record<string, string | boolean | undefined>): string {
 
 export const api = {
   zones: () => get<Zone[]>("/zones"),
-  tasks: () => get<Task[]>("/tasks"),
-  overlaps: () => get<OverlapCandidate[]>("/overlaps"),
+  rules: () => get<Rule[]>("/rules"),
+  // 협력사로 보면 자기 작업 + 공유된 충돌의 상대 작업만 (상대 작업의 source 는 null). 원청은 비워 둔다
+  tasks: (contractor?: string) => get<Task[]>(`/tasks${qs({ contractor })}`),
+  overlaps: (contractor?: string) => get<OverlapCandidate[]>(`/overlaps${qs({ contractor })}`),
 
   // ── F2 판정 결과 ───────────────────────────────────────────────────
   conflicts: (opts: { contractor?: string; includeResolved?: boolean } = {}) =>
@@ -91,4 +98,20 @@ export const api = {
     }),
   adjustments: (opts: { contractor?: string; taskId?: string } = {}) =>
     get<AdjustmentRecord[]>(`/adjustments${qs({ contractor: opts.contractor, task_id: opts.taskId })}`),
+
+  // ── F5 공유·이행 기록 ──────────────────────────────────────────────
+  // 원청이 확인한 충돌을 협력사에 공유 (원청 전용 — 협력사로 부르면 서버가 403). 이미 공유한 건은 처음 기록 유지
+  share: (body: ShareRequest) => json<ConflictRecord[]>("/shares", "POST", body),
+  // 협력사로 보면 자기 작업이 걸린 공유만 (최근 공유순)
+  shares: (contractor?: string) => get<SharedItem[]>(`/shares${qs({ contractor })}`),
+  history: (contractor?: string) => get<HistoryEvent[]>(`/history${qs({ contractor })}`),
+  // 이행 기록 엑셀은 파일 내려받기라 fetch 대신 <a href={api.historyExportUrl(...)}> 로 연다
+  historyExportUrl: (contractor?: string) => `/api/history/export${qs({ contractor })}`,
+
+  // ── F9 위험 시간대 ─────────────────────────────────────────────────
+  // 하루를 그리는 화면(간트)은 on 에 그 날짜(YYYY-MM-DD)를 넣는다. polish 는 공지 화면에서만 (LLM이라 몇 초 걸림)
+  riskWindows: (opts: { contractor?: string; trade?: string; zoneId?: string; on?: string; polish?: boolean } = {}) =>
+    get<RiskWindow[]>(
+      `/risk-windows${qs({ contractor: opts.contractor, trade: opts.trade, zone_id: opts.zoneId, on: opts.on, polish: opts.polish })}`,
+    ),
 };

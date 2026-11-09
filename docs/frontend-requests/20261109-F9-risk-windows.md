@@ -1,6 +1,6 @@
 # F9 위험 시간대 API
 
-- 상태: 미반영
+- 상태: 반영됨
 - 브랜치: `feat/F9-risk-windows`
 - 바뀐 곳: `app/backend/schemas.py`의 `RiskWindow`에 `trades`, `peak_grade`, `rule_ids`, `legal_basis`, `sources`, `notice`를 더했습니다. 기존 필드는 그대로입니다.
 - 쓰는 곳 / 까닭: 간트의 위험 시간대 띠, 3D 구역 색(시간 슬라이더), 협력사 화면의 공지, TBM 전달 항목.
