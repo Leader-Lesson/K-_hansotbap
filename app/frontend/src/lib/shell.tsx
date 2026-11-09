@@ -1,10 +1,10 @@
 // 화면 공통 상태: 날짜 · 시연 시각 · 탭. 헤더(AppHeader)와 원청·협력사 화면이 같이 쓴다 (시안 헤더처럼 날짜·시계·탭이 위에 있게)
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { PROJECT_D0, defaultSiteDate } from "@/lib/siteDate";
 
 export const DATE_KEY = "hansotbap.date"; // 판정 후 강제 새로고침을 해도 보던 날짜가 남게
 export const NOW_KEY = "hansotbap.now"; // 시연 시각 (상황판 시간표의 "지금" 선)
 export const DEF_NOW = 10.5; // 시연 시각 기본 10:30 (시안과 같음) [팀 설정값]
-export const FALLBACK_DATE = "2027-01-21";
 
 export interface TabDef {
   value: string;
@@ -44,7 +44,7 @@ const write = (k: string, v: string | null) => {
 
 export function ShellProvider({ children }: { children: ReactNode }) {
   const [override, setOverride] = useState<string | null>(() => read(DATE_KEY));
-  const [defaultDate, setDefaultDate] = useState(FALLBACK_DATE);
+  const [defaultDate, setDefaultDate] = useState(defaultSiteDate); // 화면이 데이터를 받아 정하기 전에는 오늘
   const [now, setNowState] = useState<number>(() => Number(read(NOW_KEY)) || DEF_NOW);
   const [tab, setTab] = useState("board");
   const [tabs, setTabsState] = useState<TabDef[]>([]);
@@ -97,9 +97,8 @@ export function useShellRegister(defaultDate: string, tabs: TabDef[]) {
   useEffect(() => ref.current.registerTabs(tabs), [key]);
 }
 
-/** 공정 일차: D0 = 2026-11-12 (백엔드 config.project_d0 와 같은 기준), 화입 예정 2027-03-23 */
-export const PROJECT_D0 = "2026-11-12";
-export const PROJECT_END = "2027-03-23";
+/** 공정 일차: D0·화입 예정일은 lib/siteDate.ts 한 곳에 둔다 (백엔드 config.project_d0 와 같은 기준) */
+export { PROJECT_D0, PROJECT_END } from "@/lib/siteDate";
 export const dayNo = (iso: string) =>
   Math.round((new Date(`${iso.slice(0, 10)}T00:00:00`).getTime() - new Date(`${PROJECT_D0}T00:00:00`).getTime()) / 86400000);
 export const shiftDay = (iso: string, n: number) => {

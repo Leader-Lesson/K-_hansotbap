@@ -4,9 +4,10 @@ import { useMemo, useState } from "react";
 import { ConflictList } from "@/components/ConflictList";
 import { SopMatchPanel } from "@/components/SopMatchPanel";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { GRADE_RANK, HAZARD_LABEL, fmtRange } from "@/lib/format";
+import { HAZARD_LABEL, fmtRange } from "@/lib/format";
 import { groupByZone, restrictionsForContractor, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
 import { useShell, useShellRegister } from "@/lib/shell";
+import { useDefaultBoardDate } from "@/lib/siteDate";
 import type { ConflictRecord, PlanRecord, SopInfo, SopMatch, Task, Zone } from "@/types";
 import { PLAN_STATUS_LABEL, PlanStatusChip } from "@/views/ApprovalPanel";
 import { HistoryView } from "@/views/HistoryView";
@@ -33,13 +34,8 @@ interface Props {
 export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches, sops, plans, restrictions }: Props) {
   const mine = tasks.filter((t) => t.contractor === contractor);
   const myRestrictions = useMemo(() => restrictionsForContractor(restrictions, tasks, contractor), [restrictions, tasks, contractor]);
-  // 3D 기본 날짜: 내 충돌 중 가장 높은 등급(같으면 먼저 시작하는 것)의 시작일 → 없으면 내 첫 작업 시작일
-  const defaultDate = useMemo(() => {
-    const top = [...conflicts].sort(
-      (a, b) => GRADE_RANK[b.conflict.grade] - GRADE_RANK[a.conflict.grade] || a.conflict.window_start.localeCompare(b.conflict.window_start),
-    )[0];
-    return (top?.conflict.window_start ?? [...mine].sort((a, b) => a.start.localeCompare(b.start))[0]?.start ?? "2027-01-21").slice(0, 10);
-  }, [conflicts, mine]);
+  // 기본 날짜는 오늘(일정 기간 밖이면 가장 가까운 공사일). 계획서를 낸 직후 한 번만 그 제출이 낸 충돌 날로 간다
+  const defaultDate = useDefaultBoardDate({ plans, conflicts, tasks });
   // 날짜·탭은 헤더(AppHeader)와 같이 쓴다
   const { date, setDate, tab, setTab } = useShell();
   const zoneName = (id: string) => zones.find((z) => z.id === id)?.name ?? id;

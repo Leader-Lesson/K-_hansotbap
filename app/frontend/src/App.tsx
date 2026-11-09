@@ -7,6 +7,7 @@ import { ChatDock } from "@/components/ChatDock";
 import { UploadDialog } from "@/components/UploadDialog";
 import { restrictionsFrom } from "@/lib/restrictions";
 import { DATE_KEY, ShellProvider, useShell } from "@/lib/shell";
+import { markJumpToLatestConflict } from "@/lib/siteDate";
 import type { AdjustmentResult, ConflictRecord, PlanRecord, PlanSubmitResult, SopInfo, SopMatch, Task, ViewerRole, Zone } from "@/types";
 import { ContractorView } from "@/views/ContractorView";
 import { PrimeView } from "@/views/PrimeView";
@@ -115,8 +116,9 @@ function AppInner() {
       intro.length ? `새로 생긴 공유 충돌 ${intro.length}건: ${intro.map((c) => `${c.id} (${c.grade})`).join(", ")}` : "",
       gone.length ? `해소된 공유 충돌 ${gone.length}건: ${gone.map((c) => c.id).join(", ")}` : "",
     ].filter(Boolean);
-    sessionStorage.removeItem(DATE_KEY); // 원청 화면이 이 제출이 낸 충돌 날짜로 가게
+    sessionStorage.removeItem(DATE_KEY);
     shell.setDate(null);
+    markJumpToLatestConflict(); // 이번 한 번만 이 제출이 낸 충돌 날짜로 간다 (평소 기본은 오늘)
     finishWithRefresh(parts.join(" · "), r.refresh);
   };
 

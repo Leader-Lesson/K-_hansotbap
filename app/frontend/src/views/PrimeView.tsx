@@ -8,10 +8,10 @@ import { ConflictList } from "@/components/ConflictList";
 import { RiskWindowList } from "@/components/RiskWindowList";
 import { SopMatchPanel } from "@/components/SopMatchPanel";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { GRADE_RANK } from "@/lib/format";
 import { usePerson } from "@/lib/person";
 import { groupByZone, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
 import { useShell, useShellRegister } from "@/lib/shell";
+import { useDefaultBoardDate } from "@/lib/siteDate";
 import type { AdjustmentResult, ConflictRecord, PlanRecord, RiskWindow, SopInfo, SopMatch, Task, ViewerRole, Zone } from "@/types";
 import { ApprovalPanel } from "@/views/ApprovalPanel";
 import { HistoryView } from "@/views/HistoryView";
@@ -35,17 +35,8 @@ interface Props {
 }
 
 export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onReload, onViewAs }: Props) {
-  // 기본 날짜: 가장 최근 제출한 협력사의 작업이 걸린 충돌 중 가장 높은 등급(같으면 먼저 시작)의 시작일.
-  // 제출 직후 그 협력사가 낸 충돌이 있는 날로 바로 간다. 제출이 없으면 기준 일정의 한 날
-  const defaultDate = useMemo(() => {
-    const latest = [...plans].sort((a, b) => b.id - a.id)[0];
-    if (!latest) return "2027-01-21";
-    const mine = new Set(tasks.filter((t) => t.contractor === latest.contractor).map((t) => t.id));
-    const top = conflicts
-      .filter((r) => r.conflict.task_ids.some((id) => mine.has(id)))
-      .sort((a, b) => GRADE_RANK[b.conflict.grade] - GRADE_RANK[a.conflict.grade] || a.conflict.window_start.localeCompare(b.conflict.window_start))[0];
-    return (top?.conflict.window_start ?? "2027-01-21").slice(0, 10);
-  }, [conflicts, tasks, plans]);
+  // 기본 날짜는 오늘(일정 기간 밖이면 가장 가까운 공사일). 계획서를 낸 직후 한 번만 그 제출이 낸 충돌 날로 간다
+  const defaultDate = useDefaultBoardDate({ plans, conflicts, tasks });
   // 날짜·탭은 헤더(AppHeader)와 같이 쓴다. 고른 날짜는 새로고침해도 남고, 새 제출이 오면 App 이 지워 새 충돌 날짜로 간다
   const { date, setDate, tab, setTab } = useShell();
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
