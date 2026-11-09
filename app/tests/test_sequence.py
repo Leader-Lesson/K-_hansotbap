@@ -53,7 +53,8 @@ def test_non_gas_task_is_not_line_connection():
 def test_detect_conflicts_includes_sequence_violations():
     tasks = _with_p34(start=D105)
     got = detect_conflicts(tasks, load_zones(), load_rules())
-    assert [c.id for c in got] == ["R08:P21>P34", "R08:P22>P34"]
+    # 전체 판정에는 다른 규칙(R07 등)도 함께 나온다. R08만 골라 보면 순서 위반 2건이다
+    assert [c.id for c in got if c.rule_id == "R08"] == ["R08:P21>P34", "R08:P22>P34"]
 
 
 def test_detect_sequence_violations_works_without_rules_argument():
