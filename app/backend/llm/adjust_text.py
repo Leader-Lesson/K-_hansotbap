@@ -24,6 +24,7 @@ _TOKENS = {
     "작업 ID": re.compile(r"(?<![A-Za-z0-9])P\d+(?!\d)"),
     "날짜": re.compile(r"\d{4}-\d{2}-\d{2}"),
     "규칙 번호": re.compile(r"(?<![A-Za-z0-9])R\d+(?!\d)"),
+    "시각": re.compile(r"(?<!\d)\d{2}:\d{2}(?!\d)"),
 }
 
 
@@ -32,19 +33,24 @@ def _tokens_preserved(original: str, polished: str) -> bool:
     return all(set(p.findall(original)) == set(p.findall(polished)) for p in _TOKENS.values())
 
 
-def polish_reason(reason: str) -> str:
-    """이유 문장을 다듬는다. 어떤 실패에서도 예외를 내지 않고 원문을 돌려준다."""
-    if not reason.strip():
-        return reason
+def polish_text(system: str, text: str) -> str:
+    """규칙이 만든 문장을 다듬는다. 어떤 실패에서도 예외를 내지 않고 원문을 돌려준다."""
+    if not text.strip():
+        return text
     try:
-        polished = get_provider().complete(_SYSTEM, reason).strip()
+        polished = get_provider().complete(system, text).strip()
     except Exception as e:  # 키 없음·네트워크·제공자 오류 모두. 메시지에 키가 섞일 수 있어 종류만 남긴다
-        log.warning("조정안 이유 문장 다듬기 실패, 원문 사용 (%s)", type(e).__name__)
-        return reason
+        log.warning("문장 다듬기 실패, 원문 사용 (%s)", type(e).__name__)
+        return text
     if not polished:
-        log.warning("조정안 이유 문장 다듬기 결과가 비어 원문 사용")
-        return reason
-    if not _tokens_preserved(reason, polished):
-        log.warning("조정안 이유 문장 다듬기 결과가 작업 ID·날짜·규칙 번호를 바꿔 원문 사용")
-        return reason
+        log.warning("문장 다듬기 결과가 비어 원문 사용")
+        return text
+    if not _tokens_preserved(text, polished):
+        log.warning("문장 다듬기 결과가 작업 ID·날짜·시각·규칙 번호를 바꿔 원문 사용")
+        return text
     return polished
+
+
+def polish_reason(reason: str) -> str:
+    """조정안 이유 문장을 다듬는다."""
+    return polish_text(_SYSTEM, reason)

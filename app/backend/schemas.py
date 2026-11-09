@@ -220,7 +220,7 @@ class OverlapCandidate(BaseModel):
 
 
 class RiskWindow(BaseModel):
-    """F9 위험 시간대."""
+    """F9 위험 시간대. 여러 날이 합쳐진 건은 start 날짜~end 날짜 동안 매일 start 시각~end 시각을 뜻한다."""
 
     zone_id: str
     start: datetime
@@ -229,6 +229,12 @@ class RiskWindow(BaseModel):
     contractors: list[str]
     conflict_ids: list[str]
     weights_note: str = "가중치는 팀 설정값"
+    trades: list[str] = Field(default=[], description="관련 공정")
+    peak_grade: Grade = Field(description="이 시간대에서 가장 높은 등급")
+    rule_ids: list[str] = []
+    legal_basis: list[str] = []
+    sources: list[SourceRef] = []
+    notice: str = Field(description="공지 문장")
 
 
 class SopStepCheck(BaseModel):
