@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>한솥밥 현장 상황판</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap bar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 14h22v4c0 5-4.5 9-11 9S5 23 5 18z" style="fill:var(--ink)"/><rect x="3" y="12" width="26" height="3" rx="1.5" style="fill:var(--ink)"/><path d="M11 9c0-2 2-2 2-4M16 9c0-2 2-2 2-4M21 9c0-2 2-2 2-4" style="stroke:var(--ink-3);fill:none" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <div><div class="n">한솥밥</div><div class="s">광양 2고로 개수 · 세이프루프</div></div>
+    </div>
+    <div class="clock"><span class="big" id="hClock">10:30</span><span><input type="date" id="dateIn" class="datein" min="2026-11-12" max="2027-03-23" aria-label="기준 날짜"><br><span class="sub" id="hD"></span></span>
+      <span class="daynav"><button data-act="dprev" aria-label="전날">‹</button><button data-act="dnext" aria-label="다음날">›</button></span></div>
+    <nav class="tabs" aria-label="화면">
+      <button class="tab" data-view="board">현재 상황판</button>
+      <button class="tab" data-view="model">3D · 충돌</button>
+      <button class="tab" data-view="tbm">TBM 확인</button>
+      <button class="tab" data-view="history">이력</button>
+    </nav>
+    <div class="right">
+      <label class="role" for="role"><span class="sub" hidden>역할</span><select id="role" aria-label="보는 사람"></select></label>
+      <button class="bell" data-act="bell" aria-label="알림"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9M10 20a2 2 0 0 0 4 0"/></svg><span class="badge" id="bellN" hidden></span></button>
+      <button class="upbtn" data-act="openup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>계획서 올리기<span class="badge" id="upBadge" hidden></span></button>
+      <span class="synth">합성 데이터</span>
+    </div>
+  </div>
+  <div id="urgentHost" aria-live="assertive"></div>
+</header>
+<section class="scen" aria-label="시연 순서"><div class="wrap"><span class="l">시연</span><ol id="scen"></ol><button class="link" data-act="reset">처음으로</button></div></section>
+
+<main class="wrap">
+  <section class="view" id="view-board" hidden>
+    <div id="bBanner"></div>
+    <div class="stats" id="bStats"></div>
+    <div id="bHold"></div>
+    <div id="bGuide"></div>
+    <section class="card">
+      <header><h2>오늘 작업 시간표</h2><span class="sub">07:00–19:00 · 30분 칸 · 구역은 위층부터</span><span class="grow"></span><div class="jumps" id="bJumps"></div></header>
+      <div class="tl-wrap" id="bTl"></div>
+      <div class="tl-legend">
+        <span><i class="sw" style="background:var(--red)"></i>금지 겹침</span><span><i class="sw" style="background:var(--amber)"></i>조건부 겹침</span><span><i class="sw" style="background:var(--blue);width:3px"></i>지금</span>
+        <span>위 띠: 위험 시간대 예보 <span class="fx">F9</span></span><span>점선 막대: 조정으로 옮겨진 작업</span>
+      </div>
+    </section>
+    <section class="acts" id="bActs"></section>
+  </section>
+
+  <section class="view" id="view-model" hidden>
+    <div class="m3">
+      <section class="card">
+        <header><h2>고로 3D</h2><span class="fx">F3</span>
+          <div class="seg" role="group" aria-label="구분"><button data-act="mmode" data-m="task">작업별</button><button data-act="mmode" data-m="conf">충돌별</button></div>
+          <div class="seg" role="group" aria-label="보기"><button data-act="mview" data-v="3d">3D</button><button data-act="mview" data-v="2d">2D 도면</button></div>
+          <span class="grow"></span><label class="btn sm" for="glbIn" style="cursor:pointer">3D 결과물 불러오기</label><input type="file" id="glbIn" accept=".glb,.gltf" hidden><button class="btn sm" data-act="extspec">연결 규격</button></header>
+        <div class="stage" id="stage"><span class="tag">임시 3D · 클레이 스타일 시안</span></div>
+        <div class="slider"><div class="r"><label for="mday" class="sub">공정일</label><input type="range" id="mday" min="1" max="132"><span id="mdayOut"></span></div><div class="ticks2" id="mticks"></div></div>
+        <div class="extinfo" id="extInfo" hidden></div>
+      </section>
+      <section class="card"><header><h2 id="mlTitle"></h2><span class="grow"></span><span class="sub" id="mlSub"></span></header><div class="lst" id="mList"></div></section>
+    </div>
+  </section>
+
+  <section class="view" id="view-tbm" hidden><div id="tbmBody"></div></section>
+  <section class="view" id="view-history" hidden><div id="hBody"></div></section>
+</main>
+
+<div id="drawerHost"></div>
+<div id="chatHost"></div>
+<button class="fab" data-act="chat" aria-label="AI 챗봇 열기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01" stroke-width="2.6"/></svg>AI</button>
+<div id="notiHost"></div>
+<div id="toastHost"></div>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

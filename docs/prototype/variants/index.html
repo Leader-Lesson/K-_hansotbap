@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>한솥밥 가시성 시안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+body{margin:0}[hidden]{display:none!important}
+/* Layout: 시안 비교 문서 — 섹션 3개(계획서 버튼 / 시간표 / TBM), 각 섹션은 시안 카드 그리드. 카드 = 축소 화면 + 이름 + 좋은 점·아쉬운 점 */
+:root{
+  --bg:#F2F4F6; --surface:#FFFFFF; --surface-2:#F6F8F9; --line:#DCE1E6; --line-2:#E9EDF0;
+  --ink:#192027; --ink-2:#4C5762; --ink-3:#7D8893;
+  --blue:#2462C8; --blue-soft:#E3ECFA; --blue-ink:#FFFFFF;
+  --red:#CF2F29; --red-soft:#FBE3E1; --amber:#B56B00; --amber-soft:#F8EBD3; --ok:#2B7B4D; --ok-soft:#DDF0E4;
+  --pA:#B4613C; --pB:#56688F; --pC:#1C8676; --pD:#857428; --pE:#9156A6;
+  --font:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1418; --surface:#161D22; --surface-2:#1C252B; --line:#2B363E; --line-2:#222C33; --ink:#E4E9ED; --ink-2:#A7B3BC; --ink-3:#7F8C95;
+  --blue:#6B9BEE; --blue-soft:#1A2B47; --blue-ink:#0B1730; --red:#F2706A; --red-soft:#3D1F1D; --amber:#E2A549; --amber-soft:#382B15; --ok:#5EC48A; --ok-soft:#163224;
+  --pA:#E08B62; --pB:#8FA2CC; --pC:#4CC0AD; --pD:#C9B553; --pE:#C68ADB; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1418; --surface:#161D22; --surface-2:#1C252B; --line:#2B363E; --line-2:#222C33; --ink:#E4E9ED; --ink-2:#A7B3BC; --ink-3:#7F8C95;
+  --blue:#6B9BEE; --blue-soft:#1A2B47; --blue-ink:#0B1730; --red:#F2706A; --red-soft:#3D1F1D; --amber:#E2A549; --amber-soft:#382B15; --ok:#5EC48A; --ok-soft:#163224;
+  --pA:#E08B62; --pB:#8FA2CC; --pC:#4CC0AD; --pD:#C9B553; --pE:#C68ADB; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+h1{font-size:20px;margin:0 0 4px;font-weight:700;text-wrap:balance}
+h2{font-size:16px;margin:0;font-weight:700;text-wrap:balance}
+.lead{color:var(--ink-2);margin:0 0 20px;max-width:72ch}
+.kw{color:var(--red);font-weight:500} .t{color:var(--blue);font-variant-numeric:tabular-nums} b{font-weight:700}
+.sub{font-size:12px;color:var(--ink-3)}
+section.s{margin-top:34px}
+.sh{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.rec{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13.5px}
+.rec ol{margin:4px 0 0;padding-left:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(520px,1fr))}
+@media (max-width:600px){.grid,.grid.wide{grid-template-columns:minmax(0,1fr)}}
+.v{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.v .shot{background:var(--bg);border-bottom:1px solid var(--line);padding:12px;min-height:200px;position:relative;overflow:hidden}
+.v .meta{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.v .nm{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.v .nm b{font-size:15px}
+.tag{font-size:11.5px;border-radius:999px;padding:0 8px;line-height:20px;background:var(--blue-soft);color:var(--blue);font-weight:500}
+.tag.cur{background:var(--ok-soft);color:var(--ok)}
+.pc{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pc div{background:var(--surface-2);border-radius:6px;padding:8px 10px;font-size:13px}
+.pc b{display:block;font-size:12px}
+/* mini app chrome */
+.app{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:11px}
+.bar{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--line)}
+.logo{width:14px;height:14px;border-radius:3px;background:var(--ink)}
+.clk{font-size:15px;font-weight:700;color:var(--blue)}
+.tabs{display:flex;gap:2px;margin-left:auto}
+.tb{padding:2px 6px;border-radius:4px;color:var(--ink-2)}
+.tb.on{background:var(--blue-soft);color:var(--blue);font-weight:500}
+.fill{display:inline-flex;align-items:center;gap:4px;background:var(--blue);color:var(--blue-ink);border-radius:5px;padding:3px 8px;font-weight:500;white-space:nowrap}
+.out{display:inline-flex;align-items:center;gap:4px;border:1.5px solid var(--blue);color:var(--blue);border-radius:5px;padding:2px 8px;font-weight:500;white-space:nowrap}
+.bdg{min-width:14px;height:14px;border-radius:7px;background:var(--red);color:#fff;font-size:9px;font-weight:700;display:inline-grid;place-items:center;padding:0 3px}
+.chip{border-radius:999px;padding:0 6px;font-size:10px;line-height:16px;white-space:nowrap}
+.ghostbody{padding:8px;display:flex;flex-direction:column;gap:5px}
+.ln{height:8px;border-radius:3px;background:var(--line-2)}
+.fab{position:absolute;right:20px;border-radius:20px;height:30px;padding:0 12px;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.18)}
+/* mini timeline */
+.tl{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:11px;position:relative}
+.tlr{display:grid;grid-template-columns:86px minmax(0,1fr);border-bottom:1px solid var(--line-2);position:relative}
+.tlr .lab{padding:5px 7px;border-right:1px solid var(--line-2);display:flex;flex-direction:column;justify-content:center;gap:1px;min-width:0}
+.trk{position:relative}
+.sc{height:18px}.sc span{position:absolute;top:2px;transform:translateX(-50%);font-size:9.5px;color:var(--ink-3)}
+.bar2{position:absolute;height:18px;border-radius:3px;display:flex;align-items:center;padding:0 4px;gap:3px;white-space:nowrap;overflow:hidden;font-size:10px}
+.nowl{position:absolute;top:0;bottom:0;border-left:2px solid var(--blue);z-index:3;pointer-events:none}
+.nowc{position:absolute;top:1px;transform:translateX(-50%);background:var(--blue);color:var(--blue-ink);font-size:9px;border-radius:3px;padding:0 4px;z-index:4}
+/* tbm mini */
+.mon{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.ck{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.mk{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:11px;flex:none}
+.mk.ok{background:var(--ok-soft);color:var(--ok)}.mk.no{background:var(--red-soft);color:var(--red)}.mk.wk{background:var(--amber-soft);color:var(--amber)}.mk.wait{background:var(--surface-2);color:var(--ink-3)}
+.recb{width:30px;height:30px;border-radius:50%;background:var(--red);flex:none}
+.prog{height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden}.prog i{display:block;height:100%;background:var(--ok)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <h1>한솥밥 가시성 시안</h1>
+  <p class="lead">계획서 버튼, 시간표, TBM 화면을 각각 여러 방향으로 그려 비교합니다. 글씨는 v2 규칙(빨강=위험 키워드, 진하게=사람 수, 파랑=시각)을 따르고, 데이터는 D65 · 2027.01.15(금) 10:30 가상 상황입니다.</p>
+
+  <section class="s" id="sec-up">
+    <div class="sh"><h2>1. 계획서 버튼</h2><span class="sub">모든 페이지에 있는 업로드 진입점 · 5종</span></div>
+    <div class="rec"><b>추천</b><ol><li>원청 화면은 <b>B4 제출 현황 띠</b>. 버튼과 "누가 냈고 무엇이 반려됐는지"를 한 줄에 같이 보여줍니다.</li><li>협력사 화면은 <b>B5 첫 화면 큰 카드</b>. 협력사가 이 시스템에서 하는 일 대부분이 계획서 제출이기 때문입니다.</li><li>공통 최소안은 <b>B1 파란 채움 버튼</b>(지금 시안에 적용됨).</li></ol></div>
+    <div class="grid" id="gUp"></div>
+  </section>
+
+  <section class="s" id="sec-tl">
+    <div class="sh"><h2>2. 시간표</h2><span class="sub">메인 상황판의 시간표만 · 5종</span></div>
+    <div class="rec"><b>추천</b><ol><li>원청 메인은 <b>T4 세로 겹침 띠 + 채운 막대</b>. 겹친 시간이 층을 가로질러 한 기둥으로 보여 위아래 겹침이 가장 빨리 읽힙니다.</li><li>현장 모니터는 <b>T3 지금 중심 확대</b>를 같이 쓰면 좋습니다.</li><li>협력사 화면은 <b>T5</b>가 기본입니다. 다른 회사 일정은 숨기고 겹친 시간만 빗금으로 보여줍니다(지금 시안에 적용됨).</li></ol></div>
+    <div class="grid wide" id="gTl"></div>
+  </section>
+
+  <section class="s" id="sec-tbm">
+    <div class="sh"><h2>3. TBM 페이지</h2><span class="sub">작업 전 협력사가 모니터에 띄워두는 화면 · 4종</span></div>
+    <div class="rec"><b>추천</b><ol><li><b>M3 대본형</b>. 팀장이 화면을 보고 그대로 읽으면 되니 빠뜨릴 일이 줄고, 말한 줄이 바로 초록으로 바뀌어 확인이 쉽습니다.</li><li>항목이 6개를 넘는 날은 <b>M2 진행 막대형</b>으로 남은 개수를 크게 보여주세요.</li></ol></div>
+    <div class="grid wide" id="gTbm"></div>
+  </section>
+</div>
+
+<script>
+"use strict";
+const card=(id,name,tag,desc,good,bad,shot,cur)=>`<article class="v"><div class="shot">${shot}</div><div class="meta"><div class="nm"><b>${id} ${name}</b><span class="tag ${cur?"cur":""}">${cur?"현재 적용":tag}</span></div><div>${desc}</div><div class="pc"><div><b>좋은 점</b>${good}</div><div><b>아쉬운 점</b>${bad}</div></div></div></article>`;
+const up='<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>';
+const head=(right,extra="")=>`<div class="app"><div class="bar"><span class="logo"></span><b>한솥밥</b><span class="clk">10:30</span><span class="tabs"><span class="tb on">상황판</span><span class="tb">3D</span><span class="tb">TBM</span><span class="tb">협력사별</span><span class="tb">이력</span></span>${right}</div>${extra}<div class="ghostbody">${'<div class="ln" style="width:92%"></div><div class="ln" style="width:76%"></div><div class="ln" style="width:88%"></div><div class="ln" style="width:60%"></div>'}</div></div>`;
+
+/* ---------- 1. 계획서 버튼 ---------- */
+const gUp=[
+ card("B1","파란 채움 버튼","최소안","상단 오른쪽에 파란색으로 채운 \"계획서 올리기\" 버튼과 확인 대기 배지를 둡니다.","화면 어디서나 같은 자리에 있고, 다른 버튼과 색으로 구분됩니다","무엇이 대기·반려 중인지는 눌러야 알 수 있습니다",
+   head(`<span class="fill">${up}계획서 올리기<span class="bdg">2</span></span>`),true),
+ card("B2","버튼 + 상태 칩","상태 강조","버튼 옆에 \"검토 대기 1 · 반려 1\" 칩을 붙여, 처리할 계획서가 있으면 색으로 알립니다.","눌러보지 않아도 반려·대기 상황이 보입니다","상단 바가 길어져 좁은 화면에서는 칩이 줄어듭니다",
+   head(`<span class="out">${up}계획서</span><span class="chip" style="background:var(--amber-soft);color:var(--amber)">검토 대기 1</span><span class="chip" style="background:var(--red-soft);color:var(--red)">반려 1</span>`)),
+ card("B3","플로팅 두 개","AI와 짝","우측 하단에 계획서 버튼과 AI 버튼을 세로로 쌓습니다. 둘 다 \"어느 페이지에나 있는\" 기능이라 같은 자리에 모읍니다.","스크롤해도 항상 손 닿는 곳에 있습니다","시간표 오른쪽 끝(17~19시)을 가릴 수 있습니다",
+   head("")+`<span class="fab" style="bottom:54px;background:var(--surface);color:var(--blue);border:1.5px solid var(--blue)">${up}계획서 올리기</span><span class="fab" style="bottom:16px;background:var(--blue);color:var(--blue-ink)">AI</span>`),
+ card("B4","제출 현황 띠","원청 추천","상단 아래에 협력사 5곳의 계획서 상태를 한 줄로 보여주고, 끝에 올리기 버튼을 둡니다. 반려는 \"포스코 본청 반려\"로 표시합니다.","누가 냈고 무엇이 반려됐는지 한눈에 보이고, 칸을 누르면 그 회사 파일이 바로 열립니다","세로 공간을 한 줄 더 씁니다",
+   head("",`<div class="bar" style="gap:5px;background:var(--surface-2)"><span class="sub" style="font-size:10px">계획서</span>${[["A","v1 반영","ok"],["B","v1 반영","ok"],["C","v2 반려","red"],["D","확인 2","amber"],["E","v1 반영","ok"]].map(([p,t,c])=>`<span class="chip" style="border:1px solid var(--line);background:var(--surface)"><span style="color:var(--p${p});font-weight:700">${p}사</span> <span style="color:var(--${c})">${t}</span></span>`).join("")}<span class="fill" style="margin-left:auto">${up}올리기</span></div>`)),
+ card("B5","첫 화면 큰 카드","협력사 추천","협력사로 들어오면 상황판 맨 위에 \"계획서 올리기\" 카드가 큽니다. 끌어다 놓는 칸이 카드 안에 바로 있습니다.","협력사가 가장 자주 하는 일이 첫 화면에 있습니다. 반려됐을 때 사유도 이 카드에 뜹니다","원청 화면에는 맞지 않아 역할별로 다르게 그려야 합니다",
+   `<div class="app"><div class="bar"><span class="logo"></span><b>한솥밥</b><span class="sub" style="font-size:10px">협력사 C사</span></div><div style="padding:10px;display:flex;flex-direction:column;gap:8px"><div style="border:2px dashed var(--blue);background:var(--blue-soft);border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px"><span style="color:var(--blue)">${up.replace(/12/g,"26")}</span><span><b style="font-size:13px">계획서 올리기</b><br><span class="sub" style="font-size:10px">여기로 끌어다 놓거나 눌러서 선택 · HWPX·엑셀·PDF</span></span></div><div style="border:1px solid var(--red);background:var(--red-soft);border-radius:6px;padding:6px 8px;font-size:10.5px"><b style="background:var(--ink);color:var(--surface);border-radius:3px;padding:0 4px">포스코 본청 반려</b> v2 · 질소 라인 연결을 <span class="kw">축조 완료 후</span>로 옮겨 다시 제출</div><div class="ln" style="width:80%"></div><div class="ln" style="width:65%"></div></div></div>`)
+];
+document.getElementById("gUp").innerHTML=gUp.join("");
+
+/* ---------- 2. 시간표 ---------- */
+const H0=7,H1=19,x=(h,a=H0,b=H1)=>((h-a)/(b-a)*100);
+const ROWS=[
+ {z:"노정",crew:18,bars:[{p:"B",n:"장입설비 설치",c:18,h0:9,h1:12},{p:"D",n:"계장 교체",c:4,h0:13,h1:17}]},
+ {z:"노 내부 중부",crew:32,bars:[{p:"A",n:"노흉 축조",c:32,h0:7,h1:19}]},
+ {z:"풍구 층",crew:18,bars:[{p:"C",n:"냉각수 배관 용단",c:12,h0:8,h1:14},{p:"D",n:"보온재 교체",c:6,h0:13,h1:17}]},
+ {z:"노 내부 바닥",crew:45,bars:[{p:"A",n:"노저 축조",c:45,h0:8,h1:18}]},
+ {z:"주상",crew:23,bars:[{p:"A",n:"출선구 축조",c:14,h0:8,h1:17},{p:"E",n:"링블록 인양",c:9,h0:10,h1:12}]}
+];
+const OV=[{rows:[0,1,3],h0:9,h1:12,lv:"cond",t:"위아래"},{rows:[4],h0:10,h1:12,lv:"red",t:"인양 반경"},{rows:[2],h0:13,h1:14,lv:"cond",t:"화기×가연물"}];
+const lvc=l=>l==="red"?"var(--red)":"var(--amber)";
+function lanes(b){const L=[];b.slice().sort((a,c)=>a.h0-c.h0).forEach(t=>{let i=L.findIndex(l=>l[l.length-1].h1<=t.h0);if(i<0){L.push([t]);i=L.length-1;}else L[i].push(t);t.l=i;});return L.length;}
+function scale(a=H0,b=H1){let s="";for(let h=a;h<=b;h+=2)s+=`<span style="left:${x(h,a,b)}%">${String(h).padStart(2,"0")}</span>`;return `<div class="tlr"><div class="lab sub" style="font-size:9.5px">구역</div><div class="trk sc">${s}<span class="nowc" style="left:${x(10.5,a,b)}%">10:30</span></div></div>`;}
+function tl1(){let h=`<div class="tl">${scale()}`;ROWS.forEach((r,ri)=>{const n=lanes(r.bars);const ov=OV.filter(o=>o.rows.includes(ri));
+  h+=`<div class="tlr" style="height:${n*22+6+ov.length*6}px"><div class="lab">${r.z}<span class="sub" style="font-size:9.5px"><b style="color:var(--ink)">${r.crew}명</b></span></div><div class="trk">${r.bars.map(b=>`<span class="bar2" style="left:${x(b.h0)}%;width:${x(b.h1)-x(b.h0)}%;top:${b.l*22+3}px;border-left:3px solid var(--p${b.p});background:color-mix(in srgb,var(--p${b.p}) 15%,var(--surface))"><span style="color:var(--p${b.p});font-weight:500">${b.p}사</span>${b.n}<b>${b.c}명</b></span>`).join("")}${ov.map((o,i)=>`<span style="position:absolute;left:${x(o.h0)}%;width:${x(o.h1)-x(o.h0)}%;top:${n*22+3+i*6}px;height:4px;border-radius:2px;background:${lvc(o.lv)}"></span>`).join("")}</div></div>`;});
+  return h+`<span class="nowl" style="left:calc(86px + (100% - 86px)*${x(10.5)/100})"></span></div>`;}
+function tl2(){let h=`<div class="tl">${scale()}`;ROWS.forEach((r,ri)=>{const n=lanes(r.bars);const ov=OV.filter(o=>o.rows.includes(ri));
+  h+=`<div class="tlr" style="height:${n*22+6}px"><div class="lab">${r.z}<span class="sub" style="font-size:9.5px"><b style="color:var(--ink)">${r.crew}명</b></span></div><div class="trk">${r.bars.map(b=>`<span class="bar2" style="left:${x(b.h0)}%;width:${x(b.h1)-x(b.h0)}%;top:${b.l*22+3}px;background:var(--surface-2);color:var(--ink-3);border:1px solid var(--line)">${b.p}사 ${b.n}</span>`).join("")}${ov.map(o=>r.bars.filter(b=>b.h0<o.h1&&o.h0<b.h1).map(b=>`<span class="bar2" style="left:${x(Math.max(o.h0,b.h0))}%;width:${x(Math.min(o.h1,b.h1))-x(Math.max(o.h0,b.h0))}%;top:${b.l*22+3}px;background:${lvc(o.lv)};color:#fff;font-weight:500;z-index:2">${o.t}</span>`).join("")).join("")}</div></div>`;});
+  return h+`<span class="nowl" style="left:calc(86px + (100% - 86px)*${x(10.5)/100})"></span></div>`;}
+function tl3(){const a=8,b=14;let h=`<div class="tl">${scale(a,b)}`;ROWS.forEach((r,ri)=>{const n=lanes(r.bars);const ov=OV.filter(o=>o.rows.includes(ri));
+  h+=`<div class="tlr" style="height:${n*28+6}px"><div class="lab">${r.z}<span style="font-size:13px"><b>${r.crew}</b><span class="sub">명</span></span></div><div class="trk">${r.bars.filter(t=>t.h1>a&&t.h0<b).map(t=>{const s=Math.max(t.h0,a),e=Math.min(t.h1,b);const left=t.h1>10.5?Math.round((t.h1-10.5)*60):0;
+    return `<span class="bar2" style="left:${x(s,a,b)}%;width:${x(e,a,b)-x(s,a,b)}%;top:${t.l*28+3}px;height:24px;font-size:11px;border-left:3px solid var(--p${t.p});background:color-mix(in srgb,var(--p${t.p}) 15%,var(--surface))">${t.p}사 ${t.n}${left?` <span class="t">남은 ${Math.floor(left/60)}시간${left%60?" "+left%60+"분":""}</span>`:""}</span>`;}).join("")}
+    ${ov.map(o=>`<span style="position:absolute;left:${x(Math.max(o.h0,a),a,b)}%;width:${x(Math.min(o.h1,b),a,b)-x(Math.max(o.h0,a),a,b)}%;top:0;bottom:0;border:1.5px solid ${lvc(o.lv)};border-radius:3px;pointer-events:none"></span>`).join("")}</div></div>`;});
+  return h+`<span style="position:absolute;top:18px;bottom:0;left:86px;width:calc((100% - 86px)*${x(10.5,a,b)/100});background:var(--bg);opacity:.55;pointer-events:none;z-index:2"></span><span class="nowl" style="left:calc(86px + (100% - 86px)*${x(10.5,a,b)/100})"></span></div>`;}
+function tl4(){let h=`<div class="tl">${scale()}`;ROWS.forEach((r,ri)=>{const n=lanes(r.bars);const hot=OV.find(o=>o.rows.includes(ri)&&o.h0<=10.5&&10.5<o.h1);
+  h+=`<div class="tlr" style="height:${n*22+6}px"><div class="lab" style="border-left:4px solid ${hot?lvc(hot.lv):"var(--line)"}"><span>${r.z}</span><span style="font-size:14px;line-height:1"><b>${r.crew}</b><span class="sub">명</span></span></div><div class="trk" style="background-image:repeating-linear-gradient(90deg,var(--line-2) 0 1px,transparent 1px calc(100%/24))">${r.bars.map(b=>`<span class="bar2" style="left:${x(b.h0)}%;width:${x(b.h1)-x(b.h0)}%;top:${b.l*22+3}px;background:var(--p${b.p});color:#fff;font-weight:500">${b.p}사 ${b.n} ${b.c}명</span>`).join("")}</div></div>`;});
+  h+=OV.map(o=>{const top=18;return `<span style="position:absolute;top:${top}px;bottom:0;left:calc(86px + (100% - 86px)*${x(o.h0)/100});width:calc((100% - 86px)*${(x(o.h1)-x(o.h0))/100});background:${o.lv==="red"?"var(--red-soft)":"var(--amber-soft)"};opacity:.55;border-left:2px solid ${lvc(o.lv)};border-right:2px solid ${lvc(o.lv)};pointer-events:none;z-index:1"></span>`;}).join("");
+  return h+`<span class="nowl" style="left:calc(86px + (100% - 86px)*${x(10.5)/100})"></span></div><div class="sub" style="margin-top:6px">세로 띠: <span class="t">09:00–12:00</span> 노정·중부·바닥 위아래 겹침, <span class="t">10:00–12:00</span> 주상 <span class="kw">인양 반경</span></div>`;}
+function tl5(){const mine=["C"];let h=`<div class="tl">${scale()}`;ROWS.forEach((r,ri)=>{const own=r.bars.filter(b=>mine.includes(b.p));const ov=OV.filter(o=>o.rows.includes(ri));
+  const ghost=ri===2?[{h0:13,h1:14,n:"타사 가연물 작업 · 겹침"}]:[];
+  if(!own.length&&!ghost.length){h+=`<div class="tlr" style="height:26px"><div class="lab">${r.z}<span class="sub" style="font-size:9.5px">작업 없음</span></div><div class="trk"></div></div>`;return;}
+  h+=`<div class="tlr" style="height:${(own.length+ghost.length)*22+6}px"><div class="lab">${r.z}<span class="sub" style="font-size:9.5px">${own.length?`<b style="color:var(--ink)">${own.reduce((a,b)=>a+b.c,0)}명</b>`:"타사 · 겹친 시간만"}</span></div><div class="trk">${own.map((b,i)=>`<span class="bar2" style="left:${x(b.h0)}%;width:${x(b.h1)-x(b.h0)}%;top:${i*22+3}px;border-left:3px solid var(--p${b.p});background:color-mix(in srgb,var(--p${b.p}) 15%,var(--surface))"><span style="color:var(--p${b.p});font-weight:500">C사</span>${b.n}<b>${b.c}명</b></span>`).join("")}${ghost.map((g,i)=>`<span class="bar2" style="left:${x(g.h0)}%;width:${x(g.h1)-x(g.h0)+12}%;top:${(own.length+i)*22+3}px;border-left:3px dashed var(--ink-3);background:repeating-linear-gradient(135deg,var(--surface-2) 0 5px,var(--line-2) 5px 10px);color:var(--ink-2)">${g.n}</span>`).join("")}</div></div>`;});
+  return h+`<span class="nowl" style="left:calc(86px + (100% - 86px)*${x(10.5)/100})"></span></div>`;}
+document.getElementById("gTl").innerHTML=[
+ card("T1","기본형","지금 시안","업체 색 막대와 막대 아래 겹침 띠. 시안4 그대로입니다.","언제 시작·끝나는지 정확히 보입니다","겹침 띠가 얇아 멀리서는 안 보이고, 위아래 겹침이 층마다 흩어집니다",tl1()),
+ card("T2","겹침만 색","대비 강조","모든 막대를 회색으로 두고, 겹친 구간만 막대 위에 빨강·주황으로 칠합니다.","눈이 바로 겹친 곳으로 갑니다. 멀리서도 보입니다","업체 구분이 약해집니다(업체명 글자로만 구분)",tl2()),
+ card("T3","지금 중심 확대","현장 모니터","지금 기준 앞뒤 몇 시간만 크게 보여주고, 지난 시간은 흐리게, 진행 중 작업에는 남은 시간을 붙입니다.","막대와 글자가 커지고 \"지금·곧\" 할 일만 남습니다","오후 일정은 스크롤하거나 범위를 바꿔야 보입니다",tl3()),
+ card("T4","세로 겹침 띠 + 채운 막대","원청 추천","겹친 시간을 층을 가로지르는 세로 띠로 칠하고, 행 머리에 상태 색 띠와 큰 인원 숫자를 둡니다. 막대는 업체 색으로 꽉 채웁니다.","위아래 겹침이 한 기둥으로 보여 고로 구조와 맞게 읽힙니다. 30분 격자가 진해 시각을 읽기 쉽습니다","세로 띠가 여러 개 겹치는 날은 화면이 붉어질 수 있습니다",tl4()),
+ card("T5","협력사 보기","권한 적용","C사로 볼 때: 우리 막대만 보이고, 다른 회사는 겹친 시간만 빗금 막대로 \"타사 가연물 작업 · 겹침\"처럼 보입니다.","다른 회사 일정·인원이 드러나지 않으면서 위험한 시간은 알 수 있습니다","타사 작업이 언제 끝나는지는 알 수 없습니다(본청 공유 범위만)",tl5(),true)
+].join("");
+
+/* ---------- 3. TBM ---------- */
+const ITEMS=[["선행 작업(노흉 축조) 완료 확인","wk","\"축조는 끝났다고 들었습니다\" · 전해 들은 말"],["노내 인원 철수 확인","no",""],["질소 밸브 잠금·표지 유지","ok","\"질소 밸브 잠금 태그는 제가 확인했고요\""],["인접 화기작업 중지·가스 차단","no",""],["기밀시험 실시","no",""],["산소농도 측정","ok","\"산소농도는 입구에서 한 번 더 재고\""]];
+const mk=s=>`<span class="mk ${s}">${s==="ok"?"✓":s==="no"?"✕":s==="wk"?"!":"·"}</span>`;
+document.getElementById("gTbm").innerHTML=[
+ card("M1","큰 체크리스트","글씨 크게","전달할 항목만 화면 가득 큰 글씨로 띄우고, 녹음 버튼은 아래에 작게 둡니다.","3m 떨어져서도 읽힙니다. 빠진 항목이 빨갛게 바로 보입니다","왜 이 항목이 나왔는지(근거)는 작게만 보입니다",
+   `<div class="mon"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:15px">C사 TBM</b><span class="t">2/24(수) 06:50</span></div>${ITEMS.slice(0,5).map(([t,s])=>`<div class="ck" style="font-size:14px;${s==="no"?"border-color:var(--red)":""}">${mk(s)}<span>${t}</span></div>`).join("")}<div style="display:flex;align-items:center;gap:8px"><span class="recb" style="width:22px;height:22px"></span><span class="sub">누르고 말하기</span></div></div>`),
+ card("M2","진행 막대형","남은 개수","맨 위에 \"전달 2 / 6\"을 크게, 아래 진행 막대와 항목 카드 격자를 둡니다. 말하는 대로 카드가 초록으로 바뀝니다.","얼마나 남았는지 숫자 하나로 보입니다. 항목이 많은 날에 좋습니다","카드가 작아 항목 문장이 길면 줄바꿈이 많습니다",
+   `<div class="mon"><div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:28px;font-weight:700;color:var(--ok)">2</span><span style="font-size:16px;color:var(--ink-3)">/ 6 전달됨</span><span style="margin-left:auto" class="kw">4개 남음</span></div><div class="prog"><i style="width:33%"></i></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">${ITEMS.map(([t,s])=>`<div style="border:1px solid ${s==="ok"?"var(--ok)":s==="no"?"var(--line)":"var(--amber)"};background:${s==="ok"?"var(--ok-soft)":"var(--surface)"};border-radius:6px;padding:6px;font-size:10.5px;min-height:46px">${mk(s)}<div style="margin-top:3px">${t}</div></div>`).join("")}</div></div>`),
+ card("M3","대본형","추천","\"오늘 이렇게 말하세요\" 문장을 순서대로 띄웁니다. 팀장이 읽으면 그 줄이 초록으로 바뀌고, 건너뛴 줄은 빨간 테두리가 남습니다.","팀장이 화면을 보고 그대로 읽으면 돼서 빠뜨릴 일이 가장 적습니다","말투가 대본과 다르면 패턴 판정이 놓칠 수 있어 LLM 판단이 필요합니다",
+   `<div class="mon" style="gap:5px"><div class="sub">오늘 이렇게 말하세요 · 포스코 본청 공유 내용</div>${[["노흉 축조가 끝났고 A사 반장에게 완료 확인을 받았습니다.","wk"],["노내 인원이 모두 나간 것을 확인하고 서명을 받았습니다.","no"],["질소 밸브는 연결이 끝날 때까지 잠그고 표지를 붙입니다.","ok"],["주변 용접 작업이 없는지 확인했고 가스를 차단합니다.","no"],["연결 후 기밀시험을 하고, 들어가기 전 산소농도를 잽니다.","ok"]].map(([t,s])=>`<div style="display:flex;gap:8px;align-items:flex-start;padding:5px 8px;border-radius:6px;font-size:13px;line-height:1.45;border:1.5px solid ${s==="ok"?"transparent":s==="no"?"var(--red)":"var(--amber)"};background:${s==="ok"?"var(--ok-soft)":"var(--surface)"};color:${s==="ok"?"var(--ok)":"var(--ink)"}">${mk(s)}<span>${t}</span></div>`).join("")}<div style="display:flex;align-items:center;gap:8px"><span class="recb" style="width:22px;height:22px"></span><span class="kw" style="font-size:12px">듣는 중</span></div></div>`),
+ card("M4","위험 지도형","위치 강조","왼쪽에 고로 단면을 작게 그려 오늘 위험한 층을 칠하고, 오른쪽에 그 층과 관련된 항목을 둡니다.","작업자가 \"어디가 위험한지\"를 그림으로 먼저 봅니다","화면을 둘로 나눠 항목 글씨가 작아집니다",
+   `<div class="mon" style="flex-direction:row;gap:10px"><svg viewBox="0 0 90 150" width="90" height="150" aria-hidden="true"><path d="M33 8h24l4 20H29z" style="fill:var(--surface-2);stroke:var(--line)"/><path d="M29 30h32l6 34H23z" style="fill:var(--red-soft);stroke:var(--red)" stroke-width="2"/><path d="M23 66h44l-2 22H25z" style="fill:var(--surface-2);stroke:var(--line)"/><path d="M25 90h40v14H25z" style="fill:var(--surface-2);stroke:var(--line)"/><path d="M27 106h36v30H27z" style="fill:var(--surface-2);stroke:var(--line)"/><text x="45" y="50" text-anchor="middle" font-size="9" style="fill:var(--red)">중부</text><text x="45" y="126" text-anchor="middle" font-size="8" style="fill:var(--ink-3)">바닥</text></svg><div style="flex:1;display:flex;flex-direction:column;gap:5px"><b style="font-size:12px">노 내부 중부 · <span class="t">13:00–18:00</span></b>${ITEMS.slice(0,4).map(([t,s])=>`<div class="ck" style="font-size:11.5px;padding:4px 6px">${mk(s)}<span>${t}</span></div>`).join("")}</div></div>`)
+].join("");
+</script>
+
+</body>
+</html>
