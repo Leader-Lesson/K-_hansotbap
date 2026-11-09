@@ -1,5 +1,8 @@
-/* 한솥밥 3D · 구역 배너 (화면 좌우 가장자리 + 지시선) */
+/* 한솥밥 3D · 구역 배너 (화면 좌우 가장자리 + 지시선)
+   입력: setData({byZone}) 구역별 작업·판정 / setBarriers(list) 그 시각 출입 제한(app.js barrierList(t))
+   → 출입 제한 구역 배너 아래에 빨간 꼬리표 「북·동 출입 금지 · HH:MM까지」 (권한과 무관하게 모두에게 보임) */
 import * as THREE from 'three';
+import { barrierText } from './theme.js';
 
 // 판정별 배너 색
 const STYLE = {
@@ -36,6 +39,10 @@ const CSS = `
 .bn-name{font-size:16px;font-weight:700;overflow:hidden;text-overflow:ellipsis}
 .bn-l2{font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.95}
 .bn-l2 b{font-size:15px}
+.bn-ban{display:block;margin:5px 0 1px;padding:2px 7px;border-radius:5px;background:#c62828;color:#fff;
+  font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bn-ban::before{content:"";display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:50%;background:currentColor;vertical-align:1px}
+.bn-ban-inv{background:#fff;color:#c62828}
 .bn-sel{outline:3px solid #222;outline-offset:2px;z-index:2}
 .bn-dim{opacity:.25}
 .bn-pulse{animation:bn-glow 1.6s ease-in-out infinite}
@@ -64,6 +71,7 @@ export function buildBanners({ container, camera, renderer, furnace, zones, onZo
   const zoneName = new Map((zones || []).map((z) => [z.id, z.name]));
   const items = new Map(); // zoneId → {el, g, line, dot, key, h, ...}
   let byZone = new Map();
+  let barByZone = new Map(); // zoneId → 출입 제한 한 항목 {blocked, center, until, …}
   let visible = new Set();
   let focus = null;
   let enabled = true;
@@ -100,7 +108,8 @@ export function buildBanners({ container, camera, renderer, furnace, zones, onZo
     const st = STYLE[d.worst] || null;
     const name = d.name || zoneName.get(id) || id;
     const type = d.topType ? (SHORT_TYPE[d.topType] || d.topType) : '';
-    const key = [name, d.crew, d.taskCount, d.worst, type].join('|');
+    const ban = barrierText(barByZone.get(id));
+    const key = [name, d.crew, d.taskCount, d.worst, type, ban].join('|');
     if (key === it.key) return;
     it.key = key;
     const c = st || NONE;
@@ -114,8 +123,10 @@ export function buildBanners({ container, camera, renderer, furnace, zones, onZo
     const chip = st ? `<span class="bn-chip">${st.mark} ${st.label}</span>` : '';
     const crewTxt = d.crew == null ? (d.crewHidden ? '인원 비공개' : '인원 미기재') : `인원 <b>${d.crew}</b>명`;   // 권한 밖(다른 업체) 작업은 인원 숨김
     const l2 = `작업 ${d.taskCount ?? 0}건 · ${crewTxt}${type ? ` · ${esc(type)}` : ''}`;
-    it.el.innerHTML = `<div class="bn-l1">${chip}<span class="bn-name">${esc(name)}</span></div><div class="bn-l2">${l2}</div>`;
-    it.el.title = name;
+    // 출입 금지 꼬리표: 빨간 배너(금지) 위에서는 흰 바탕·빨간 글자로 뒤집어 보이게
+    const banHtml = ban ? `<div class="bn-ban${d.worst === 'PROHIBITED' ? ' bn-ban-inv' : ''}">${esc(ban)}</div>` : '';
+    it.el.innerHTML = `<div class="bn-l1">${chip}<span class="bn-name">${esc(name)}</span></div><div class="bn-l2">${l2}</div>${banHtml}`;
+    it.el.title = ban ? `${name} · ${ban}` : name;
     it.hdirty = true; // 높이는 보일 때 다시 잼
   }
 
@@ -214,6 +225,12 @@ export function buildBanners({ container, camera, renderer, furnace, zones, onZo
       byZone = m instanceof Map ? m : new Map(Object.entries(m || {}));
       for (const id of byZone.keys()) render(id, getItem(id));
       for (const id of visible) render(id, getItem(id));
+    },
+    /* 그 시각 출입 제한 목록 [{zoneId, blocked:['N',…], center, until:'HH:MM', …}] — 바뀐 구역만 다시 그림(render가 key로 비교) */
+    setBarriers(list) {
+      const prev = barByZone;
+      barByZone = new Map((list || []).map((b) => [b.zoneId, b]));
+      for (const id of new Set([...prev.keys(), ...barByZone.keys()])) render(id, getItem(id));
     },
     setVisibleZones(ids) {
       visible = new Set(ids || []);

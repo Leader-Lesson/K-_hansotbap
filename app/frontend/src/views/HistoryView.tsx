@@ -147,7 +147,7 @@ export function HistoryView({ plans, tasks, contractor }: Props) {
               <TypeBadge type={r.conflict.type} />
               <span className="font-mono">{r.conflict.id}</span>
               <span className="text-stone-600">{r.conflict.task_ids.map((id) => taskOf(id)?.name ?? id).join(" × ")}</span>
-              <span className={`ml-auto rounded px-1.5 py-0.5 ${r.status === "resolved" ? "bg-stone-100 text-stone-600" : r.status === "adjusted" ? "bg-emerald-100 text-emerald-800" : "bg-red-50 text-red-700"}`}>
+              <span className={`ml-auto rounded px-1.5 py-0.5 ${r.status === "resolved" ? "bg-stone-100 text-stone-600" : r.status === "adjusted" ? "bg-ok-soft text-ok" : "bg-red-50 text-red-700"}`}>
                 {CF_STATUS[r.status]}
               </span>
               <span className="text-stone-400">{fmtDateTime(r.judged_at)}</span>

@@ -31,7 +31,7 @@ export function SopMatchPanel({ matches, tasks = [], emptyText = "매칭된 표�
               </span>
               <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">신뢰도 {Math.round(m.score * 100)}%</span>
               {m.primary ? (
-                <span className="rounded bg-sky-100 px-1.5 py-0.5 text-xs text-sky-800">주 표준서</span>
+                <span className="rounded bg-brand-soft px-1.5 py-0.5 text-xs text-brand-hover">주 표준서</span>
               ) : (
                 <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500">참고</span>
               )}

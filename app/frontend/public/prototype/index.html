@@ -39,7 +39,8 @@
   </div>
   <div id="urgentHost" aria-live="assertive"></div>
 </header>
-<section class="scen" aria-label="시연 순서"><div class="wrap"><span class="l">시연</span><ol id="scen"></ol><button class="link" data-act="reset">처음으로</button></div></section>
+<!-- 시연 띠: 기본은 접힌 한 줄(진행 n/12 · 단계 이름 · 다음 단계), 펼치면 12단계 버튼. 열림 상태는 sessionStorage "hansotbap.scenOpen" -->
+<section class="scen" aria-label="시연 순서"><div class="wrap"><span class="l">시연</span><span class="ssum" id="scenSum"></span><ol id="scen" hidden></ol><button class="link" id="scenTg" data-act="scen" aria-controls="scen" aria-expanded="false">펼치기 ▾</button><button class="link" data-act="reset">처음으로</button></div></section>
 
 <main class="wrap">
   <section class="view" id="view-board" hidden>

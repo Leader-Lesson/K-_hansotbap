@@ -5,7 +5,7 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 
 import { buildFurnace } from './furnace.js';
 import { renderFloorPlan } from './plan2d.js';
-import { SEV, LEVEL_NAME, WORK_TYPE_NAME, TYPE_NAME, fmtTime, fmtDateTime } from './theme.js';
+import { SEV, LEVEL_NAME, WORK_TYPE_NAME, TYPE_NAME, fmtTime, fmtDateTime, barrierText } from './theme.js';
 
 const SIDE_NAME = { in: '노 내부', out: '외부 작업대', aux: '부대설비' };
 import { ZONES, COMPANIES, TASKS, CONFLICTS, DEMO, SAMPLE_CHANGE, SAMPLE_OVERTIME } from './data.js';
@@ -69,6 +69,7 @@ const state = {
   view: { tasks: [], conflicts: [] },   // 권한을 적용한 전체(시간 무관) 데이터
   externalConflicts: false,   // 부모(시안·서버)가 판정을 넘기면 그것만 씀 — 규칙 엔진이 경고를 더 만들지 않게
   restrictions: null,
+  barriers: null,             // 그 시각 출입 제한 barrierList(t) — refresh()에서 한 번 계산해 안전띠·배너·라벨·왼쪽 목록이 같이 씀
   violations: [],             // 출입 제한 구역 안 작업 (긴급 알림 대상)         // 부모가 넘긴 방위별 출입 제한 (없으면 위험 영역에서 계산)
 };
 
@@ -194,9 +195,10 @@ function updateLabels() {
     const crew = crewInZone(zid);
     const sev = worstSeverity(zid);
     const sel = zid === state.zoneId;
-    // 전체 보기: 사람 있거나 충돌 있는 구역만, 층 선택: 그 층 전부
+    const bar = (state.barriers || []).find((b) => b.zoneId === zid);
+    // 전체 보기: 사람 있거나 충돌·출입 제한 있는 구역만, 층 선택: 그 층 전부
     const visible = !extras.banners && state.mode === '3d' && (state.level == null
-      ? (crew > 0 || sev || sel)
+      ? (crew > 0 || sev || sel || bar)
       : z.level === state.level);
     obj.visible = !!visible;
     el.style.display = visible ? '' : 'none';
@@ -204,7 +206,8 @@ function updateLabels() {
     el.className = 'zlabel' + (sev ? ' sev' : '') + (sel ? ' sel' : '');
     el.style.borderColor = sev && !sel ? SEV[sev].color : '';
     el.innerHTML = `${sev ? `<span style="color:${SEV[sev].color}">${SEV[sev].mark}</span> ` : ''}${esc(z.name)}`
-      + (crew ? `<span class="crew">${crew}명</span>` : '');
+      + (crew ? `<span class="crew">${crew}명</span>` : '')
+      + (bar ? `<span class="zl-ban">${esc(barrierText(bar))}</span>` : '');
   }
 }
 
@@ -424,7 +427,7 @@ function renderFloorList() {
   const tasks = [...state.view.tasks.filter(inDay), ...pendingVisible().filter(inDay)];
   document.querySelector('.floors').innerHTML = renderLeft({
     zones: ZONES, tasks, conflicts: state.active.conflicts,
-    selectedZoneId: state.zoneId, selectedTaskId: state.taskId, t: state.t,
+    selectedZoneId: state.zoneId, selectedTaskId: state.taskId, t: state.t, barriers: state.barriers,
   });
 }
 
@@ -571,11 +574,11 @@ function renderDetail() {
       guidance: guidanceOf(task?.zone_ids?.[0]), alternatives: ALTERNATIVES, role: state.role });
   } else if (state.zoneId) {
     html = renderRightZone({ zone: zoneById.get(state.zoneId), zones: ZONES, t: state.t, tasks: tasksInZone(state.zoneId),
-      conflicts: conflictsInZone(state.zoneId), alternatives: ALTERNATIVES, guidance: guidanceOf(state.zoneId),
+      allTasks: state.view.tasks, conflicts: conflictsInZone(state.zoneId), alternatives: ALTERNATIVES, guidance: guidanceOf(state.zoneId),
       selectedTaskId: state.taskId, role: state.role, selectedConflictId: state.conflictId });
   } else {
     html = renderRightIntro({ title: state.role.id === 'PRIME' ? '전체' : `${state.role.name} 화면`, t: state.t, zones: ZONES,
-      conflicts: state.active.conflicts, tasks: state.active.tasks, alternatives: ALTERNATIVES, role: state.role, selectedConflictId: state.conflictId,
+      conflicts: state.active.conflicts, tasks: state.active.tasks, allTasks: state.view.tasks, alternatives: ALTERNATIVES, role: state.role, selectedConflictId: state.conflictId,
       violations: safeViolations(), pending: pendingVisible().length });
   }
   if (!state.taskId && !state.zoneId) html += placementGuideHtml();
@@ -636,6 +639,7 @@ function syncExtras() {
   const t = state.t;
   const hl = state.conflictId ? CONFLICTS.find((c) => c.id === state.conflictId) : null;
   const call = (name, fn) => { try { if (extras[name]) fn(extras[name]); } catch (e) { console.warn('[scene3d]', name, e); } };
+  const bars = state.barriers || barrierList(t);   // refresh()에서 계산한 그 시각 출입 제한
   call('equipment', (x) => x.setActive?.({ tasks, t }));
   call('workers', (x) => {
     x.setActive?.({ tasks: tasks.map((k) => ({ ...k, place_dirs: taskDirsAt(k, t) })), t });
@@ -659,12 +663,14 @@ function syncExtras() {
         worst: worstSeverity(z.id), topType: cs[0] ? cs[0].type : null });
     }
     x.setData({ byZone });
-    const vis = ZONES.filter((z) => (state.level == null ? (byZone.get(z.id).taskCount || byZone.get(z.id).worst) : z.level === state.level)).map((z) => z.id);
+    x.setBarriers?.(bars);   // 배너에 빨간 「출입 금지 · HH:MM까지」 꼬리표 (권한과 무관하게 모두에게)
+    const barZ = new Set(bars.map((b) => b.zoneId));
+    const vis = ZONES.filter((z) => (state.level == null ? (byZone.get(z.id).taskCount || byZone.get(z.id).worst || barZ.has(z.id)) : z.level === state.level)).map((z) => z.id);
     x.setVisibleZones(state.focus ? [...new Set([...vis, ...state.focus.ids])].filter((id) => state.focus.ids.includes(id)) : vis);
     x.setFocus(state.focus ? { zoneId: state.focus.zoneId, relatedIds: state.focus.ids.filter((id) => id !== state.focus.zoneId) } : null);
     x.setEnabled(state.mode === '3d');
   });
-  call('barriers', (x) => { x.set(barrierList(t)); x.setNight?.(extras.look?.nightLevel?.() ?? 0); });
+  call('barriers', (x) => { x.set(bars); x.setNight?.(extras.look?.nightLevel?.() ?? 0); });
   call('safezones', (x) => {
     const zid = state.taskId ? (TASKS.find((k) => k.id === state.taskId)?.zone_ids || [])[0] : state.zoneId;
     if (!zid || state.mode !== '3d' || !zoneById.has(zid)) { x.clear(); return; }
@@ -1021,6 +1027,7 @@ state.role = session.role || state.role;
 
 // ---------- 전체 갱신 ----------
 function refresh() {
+  state.barriers = barrierList(state.t);   // 한 번만 계산 → 안전띠(barriers)·배너(banners)·3D 라벨·왼쪽 목록
   applyFocus();
   updateViolations();
   try { SH?.renderHandoverBanner($('view'), { t: state.t, onOpen: openHandover }); } catch (e) { console.warn('[scene3d] 인계 띠', e); }
