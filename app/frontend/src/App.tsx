@@ -2,6 +2,7 @@
 // 역할(원청/협력사)을 고르면 서버가 걸러 준 데이터로 원청 화면·협력사 화면을 보여 준다
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/api/client";
+import { BrandLogo } from "@/components/BrandLogo";
 import { restrictionsFrom } from "@/lib/restrictions";
 import type { AdjustmentResult, ConflictRecord, OverlapCandidate, PlanRecord, PlanSubmitResult, SopInfo, SopMatch, Task, ViewerRole, Zone } from "@/types";
 import { ContractorView } from "@/views/ContractorView";
@@ -129,11 +130,7 @@ export default function App() {
       <header className="sticky top-0 z-20 border-b border-stone-200 bg-white">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2 xl:px-6">
           <div className="flex items-center gap-2.5">
-            <svg viewBox="0 0 32 32" aria-hidden="true" className="h-8 w-8">
-              <path d="M5 14h22v4c0 5-4.5 9-11 9S5 23 5 18z" fill="#192027" />
-              <rect x="3" y="12" width="26" height="3" rx="1.5" fill="#192027" />
-              <path d="M11 9c0-2 2-2 2-4M16 9c0-2 2-2 2-4M21 9c0-2 2-2 2-4" stroke="#7d8893" fill="none" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
+            <BrandLogo />
             <div>
               <div className="text-[15px] font-bold leading-tight">한솥밥</div>
               <div className="text-[11.5px] text-stone-500">광양 2고로 개수 · 협력사 동시작업 간섭 감지</div>
