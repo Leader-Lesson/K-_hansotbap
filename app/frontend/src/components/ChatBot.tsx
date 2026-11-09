@@ -79,7 +79,11 @@ function BotMessage({ res }: { res: ChatResponse }) {
   );
 }
 
-export function ChatBot({ contractor }: { contractor?: string }) {
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** today: 화면에서 보는 날짜(YYYY-MM-DD). '오늘'·'내일'·'이번 주'를 이 날짜 기준으로 묻는다. 없으면 서버가 정한다 */
+export function ChatBot({ contractor, today }: { contractor?: string; today?: string | null }) {
+  const baseDate = today && ISO_DATE.test(today) ? today : null;
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -134,7 +138,7 @@ export function ChatBot({ contractor }: { contractor?: string }) {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     try {
-      const res = await api.chat({ question, history }, { contractor, signal: ctrl.signal });
+      const res = await api.chat({ question, history, today: baseDate }, { contractor, signal: ctrl.signal });
       push({ kind: "bot", res });
     } catch (e) {
       push({ kind: "error", text: ctrl.signal.aborted ? "질문을 취소했습니다" : (e as Error).message });
@@ -192,6 +196,9 @@ export function ChatBot({ contractor }: { contractor?: string }) {
           <p className="truncate text-[11.5px] text-ink-3" title={scope}>
             {scope}
           </p>
+          <p className="text-[11.5px] text-ink-3" title="'오늘'·'내일'·'이번 주'는 이 날짜 기준입니다. 화면의 날짜를 바꾸면 따라갑니다">
+            기준일 {baseDate ? `${baseDate} (화면 날짜)` : "오늘"}
+          </p>
           <p className="flex items-center gap-1 text-[11px] text-ink-3">
             <span
               className={`h-1.5 w-1.5 rounded-full ${status?.ok ? "bg-ok" : status || statusError ? "bg-danger" : "bg-stone-300"}`}
@@ -218,6 +225,7 @@ export function ChatBot({ contractor }: { contractor?: string }) {
         {msgs.length === 0 && (
           <div className="space-y-3 text-sm text-ink-2">
             <p>현장 작업 일정, 겹침(충돌), 위험 시간대, 원청 공지를 물어볼 수 있습니다. 답에는 근거(규칙 번호·법 조문·원문)가 붙습니다.</p>
+            {baseDate && <p className="text-xs text-ink-3">'오늘'·'내일'·'이번 주'는 화면에서 보는 날짜({baseDate}) 기준입니다.</p>}
             <div className="flex flex-col items-start gap-1.5">
               {examples.map((q) => (
                 <button
