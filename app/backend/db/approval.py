@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from rules.engine import is_all_zone_conflict, scope_all_zone_conflict
-from rules.overlap import time_overlap
+from rules.overlap import work_overlap
 from schemas import ApprovalCheck, Conflict, ConflictType, Grade, PlanRecord, PlanStatus, RestrictedWork, Task
 
 from .database import session
@@ -38,7 +38,7 @@ def _restricted_work(tasks: list[Task], conflicts: list[Conflict], schedule: lis
         for t in tasks:
             if t.zone_id not in zones:
                 continue
-            w = time_overlap(t.start, t.end, c.window_start, c.window_end)
+            w = work_overlap(t.start, t.end, c.window_start, c.window_end)  # 둘 다 '매일 시작~끝 시각'
             if w is None:
                 continue
             out.append(
