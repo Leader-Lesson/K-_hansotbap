@@ -15,9 +15,11 @@ POSCO K-뉴딜 아카데미 해커톤 (2026-11-09 ~ 11-10)
 npm run dev
 ```
 
-브라우저가 `http://localhost:5173/prototype/index.html`(이 시안)로 자동으로 열립니다. 팀 React 앱은 그대로 `http://localhost:5173/`에 있습니다.
+브라우저는 서버에 연결된 React 앱 `http://localhost:5173/`로 열립니다. 이 시안은 `http://localhost:5173/prototype/index.html`에서 따로 엽니다.
 
-- **3D · 충돌 탭**은 같은 출처의 `/scene3d/index.html`(`app/frontend/public/scene3d`)을 iframe으로 넣고 `postMessage`로 데이터를 넘깁니다. 그래서 `npm run dev`(또는 `npm run build` 뒤 `vite preview`)로 열어야 동작합니다. `index.html` 파일을 직접 열면 3D 탭에 안내만 뜹니다.
+> **이 시안은 백엔드(FastAPI)를 부르지 않습니다.** 계획서 올리기·판정·공유·TBM 확인이 모두 브라우저 안의 합성 데이터로만 돕니다. 실제 판정은 React 앱(`/`)과 3D(`/scene3d/index.html`)에서 합니다. 상단의 "정적 시안 · 실제 화면으로" 링크로 넘어갑니다.
+
+- **3D · 충돌 탭**은 같은 출처의 `/scene3d/index.html`(`app/frontend/scene3d`, Vite가 함께 빌드)을 iframe으로 넣고 `postMessage`로 데이터를 넘깁니다. 그래서 `npm run dev`(또는 `npm run build` 뒤 `vite preview`)로 열어야 동작합니다. `index.html` 파일을 직접 열면 3D 탭에 안내만 뜹니다.
 - 인터넷 연결이 필요합니다. 웹폰트(Google Fonts)를 CDN에서 불러옵니다. 3D(scene3d)는 `vendor/`에 three.js를 포함하고 있어 인터넷이 없어도 됩니다.
 
 ## 폴더 구조

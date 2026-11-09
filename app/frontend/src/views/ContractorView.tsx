@@ -14,6 +14,7 @@ import { Scene3DTab } from "@/views/Scene3DTab";
 import { SharedView } from "@/views/SharedView";
 import { SopLibrary } from "@/views/SopLibrary";
 import { TbmView } from "@/views/TbmView";
+import { BoardView } from "@/views/BoardView";
 
 interface Props {
   contractor: string;
@@ -41,7 +42,7 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
   const date = dateOverride ?? defaultDate;
   const setDate = setDateOverride;
   const zoneName = (id: string) => zones.find((z) => z.id === id)?.name ?? id;
-  const [tab, setTab] = useState("mine");
+  const [tab, setTab] = useState("board");
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const blockedZones = useMemo(() => groupByZone(restrictionsOn(myRestrictions, date), zones).length, [myRestrictions, date, zones]);
   // 공유·조정이 바뀌면 "원청 공유·공지"를 다시 부른다 (App 이 다시 불러온 충돌 목록이 바뀐 것으로 안다)
@@ -53,6 +54,7 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
+          <TabsTrigger value="board">상황판</TabsTrigger>
           <TabsTrigger value="mine">내 작업 {mine.length}</TabsTrigger>
           <TabsTrigger value="conflicts">
             나와 겹친 충돌 {conflicts.length > 0 && <span className="ml-1 rounded bg-red-600 px-1.5 text-[10px] text-white">{conflicts.length}</span>}
@@ -66,6 +68,22 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
           <TabsTrigger value="tbm">TBM 확인</TabsTrigger>
           <TabsTrigger value="history">내 이력</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="board">
+          <BoardView
+            role={{ kind: "contractor", contractor }}
+            date={date}
+            setDate={setDate}
+            zones={zones}
+            tasks={tasks}
+            conflicts={conflicts}
+            plans={plans}
+            onShow3D={(taskId) => {
+              setSelectedTask(taskId);
+              setTab("scene3d");
+            }}
+          />
+        </TabsContent>
 
         <TabsContent value="shared">
           <SharedView contractor={contractor} zones={zones} tasks={tasks} conflictsKey={conflictsKey} />
@@ -87,6 +105,7 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
                   <th className="p-2">작업</th>
                   <th className="p-2">구역</th>
                   <th className="p-2">기간</th>
+                  <th className="p-2">투입 인원</th>
                   <th className="p-2">위험작업</th>
                   <th className="p-2">선행</th>
                 </tr>
@@ -98,6 +117,7 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
                     <td className="p-2">{t.name}</td>
                     <td className="p-2">{zoneName(t.zone_id)}</td>
                     <td className="whitespace-nowrap p-2">{fmtRange(t.start, t.end)}</td>
+                    <td className="p-2">{t.crew != null ? `${t.crew}명` : "—"}</td>
                     <td className="p-2">{t.hazards.map((h) => HAZARD_LABEL[h]).join(", ") || "—"}</td>
                     <td className="p-2">{t.predecessors.join(", ") || "—"}</td>
                   </tr>

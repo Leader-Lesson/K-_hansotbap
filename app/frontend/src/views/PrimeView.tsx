@@ -1,4 +1,4 @@
-// 원청 대시보드(현재상황판): 상단 요약 + [현황판: 시간표형 간트(위험 시간대 띠) + 위험 시간대 공지 + 오늘 출입 제한] / [3D·충돌: scene3d]
+// 원청 대시보드(현재상황판): 상단 요약 + [현황판: 상황판(BoardView, 시안 #board 레이아웃) + 위험 시간대 공지 + 오늘 출입 제한] / [3D·충돌: scene3d]
 // / [충돌 목록: 규칙·조문·원문·조정안·협력사 공유] / [표준서 매칭] / [TBM 확인] / [이력]
 // TODO: 음성으로 묻기(F6)
 import { useEffect, useMemo, useState } from "react";
@@ -8,7 +8,6 @@ import { ConflictList } from "@/components/ConflictList";
 import { GradeBadge } from "@/components/ConflictBadge";
 import { RiskWindowList } from "@/components/RiskWindowList";
 import { SopMatchPanel } from "@/components/SopMatchPanel";
-import { TimetableGantt } from "@/components/TimetableGantt";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GRADE_RANK } from "@/lib/format";
 import { usePerson } from "@/lib/person";
@@ -19,6 +18,7 @@ import { RestrictionPanel } from "@/views/RestrictionPanel";
 import { Scene3DTab } from "@/views/Scene3DTab";
 import { SopLibrary } from "@/views/SopLibrary";
 import { TbmView } from "@/views/TbmView";
+import { BoardView } from "@/views/BoardView";
 
 export const DATE_KEY = "hansotbap.date";
 
@@ -162,13 +162,18 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops,
         </TabsList>
 
         <TabsContent value="board" className="grid gap-4">
-          <TimetableGantt
+          {/* 시안 상황판(#board) 레이아웃을 서버 데이터로: 숫자 띠 · 30분 칸 시간표 · 위험 시간대 띠 · 조치 카드 · 충돌 상세 */}
+          <BoardView
+            role={{ kind: "prime" }}
             date={date}
+            setDate={setDate}
             zones={zones}
-            tasks={todays}
-            conflicts={open}
-            riskWindows={riskWindows}
-            onSelectTask={(id) => show3D(id, { conflict: { window_start: date } } as ConflictRecord)}
+            tasks={tasks}
+            conflicts={conflicts}
+            plans={plans}
+            onAdjusted={onAdjusted}
+            onShared={onReload}
+            onShow3D={show3D}
           />
 
           <section className="rounded-lg bg-white p-3 shadow-sm">
@@ -200,7 +205,7 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops,
           </section>
         </TabsContent>
 
-        {/* scene3d(public/scene3d, three.js 정적 화면)를 iframe으로 — 전체 작업과 서버 판정을 넘기면 위치별 목록·3D·조치 카드가 그려짐 */}
+        {/* scene3d(/scene3d/index.html, three.js)를 iframe으로 — 전체 작업과 서버 판정을 넘기면 위치별 목록·3D·조치 카드가 그려짐 */}
         <TabsContent
           value="scene3d"
           className="h-[calc(100vh-180px)] min-h-[560px] overflow-hidden rounded-lg border border-stone-200"

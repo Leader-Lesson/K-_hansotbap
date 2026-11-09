@@ -1,0 +1,100 @@
+{
+  "file": "가상-기계J_v1_엑셀_두자리연도.xlsx",
+  "contractor": "가상-기계J",
+  "format": "xlsx",
+  "tasks": [
+    {
+      "wbs_id": null,
+      "name": "벨리스 탑 부품 야드 반입·검수",
+      "zone_id": "YARD",
+      "start": "2026-12-20",
+      "end": "2027-01-05",
+      "shift": "day",
+      "headcount": 6,
+      "hazards": [
+        "heavy_lift"
+      ],
+      "predecessors": []
+    },
+    {
+      "wbs_id": "P23",
+      "name": "노정 장입설비(벨리스 탑) 설치",
+      "zone_id": "TOP",
+      "start": "2027-01-06",
+      "end": "2027-02-20",
+      "shift": "day",
+      "headcount": 12,
+      "hazards": [
+        "heavy_lift",
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P17"
+      ]
+    },
+    {
+      "wbs_id": null,
+      "name": "장입 구동부 시운전",
+      "zone_id": "TOP",
+      "start": "2027-02-18",
+      "end": "2027-02-20",
+      "shift": "day",
+      "headcount": 4,
+      "hazards": [],
+      "predecessors": []
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S2",
+      "type": "vertical",
+      "rule_ids": [
+        "R16",
+        "R18"
+      ],
+      "with": "가상-축로I P20 (HEARTH, 2027-01-21~02-15)",
+      "note": "노정 고소·인양 바로 아래 노저 축조 — 방호선반·하부 출입금지 기재 없으면 금지"
+    }
+  ],
+  "note": "원본 가상-기계J_장입설비_설치계획서.pdf 과 같은 작업을 다른 양식으로 다시 그린 합성 변형",
+  "variant": {
+    "source": "가상-기계J_장입설비_설치계획서.pdf",
+    "version": 1,
+    "layout": "table",
+    "header_synonym_set": "S1",
+    "headers": [
+      "업체",
+      "작업명",
+      "작업위치",
+      "시작일",
+      "종료일",
+      "주야간",
+      "투입인원",
+      "위험작업",
+      "선행조건",
+      "비고"
+    ],
+    "column_order": [
+      "contractor",
+      "name",
+      "loc",
+      "start",
+      "end",
+      "shift",
+      "headcount",
+      "hazards",
+      "pre",
+      "note"
+    ],
+    "date_style": "시작/종료 칸: 27.1.15 (두 자리 연도)",
+    "contractor_position": "업체 열, 모든 행에 기재",
+    "shift_style": "주야간 칸: 주간 / 주야간",
+    "zone_style": "zones.csv 표준 구역명",
+    "predecessor_style": "P-ID (예: P16, P18)",
+    "hazard_style": "표준 낱말(화기·가스·밀폐공간·고소·중량물)",
+    "noise_columns": [
+      "비고"
+    ]
+  }
+}
