@@ -51,7 +51,7 @@ def test_submit_replaces_baseline_and_revision_supersedes():
     assert res.status_code == 200, res.text
     out = res.json()
     assert out["plan"]["version"] == 1 and out["plan"]["task_count"] == 2 and out["refresh"] is True
-    assert isinstance(out["conflicts"], list)  # F2 규칙 엔진이 채워지면 S1 순서 위반이 여기 나온다
+    assert isinstance(out["conflicts"], list)  # 제출한 협력사에게 공유된 충돌만 온다 (원청 공유 전이면 빈 목록)
 
     schedule = {t["id"]: t for t in client.get("/api/tasks").json()}
     assert len(schedule) == 37

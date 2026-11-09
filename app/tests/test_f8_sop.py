@@ -215,11 +215,10 @@ def test_upload_submit_stores_sop_defect():
     assert [(m["task_id"], m["sop_id"]) for m in primary] == [("P34", "SOP-P34"), ("P34", "SOP-04")]
     assert all(any("가스 측정" in s for s in m["missing_steps"]) for m in primary)
 
-    res = client.post(
+    client.post(
         "/api/plans/submit",
         json={"contractor": "가상-배관O", "file": name, "tasks": [t["task"] for t in ext["tasks"]], "draft_id": ext["draft_id"]},
-    ).json()
-    assert {"SOP:P34:SOP-04", "SOP:P34:SOP-P34"} <= {c["id"] for c in res["conflicts"]}
+    )
     stored = {r["conflict"]["id"]: r for r in client.get("/api/conflicts").json()}  # 원청 화면
     assert stored["SOP:P34:SOP-04"]["conflict"]["grade"] == "결함"
     assert stored["SOP:P34:SOP-P34"]["conflict"]["grade"] == "결함"
@@ -253,8 +252,9 @@ def test_applying_f4_adjustment_keeps_sop_defect_open():
 def test_submit_without_document_skips_sop():
     """원문 없이(draft_id 없이) 낸 계획은 표준서 결함을 판정하지 않는다 — 없는 단계를 추측하지 않는다."""
     t = task("질소·가스·송풍 라인 복구 연결", "P34", [Hazard.GAS]).model_dump(mode="json") | {"contractor": "가상-배관O"}
-    res = client.post("/api/plans/submit", json={"contractor": "가상-배관O", "file": "x.xlsx", "tasks": [t]}).json()
-    assert not [c for c in res["conflicts"] if c["type"] == "sop_missing"]
+    res = client.post("/api/plans/submit", json={"contractor": "가상-배관O", "file": "x.xlsx", "tasks": [t]})
+    assert res.status_code == 200, res.text  # 거절된 제출이면 아래 확인이 저절로 통과한다
+    assert not [r for r in client.get("/api/conflicts").json() if r["conflict"]["type"] == "sop_missing"]
 
 
 def test_sop_matches_api_follows_current_schedule_and_filters_by_contractor():

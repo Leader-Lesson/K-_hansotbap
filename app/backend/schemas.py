@@ -501,7 +501,7 @@ class PlanRecord(BaseModel):
 
 class PlanSubmitResult(BaseModel):
     plan: PlanRecord
-    conflicts: list[Conflict]
+    conflicts: list[Conflict] = Field(description="제출한 협력사에게 공유된 현재 충돌")
     refresh: bool = Field(default=True, description="판정 후 화면을 한 번 강제 새로고침한다")
-    diff: ConflictDiff | None = Field(default=None, description="이 제출로 사라지거나 새로 생긴 충돌 (새 충돌 알림)")
+    diff: ConflictDiff | None = Field(default=None, description="이 제출로 달라진 충돌 중 제출한 협력사에게 공유된 것")
     recheck_ms: float | None = Field(default=None, description="재판정에 걸린 시간(밀리초)")
