@@ -13,8 +13,9 @@ export const HQ_CONTACTS = {
   schedule: { name: '한예린 대리', team: '공정관리팀', tel: '010-0000-9002' },
 };
 
-/* 'A' · 'A사' · '가상-A사' → 'A' */
-export const coKey = (id) => (String(id || '').match(/([A-Z])사?$/) || [])[1] || null;
+/* 'A' · 'A사' · '가상-A사' → 'A'. 서버 업체(가상-축로I·가상-양중C …)는 연락처가 없으므로 null —
+   이름 끝 영문자로 찾으면 '가상-양중C'가 시안 C사(배관) 담당자로 잘못 보인다 */
+export const coKey = (id) => (String(id || '').match(/^(?:가상-)?([A-E])사?$/) || [])[1] || null;
 
 /* 그 역할이 볼 수 있는 연락처. 협력사는 자기 회사만 보고, 다른 회사는 원청을 통해 연락 */
 export function contactFor(companyId, role) {

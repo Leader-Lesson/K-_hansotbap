@@ -54,6 +54,16 @@ if (EMBED) document.body.classList.add('embed');
   const dd = new Date(DEMO.date + 'T00:00'), day = Math.round((dd - new Date('2026-11-12T00:00')) / 86400000) + 1;
   const el = document.querySelector('.top-mid .date');
   if (el) el.innerHTML = `${DEMO.date} (${'일월화수목금토'[dd.getDay()]}) <b>D${day}</b>`;
+  if (el && !EMBED) {
+    const go = (n) => {
+      const x = new Date(DEMO.date + 'T00:00'); x.setDate(x.getDate() + n);
+      const q = new URLSearchParams(location.search); q.set('date', toIso(x).slice(0, 10)); q.delete('now');
+      location.search = q.toString();
+    };
+    const btn = (txt, n, label) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'date-nav'; b.textContent = txt; b.setAttribute('aria-label', label); b.onclick = () => go(n); return b; };
+    el.before(btn('◀', -1, '전날'));
+    el.after(btn('▶', 1, '다음 날'));
+  }
   const tag = document.querySelector('.top-mid .tag-synth');
   if (tag && !EMBED) {
     tag.textContent = API_MODE ? '합성 데이터 · 서버 판정' : BOOT?.error ? '합성 시안 데이터 · 서버 연결 안 됨' : '합성 시안 데이터';
@@ -1024,7 +1034,7 @@ const session = buildSession({
       void syncFromApi(true);
     }
   },
-  onSimulate: () => {
+  onSimulate: API_MODE ? undefined : () => {
     simN += 1;
     const c = JSON.parse(JSON.stringify(SAMPLE_CHANGE));
     if (simN > 1) { c.id += '-' + simN; c.task.id += '-' + simN; }
