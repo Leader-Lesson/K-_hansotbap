@@ -7,11 +7,14 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from config import settings
+from llm.provider import LMStudioProvider
 from main import app
 from parsers import parse_document
 from rules.data_loader import load_rules, load_zones
 from rules.engine import detect_conflicts
 from schemas import ConflictType, Grade, Hazard, SourceLine, Task
+from search import sop_index, sop_match
 from search.sop_catalog import load_sops
 from search.sop_match import match_plan
 
@@ -114,6 +117,35 @@ def test_embedding_server_down_falls_back_to_rules():
 
     a, tasks, lines = sample(next(p for p in ANSWERS if "배관O" in p.name))
     assert [m.sop_id for m in match_plan(tasks, lines, a["file"], embedder=broken) if m.missing_steps] == ["SOP-04"]
+
+
+def _embedding_env(monkeypatch, provider: str, *, unsloth: str = "", lmstudio: str = "", unsloth_key: str = ""):
+    """.env 대신 임베딩 설정을 고정한다."""
+    monkeypatch.setattr(settings, "embedding_provider", provider)
+    monkeypatch.setattr(settings, "unsloth_embedding_model", unsloth)
+    monkeypatch.setattr(settings, "unsloth_api_key", unsloth_key)
+    monkeypatch.setattr(settings, "lmstudio_embedding_model", lmstudio)
+    monkeypatch.setattr(settings, "lmstudio_chat_model", "")
+
+
+def test_lmstudio_embedding_reaches_match(monkeypatch):
+    """EMBEDDING_PROVIDER=lmstudio 면 LM Studio 임베딩으로 매칭을 보강한다 (서버 대신 가짜 임베딩)."""
+    _embedding_env(monkeypatch, "lmstudio", lmstudio="text-embedding-bge-m3")
+    monkeypatch.setattr(LMStudioProvider, "embed", lambda self, texts: _fake_embedder(texts))
+    monkeypatch.setattr(sop_match, "default_embedder", sop_index.default_embedder)  # conftest 차단을 푼다
+    m = match_plan([task("가스 배관 플랜지 점검")], [], "x")
+    assert next(x for x in m if x.sop_id == "SOP-04").basis == ["embedding"]
+
+
+def test_embedding_does_not_fall_back_to_other_server(monkeypatch):
+    """LM Studio를 골랐는데 LM Studio 임베딩 모델이 비어 있으면 Unsloth 설정이 있어도 쓰지 않는다."""
+    _embedding_env(monkeypatch, "lmstudio", unsloth="bge-m3", unsloth_key="k")
+    assert sop_index.default_embedder() is None
+
+
+def test_embedding_off_when_server_cannot_start(monkeypatch):
+    _embedding_env(monkeypatch, "unsloth", unsloth="bge-m3")  # API 키 없음 → 규칙만으로 매칭
+    assert sop_index.default_embedder() is None
 
 
 def test_defect_conflict_points_to_plan_and_sop():

@@ -14,7 +14,7 @@ const KIND_KO = { ADD: '작업 추가', MOVE: '작업 변경', CANCEL: '작업 �
 
 const CSS = `
 .ss-wrap{display:flex;align-items:center;gap:10px;margin-left:14px;flex-shrink:0}
-.ss-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;color:#fff;font-weight:700;font-size:15px;white-space:nowrap}
+.ss-chip{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:5px 12px;border-radius:999px;color:#fff;font-weight:700;font-size:15px;white-space:nowrap;box-sizing:border-box;width:200px;overflow:hidden;text-overflow:ellipsis}   /* 역할 이름 길이와 상관없이 같은 폭 → 위치 고정 */
 .ss-role{display:flex;align-items:center;gap:6px;font-size:15px;color:#1f2933}
 .ss-role label{font-weight:700;color:#5b6672}
 .ss-role select{font-size:16px;padding:6px 8px;border:1px solid #b9c0c8;border-radius:8px;background:#fff;min-height:38px}

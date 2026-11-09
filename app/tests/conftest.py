@@ -15,6 +15,7 @@ from openpyxl import Workbook
 
 import llm.extract
 import llm.tbm_check
+import search.sop_match
 from config import settings
 
 
@@ -27,6 +28,8 @@ def isolated(tmp_path, monkeypatch):
 
     monkeypatch.setattr(llm.extract, "get_provider", no_llm)
     monkeypatch.setattr(llm.tbm_check, "get_provider", no_llm)
+    # .env 에 임베딩 모델이 있어도 로컬 서버(Unsloth·LM Studio)를 부르지 않는다. 임베딩 시험은 가짜 임베딩을 넘긴다
+    monkeypatch.setattr(search.sop_match, "default_embedder", lambda: None)
 
 
 @lru_cache
