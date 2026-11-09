@@ -11,6 +11,7 @@
     "db:reset": "cd app/backend && uv run python -m db.seed --empty",
     "whisper": "node scripts/whisper.mjs",
     "models": "cd app/backend && uv run python -m llm.models",
+    "chat:check": "cd app/backend && uv run python -m llm.chat_check",
     "test": "cd app/backend && uv run pytest",
     "build": "npm --prefix app/frontend run build"
   },

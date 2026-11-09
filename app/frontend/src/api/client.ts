@@ -1,5 +1,8 @@
 import type {
   AdjustmentApply,
+  ChatRequest,
+  ChatResponse,
+  ChatStatus,
   AdjustmentCandidate,
   AdjustmentRecord,
   AdjustmentResult,
@@ -58,6 +61,9 @@ function qs(params: Record<string, string | boolean | undefined>): string {
   return s ? `?${s}` : "";
 }
 
+/** 챗봇 응답 대기 한도(ms). 서버는 CHAT_TOTAL_TIMEOUT(기본 45초) 안에 LLM 이 늦으면 규칙으로 답하므로 그보다 조금 길게 [팀 설정값] */
+export const CHAT_CLIENT_TIMEOUT_MS = 60_000;
+
 export const api = {
   zones: () => get<Zone[]>("/zones"),
   rules: () => get<Rule[]>("/rules"),
@@ -114,4 +120,27 @@ export const api = {
     get<RiskWindow[]>(
       `/risk-windows${qs({ contractor: opts.contractor, trade: opts.trade, zone_id: opts.zoneId, on: opts.on, polish: opts.polish })}`,
     ),
+
+  // ── F6 챗봇 ────────────────────────────────────────────────────────
+  // 협력사로 물으면 contractor 를 붙인다 — 답의 범위(권한)는 서버가 정한다. 응답이 한도를 넘으면 중단하고 오류를 낸다
+  chat: async (body: ChatRequest, opts: { contractor?: string; signal?: AbortSignal } = {}) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), CHAT_CLIENT_TIMEOUT_MS);
+    opts.signal?.addEventListener("abort", () => ctrl.abort());
+    try {
+      return await request<ChatResponse>(`/chat${qs({ contractor: opts.contractor })}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+    } catch (e) {
+      if (ctrl.signal.aborted && !opts.signal?.aborted)
+        throw new Error(`챗봇 응답이 ${CHAT_CLIENT_TIMEOUT_MS / 1000}초를 넘었습니다. 잠시 뒤 다시 물어봐 주세요`);
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  },
+  chatStatus: () => get<ChatStatus>("/chat/status"),
 };

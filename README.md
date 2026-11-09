@@ -57,6 +57,20 @@ NVIDIA GPU가 없으면 CPU판으로 돈다. 노트북 CPU(i5-10210U, 스레드�
 
 TBM 녹음은 참석자 동의를 받은 뒤에만 올린다. 원본 녹음은 받아쓰기가 끝나면 지우고, 전사문은 전달 확인 기록과 함께 DB에 남는다. 시연 전에 샘플 공지를 넣으려면 `npm run seed` 뒤에 `cd app/backend && uv run python ../samples/seed_tbm_notices.py` 를 한 번 실행한다(`npm run seed`·`db:reset` 은 TBM 공지·전달 확인 기록도 비운다).
 
+## 챗봇 (F6)
+
+질문 → 조회 함수 → 근거 붙은 답. LLM 은 질문 해석(조회 도구 고르기)과 답 문장만 쓰고, 조회와 권한(협력사는 자기 작업 + 원청이 공유한 겹침만)은 서버 코드가 한다. SQL 은 실행하지 않는다.
+
+```bash
+npm run chat:check -- --provider unsloth   # Qwen(Unsloth Studio)으로 기능별 점검 (임시 DB, 합성 데이터)
+npm run chat:check                         # CHAT_PROVIDER → LLM_PROVIDER 로 점검 (Claude 로 바꾼 뒤)
+```
+
+- API: `POST /api/chat?contractor=가상-배관O` 본문 `{"question": "내 작업과 겹치는 작업은?", "today": "2027-02-19"}`, 연결 확인 `GET /api/chat/status`
+- `.env` 의 `CHAT_PROVIDER` 로 챗봇만 다른 모델을 쓴다(비우면 `LLM_PROVIDER`)
+- 응답이 늦으면: 질문 해석 `CHAT_PLAN_TIMEOUT`(20초)·답 `CHAT_ANSWER_TIMEOUT`(30초)·전체 `CHAT_TOTAL_TIMEOUT`(45초)을 넘는 순간 LLM 을 기다리지 않고 규칙으로 해석·답한다. 응답의 `plan_by`·`answer_by`·`notice` 로 화면에 알린다. 화면(fetch)은 60초에서 끊는다
+- LLM 답에 조회 결과 밖의 작업 번호·업체가 나오면 규칙 답으로 바꾼다 (협력사에게 다른 업체 정보가 새지 않게)
+
 ## 실행
 
 ```bash

@@ -331,3 +331,70 @@ export interface PlanSubmitResult {
   diff: ConflictDiff | null; // 이 제출로 사라지거나 새로 생긴 충돌 (새 충돌 알림)
   recheck_ms: number | null;
 }
+
+// ── F6 챗봇 ──────────────────────────────────────────────────────────
+export interface ChatTurn {
+  question: string;
+  answer?: string;
+}
+
+export interface ChatRequest {
+  question: string; // 1~500자
+  today?: string | null; // YYYY-MM-DD. '오늘' 기준 (비우면 서버 CHAT_TODAY 또는 실제 오늘)
+  history?: ChatTurn[]; // 최근 대화 최대 6개 (오래된 것부터)
+}
+
+export type ChatTool = "find_tasks" | "find_conflicts" | "risk_windows" | "shared_notices";
+
+export interface ChatToolCall {
+  tool: ChatTool;
+  date_from: string | null;
+  date_to: string | null;
+  zone_ids: string[];
+  task_ids: string[];
+  contractor: string | null; // 원청이 특정 업체로 좁혀 물었을 때만
+  keyword: string | null;
+  count: number; // 조건에 맞는 건수
+  note: string | null; // 조건을 바꿨거나 권한 때문에 비었을 때 안내
+}
+
+export type ChatEvidenceKind = "task" | "conflict" | "risk" | "share";
+
+export interface ChatEvidence {
+  ref: string; // task:P34 · conflict:<충돌 ID> · risk:<구역>:<시작> · share:<충돌 ID>
+  kind: ChatEvidenceKind;
+  target_id: string; // 작업 ID · 충돌 ID · 구역 ID
+  label: string;
+  rule_id: string | null;
+  legal_basis: string | null;
+  source: SourceRef | null; // 협력사에게는 자기 계획서 원문만
+}
+
+export type ChatStepBy = "llm" | "rules";
+
+export interface ChatResponse {
+  answer: string;
+  evidence: ChatEvidence[];
+  tools: ChatToolCall[];
+  today: string;
+  role: "prime" | "contractor";
+  plan_by: ChatStepBy; // 질문 해석을 누가 했나
+  answer_by: ChatStepBy; // 답 문장을 누가 썼나
+  degraded: boolean; // LLM 이 늦거나 실패해 규칙으로 대신한 단계가 있다
+  notice: string | null; // 화면에 보여 줄 안내
+  provider: string;
+  model: string;
+  elapsed_ms: number;
+  timings: Record<string, number>; // plan · tools · answer (ms)
+}
+
+export interface ChatStatus {
+  provider: string;
+  model: string;
+  ok: boolean;
+  latency_ms: number | null;
+  error: string | null;
+  plan_timeout: number;
+  answer_timeout: number;
+  total_timeout: number;
+}
