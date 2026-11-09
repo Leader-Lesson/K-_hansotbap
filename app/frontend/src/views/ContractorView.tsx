@@ -1,6 +1,6 @@
 // 협력사 화면: 계획서 올리기·제출(F1→F8→F2), 내 작업, 나와 겹친 충돌, 원청 공유·공지(F5·F9), 매칭된 표준서, 내 작업 3D, TBM 확인(F7)
 // 권한: 작업·충돌·표준서 매칭·공유·위험 시간대는 서버가 contractor 로 거른 것만 받는다 (자기 작업 + 공유된 충돌의 상대 작업)
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ConflictList } from "@/components/ConflictList";
 import { PlanUpload } from "@/components/PlanUpload";
 import { SopMatchPanel } from "@/components/SopMatchPanel";
@@ -27,9 +27,10 @@ interface Props {
   plans: PlanRecord[]; // 내 제출 이력 (서버가 걸러 준다)
   restrictions: ZoneRestriction[]; // 금지 판정 → 출입 제한 (내 작업이 걸린 것만 다시 거른다)
   onSubmitted: (result: PlanSubmitResult) => void;
+  onDateChange?: (date: string) => void; // 지금 보는 날짜 (AI 챗봇이 '오늘' 기준으로 쓴다)
 }
 
-export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches, sops, plans, restrictions, onSubmitted }: Props) {
+export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches, sops, plans, restrictions, onSubmitted, onDateChange }: Props) {
   const mine = tasks.filter((t) => t.contractor === contractor);
   const myRestrictions = useMemo(() => restrictionsForContractor(restrictions, tasks, contractor), [restrictions, tasks, contractor]);
   // 3D 기본 날짜: 내 충돌 중 가장 높은 등급(같으면 먼저 시작하는 것)의 시작일 → 없으면 내 첫 작업 시작일
@@ -42,6 +43,7 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
   const [dateOverride, setDateOverride] = useState<string | null>(null);
   const date = dateOverride ?? defaultDate;
   const setDate = setDateOverride;
+  useEffect(() => onDateChange?.(date), [date, onDateChange]);
   const zoneName = (id: string) => zones.find((z) => z.id === id)?.name ?? id;
   const [tab, setTab] = useState("board");
   const [selectedTask, setSelectedTask] = useState<string | null>(null);

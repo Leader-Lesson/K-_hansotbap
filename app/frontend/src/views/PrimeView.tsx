@@ -34,9 +34,10 @@ interface Props {
   restrictions: ZoneRestriction[]; // 금지 판정 → 구역별 출입 제한 (안내 패널·3D 공용)
   onAdjusted: (result: AdjustmentResult) => void;
   onReload: () => void; // 협력사 공유 뒤 다시 불러오기
+  onDateChange?: (date: string) => void; // 지금 보는 날짜 (AI 챗봇이 '오늘' 기준으로 쓴다)
 }
 
-export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onReload }: Props) {
+export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onReload, onDateChange }: Props) {
   // 기본 날짜: 가장 최근 제출한 협력사의 작업이 걸린 충돌 중 가장 높은 등급(같으면 먼저 시작)의 시작일.
   // 제출 직후 그 협력사가 낸 충돌이 있는 날로 바로 간다. 제출이 없으면 기준 일정의 한 날
   const defaultDate = useMemo(() => {
@@ -53,6 +54,7 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops,
   const date = dateOverride ?? defaultDate;
   const setDate = setDateOverride;
   useEffect(() => sessionStorage.setItem(DATE_KEY, date), [date]);
+  useEffect(() => onDateChange?.(date), [date, onDateChange]);
   const [tab, setTab] = useState("board");
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [sopView, setSopView] = useState<"matches" | "library">("matches");

@@ -26,10 +26,15 @@ class LLMProvider(Protocol):
     name: str
     model: str
 
-    def complete(self, system: str, user: str, max_tokens: int = 2048) -> str: ...
+    def complete(self, system: str, user: str, max_tokens: int = 2048, timeout: float | None = None) -> str: ...
 
-    def extract(self, system: str, user: str, schema: type[T], max_tokens: int = 16000) -> T:
-        """schema 모양의 JSON을 받아 검증한 객체를 돌려준다. system 은 매번 같게 둬서 캐시되게 한다."""
+    def extract(
+        self, system: str, user: str, schema: type[T], max_tokens: int = 16000, timeout: float | None = None
+    ) -> T:
+        """schema 모양의 JSON을 받아 검증한 객체를 돌려준다. system 은 매번 같게 둬서 캐시되게 한다.
+
+        timeout(초)을 주면 그 시간 안에 답이 없을 때 재시도 없이 예외를 낸다 (F6 챗봇처럼 사람이 기다리는 호출).
+        """
         ...
 
     def embed(self, texts: list[str]) -> list[list[float]]: ...
@@ -45,9 +50,14 @@ class ClaudeProvider:
             raise RuntimeError("ANTHROPIC_API_KEY 가 .env 에 없습니다")
         self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         self.model = settings.claude_model
+        self.effort = settings.llm_effort  # 기능별로 바꿀 수 있다 (F6 챗봇은 CHAT_EFFORT)
 
-    def complete(self, system: str, user: str, max_tokens: int = 2048) -> str:
-        msg = self._client.messages.create(
+    def _with(self, timeout: float | None):
+        """timeout 을 주면 그 호출만 시간 제한·재시도 없음으로 보낸다."""
+        return self._client if timeout is None else self._client.with_options(timeout=timeout, max_retries=0)
+
+    def complete(self, system: str, user: str, max_tokens: int = 2048, timeout: float | None = None) -> str:
+        msg = self._with(timeout).messages.create(
             model=self.model,
             max_tokens=max_tokens,
             system=system,
@@ -55,7 +65,10 @@ class ClaudeProvider:
         )
         return "".join(block.text for block in msg.content if block.type == "text")
 
-    def extract(self, system: str, user: str, schema: type[T], max_tokens: int = 16000) -> T:
+    def extract(
+        self, system: str, user: str, schema: type[T], max_tokens: int = 16000, timeout: float | None = None
+    ) -> T:
+        client = self._with(timeout)
         kwargs = dict(
             model=self.model,
             max_tokens=max_tokens,
@@ -63,14 +76,14 @@ class ClaudeProvider:
             system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user}],
             output_format=schema,
-            output_config={"effort": settings.llm_effort},
+            output_config={"effort": self.effort},
         )
         if settings.llm_fallbacks:
-            res = self._client.beta.messages.parse(
+            res = client.beta.messages.parse(
                 betas=["server-side-fallback-2026-07-01"], fallbacks="default", **kwargs
             )
         else:
-            res = self._client.messages.parse(**kwargs)
+            res = client.messages.parse(**kwargs)
         usage = res.usage
         log.info(
             "claude extract model=%s stop=%s in=%s cache_read=%s cache_write=%s out=%s",
@@ -120,8 +133,12 @@ class _OpenAICompatProvider:
         self.model = chat_model
         self._embedding_model = embedding_model
 
-    def complete(self, system: str, user: str, max_tokens: int = 2048) -> str:
-        res = self._client.chat.completions.create(
+    def _with(self, timeout: float | None):
+        """timeout 을 주면 그 호출만 시간 제한·재시도 없음으로 보낸다."""
+        return self._client if timeout is None else self._client.with_options(timeout=timeout, max_retries=0)
+
+    def complete(self, system: str, user: str, max_tokens: int = 2048, timeout: float | None = None) -> str:
+        res = self._with(timeout).chat.completions.create(
             model=self.model,
             max_tokens=max_tokens,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -133,8 +150,10 @@ class _OpenAICompatProvider:
             raise RuntimeError(f"{self.label} 응답 본문이 비어 있습니다 (finish_reason={choice.finish_reason})")
         return content
 
-    def extract(self, system: str, user: str, schema: type[T], max_tokens: int = 16000) -> T:
-        res = self._client.chat.completions.create(
+    def extract(
+        self, system: str, user: str, schema: type[T], max_tokens: int = 16000, timeout: float | None = None
+    ) -> T:
+        res = self._with(timeout).chat.completions.create(
             model=self.model,
             max_tokens=max_tokens,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -203,7 +222,9 @@ def get_embedding_provider() -> LLMProvider:
     return _LOCAL[settings.embedding_provider]()
 
 
-def get_provider() -> LLMProvider:
-    if settings.llm_provider in _LOCAL:
-        return _LOCAL[settings.llm_provider]()
+def get_provider(name: str | None = None) -> LLMProvider:
+    """LLM_PROVIDER 의 제공자. name 을 주면 그 제공자 (F6 챗봇의 CHAT_PROVIDER 처럼 기능별로 따로 고를 때)."""
+    name = name or settings.llm_provider
+    if name in _LOCAL:
+        return _LOCAL[name]()
     return ClaudeProvider()

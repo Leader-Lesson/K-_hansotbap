@@ -11,20 +11,23 @@
 ```
 app/
   backend/            FastAPI (Python)
-    api/              라우터 (/api/health, /zones, /rules, /tasks, /overlaps, /conflicts, /plans, /adjustments, /sops)
-    parsers/          pdf, xlsx, hwpx → 텍스트 (위치 표식 포함)
-    llm/              LLMProvider: Claude | Unsloth Studio | LM Studio
+    api/              라우터 — 엔드포인트 목록은 아래 "API" 절
+    parsers/          pdf, xlsx, hwpx, docx → 텍스트 (위치 표식 포함)
+    llm/              LLMProvider: Claude | Unsloth Studio | LM Studio (F1 추출, F4·F9 문장, F7 전달 판정)
+    chat/             F6 챗봇: 질문 해석 → 조회 함수(도구) → 근거 붙은 답
     rules/            F2 판정, F8 누락 판정, F9 점수 (pytest 대상)
     search/           F8 작업표준서 임베딩 인덱스
     stt/              F7 Whisper large-v3-turbo / large-v3
     db/               SQLite
     data/             gy2bf_wbs.csv, zones.csv, conflict_rules.csv, sop/(작업표준서)
     schemas.py        데이터 계약 (프론트 src/types.ts 와 같은 모양)
-  frontend/           React + Vite + TypeScript
-    src/scene/        three.js 고로 3D·2D 도면
-    src/views/        원청 화면, 협력사 화면
-    src/components/   시간표형 간트, 판정 패널, 챗봇
-  samples/            합성 계획서(HWPX·엑셀·PDF), TBM 녹음
+  frontend/           React + Vite + TypeScript (npm run dev 가 여는 화면, 서버 연결)
+    src/views/        원청 화면, 협력사 화면, 상황판(BoardView), TBM 확인, 이력
+    src/components/   충돌 목록·조정안·공유, 계획서 올리기, 위험 시간대
+    src/api/          API 클라이언트 (client.ts)
+    scene3d/          three.js 고로 3D·2D 도면 (/scene3d/index.html, Vite 가 함께 빌드)
+    public/prototype/ 정적 시안 (서버 연결 없음, 합성 데이터만)
+  samples/            합성 계획서(HWPX·엑셀·PDF·Word), 정답셋, TBM 녹음, 추출·판정 평가 스크립트
   tests/              pytest
 docs/                 기획서, 기술 스택, 작업 분해 (docs/private/ 는 git 제외)
 ```
@@ -57,6 +60,20 @@ NVIDIA GPU가 없으면 CPU판으로 돈다. 노트북 CPU(i5-10210U, 스레드�
 
 TBM 녹음은 참석자 동의를 받은 뒤에만 올린다. 원본 녹음은 받아쓰기가 끝나면 지우고, 전사문은 전달 확인 기록과 함께 DB에 남는다. 시연 전에 샘플 공지를 넣으려면 `npm run seed` 뒤에 `cd app/backend && uv run python ../samples/seed_tbm_notices.py` 를 한 번 실행한다(`npm run seed`·`db:reset` 은 TBM 공지·전달 확인 기록도 비운다).
 
+## 챗봇 (F6)
+
+질문 → 조회 함수 → 근거 붙은 답. LLM 은 질문 해석(조회 도구 고르기)과 답 문장만 쓰고, 조회와 권한(협력사는 자기 작업 + 원청이 공유한 겹침만)은 서버 코드가 한다. SQL 은 실행하지 않는다.
+
+```bash
+npm run chat:check -- --provider unsloth   # Qwen(Unsloth Studio)으로 기능별 점검 (임시 DB, 합성 데이터)
+npm run chat:check                         # CHAT_PROVIDER → LLM_PROVIDER 로 점검 (Claude 로 바꾼 뒤)
+```
+
+- API: `POST /api/chat?contractor=가상-배관O` 본문 `{"question": "내 작업과 겹치는 작업은?", "today": "2027-02-19"}`, 연결 확인 `GET /api/chat/status`
+- `.env` 의 `CHAT_PROVIDER`·`CHAT_MODEL`·`CHAT_EFFORT` 로 챗봇만 다른 제공자·모델·생각 깊이를 쓴다(비우면 `LLM_PROVIDER`·기본 모델). 모델 비교: `npm run chat:check -- --provider claude --model claude-haiku-5-5`
+- 응답이 늦으면: 질문 해석 `CHAT_PLAN_TIMEOUT`(20초)·답 `CHAT_ANSWER_TIMEOUT`(30초)·전체 `CHAT_TOTAL_TIMEOUT`(45초)을 넘는 순간 LLM 을 기다리지 않고 규칙으로 해석·답한다. 응답의 `plan_by`·`answer_by`·`notice` 로 화면에 알린다. 화면(fetch)은 60초에서 끊는다
+- LLM 답에 조회 결과 밖의 작업 번호·업체가 나오면 규칙 답으로 바꾼다 (협력사에게 다른 업체 정보가 새지 않게)
+
 ## 실행
 
 ```bash
@@ -67,6 +84,49 @@ npm run dev               # API http://localhost:8000 + 웹 http://localhost:517
 npm test                  # 백엔드 pytest
 npm run build             # 프론트 타입 검사·빌드
 ```
+
+## API
+
+FastAPI, 주소 `http://localhost:8000/api` (웹은 Vite가 `/api`를 그대로 넘긴다). 실행 중이면 `http://localhost:8000/docs`에서 요청·응답 모양을 바로 볼 수 있다. 요청·응답 타입은 `app/backend/schemas.py` ↔ `app/frontend/src/types.ts`.
+
+**공통 약속**
+- **보는 사람:** 협력사로 볼 때는 `?contractor=가상-배관O`처럼 업체명을 붙이고, 원청은 비운다. 권한은 서버가 거른다 — 협력사는 자기 작업과 원청이 공유한 충돌의 상대 작업만 받고, 상대 업체의 원문 문장·투입 인원은 받지 않는다
+- **원청 전용**(협력사로 부르면 403): 조정안 조회·적용·되돌리기, 협력사 공유, TBM 공지 추가
+- **책임자 필수**(비면 422): 조정 적용·되돌리기(`decided_by`), 공유(`shared_by`), TBM 공지(`created_by`)·전달 확인(`checked_by`) — 제64조 이행 기록의 "누가"
+- **판정 시점:** 계획서 제출 순간(`POST /plans/submit`). 적용·되돌리기 응답의 `refresh`가 `true`면 화면을 한 번 새로고침한다
+- 충돌 ID에는 `:`와 `>`가 들어가므로 경로에 넣을 때 URL 인코딩한다
+
+| 기능 | 메서드 · 경로 | 하는 일 |
+|---|---|---|
+| 기준 | `GET /health` | 서버·LLM 제공자 확인 |
+| 기준 | `GET /zones` | 구역 14개와 수직 순서 (`data/zones.csv`) |
+| 기준 | `GET /rules` | 충돌 규칙 R01~R30 (`data/conflict_rules.csv`) |
+| 기준 | `GET /contractors` | '보는 사람'에서 고를 협력사 (작업 분해표 업체 + 계획서를 낸 업체) |
+| F2·F3 | `GET /tasks?contractor=` | 현재 일정: 기준 일정(`USE_BASELINE=false`면 없음) + 제출 계획서 + 적용 중인 조정 |
+| F2 | `GET /overlaps?contractor=` | 규칙 판정 전 겹침 후보 (같은 구역·위아래·전 구역) |
+| F1 | `POST /plans?mode=auto\|llm\|rules&refresh=` | 계획서 파일(HWPX·엑셀·PDF·Word) → 구조화 결과, 원문 근거, 확인 필요 표시, F8 표준서 매칭 (같은 파일은 캐시) |
+| F1·F2 | `POST /plans/submit` | 사람이 확인·수정한 작업 제출 → 그 순간 전체 일정 판정·저장. 계획서의 업체와 제출 협력사가 다르면 422. 응답은 제출 협력사에게 공유된 충돌만 |
+| F5 | `GET /plans?contractor=` | 제출 이력 (버전·제출자) |
+| F2 | `GET /conflicts?contractor=&include_resolved=` | 저장된 판정 (규칙 ID·법 조문·원문 근거, 상태, `plan_id` = 이 충돌을 처음 드러낸 제출). 협력사는 공유된 자기 충돌만 |
+| F4 | `GET /conflicts/{id}/adjustments?polish=` | 조정안 후보 (일정 이동, 추천 안이 맨 앞). `polish=true`면 이유 문장만 LLM으로 다듬음 · 원청 |
+| F4 | `POST /adjustments` | 조정안 적용 → 즉시 재판정, 사라진·새로 생긴 충돌 비교. 적용하면 그 충돌은 협력사에 공유됨 · 원청 |
+| F4 | `DELETE /adjustments/{id}?decided_by=` | 조정 되돌리기 → 재판정 · 원청 |
+| F4·F5 | `GET /adjustments?contractor=&task_id=` | 조정 기록 (적용 중·되돌림·재제출로 무효) |
+| F9 | `GET /risk-windows?contractor=&on=&zone_id=&trade=&polish=` | 구역별 위험 시간대·점수(가중치는 팀 설정값)·근거·공지 문장. `on=YYYY-MM-DD`면 그날만 |
+| F5 | `POST /shares` | 원청이 확인한 충돌을 협력사에 공유 · 원청 |
+| F5 | `GET /shares?contractor=` | 공유된 충돌을 인접 작업·위험 요소·작업 인계 조건으로 추린 것 |
+| F5 | `GET /history?contractor=` | 이행 기록(제64조): 제출·판정·공유·조정·TBM·현장 기록, 시각순 |
+| F5 | `GET /history/export?contractor=` | 이행 기록 엑셀 (합성 데이터 표시, 같은 권한 범위) |
+| F8 | `GET /sops` | 작업표준서 목록 (적용 유형·작업 예·필수 단계·핵심 단계) |
+| F8 | `GET /sops/{id}` | 표준서 한 건 + 본문 |
+| F8 | `GET /sop-matches?contractor=` | 현재 일정 작업별 표준서 매칭·필수 단계 기재 여부 (주 표준서의 핵심 단계가 빠지면 F2 결함) |
+| F7 | `GET /tbm/checklist?contractor=&on=` | 그 업체·날짜에 TBM에서 전달할 항목 (공유된 조정·위험 시간대·원청 공지, 서버가 만듦). `contractor` 필수 |
+| F7 | `POST /tbm/notices` | 전달 항목에 원청 공지 추가 · 원청 |
+| F7 | `POST /tbm/transcribe` | 녹음(wav·m4a·mp3·webm·ogg, 참석자 동의 필수) → 전사문. 원본은 받아쓴 뒤 지움 |
+| F7 | `POST /tbm/checks?contractor=` | 전사문이 전달 항목을 담았는지 판정·기록 (LLM 판단 + 규칙 확인). 협력사는 자기 업체만 |
+| F7 | `GET /tbm/checks?contractor=` | TBM 전달 확인 기록 (최근순) |
+| F6 | `POST /chat?contractor=` | 질문 → 조회 함수(도구) → 근거 붙은 답. 권한 범위 안에서만 답하고, LLM이 늦거나 실패하면 규칙으로 대신 답함 |
+| F6 | `GET /chat/status` | 챗봇 LLM 연결 확인 (`CHAT_PROVIDER` 또는 `LLM_PROVIDER`) |
 
 ## DB (팀원이 같은 상태를 보는 방법)
 

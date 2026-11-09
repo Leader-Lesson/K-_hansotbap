@@ -26,6 +26,8 @@ __pycache__/
 *.db-shm
 *.sqlite
 app/backend/data/index/
+# 챗봇 실제 LLM 점검 결과 (npm run chat:check)
+app/backend/chat_check_report.json
 *.gguf
 *.safetensors
 *.bin
