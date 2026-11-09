@@ -76,3 +76,64 @@ export interface SopMatch {
 
 // 로그인 없이 역할 선택 (원청 / 협력사 A~E)
 export type ViewerRole = { kind: "prime" } | { kind: "contractor"; contractor: string };
+
+// ── F1 계획서 구조화 ──────────────────────────────────────────────────
+
+/** 파서가 읽은 원문 한 줄 (원문 근거 하이라이트용) */
+export interface SourceLine {
+  locator: string;
+  text: string;
+}
+
+/** 계획서에서 뽑은 작업 1건 + 근거·확인 필요 표시. 사람이 확인·수정한 뒤 task 만 제출한다 */
+export interface ExtractedTask {
+  task: Task;
+  wbs_id: string | null; // 원청 기준 일정(작업 분해표)에서 대응하는 작업 ID
+  raw: Record<string, string>; // 원문 그대로: contractor·name·location·period·time·shift·hazards·precondition
+  sources: SourceRef[]; // 근거 줄 (파서 원문)
+  confidence: number; // 0~1
+  needs_review: boolean;
+  warnings: string[];
+}
+
+/** POST /api/plans 응답 */
+export interface PlanExtraction {
+  draft_id: string;
+  file: string;
+  file_sha256: string;
+  file_type: string; // pdf | xlsx | hwpx
+  method: string; // table_rules | llm
+  provider: string | null;
+  model: string | null;
+  contractor: string | null;
+  tasks: ExtractedTask[];
+  lines: SourceLine[];
+  warnings: string[];
+  cached: boolean;
+  created_at: string;
+}
+
+/** POST /api/plans/submit 본문 */
+export interface PlanSubmission {
+  contractor: string;
+  file: string;
+  tasks: Task[];
+  submitted_by?: string | null;
+  draft_id?: string | null;
+}
+
+export interface PlanRecord {
+  id: number;
+  contractor: string;
+  file: string;
+  version: number; // 같은 협력사의 몇 번째 제출인지
+  submitted_at: string;
+  submitted_by: string | null;
+  task_count: number;
+}
+
+export interface PlanSubmitResult {
+  plan: PlanRecord;
+  conflicts: Conflict[];
+  refresh: boolean; // 판정 후 화면을 한 번 강제 새로고침
+}

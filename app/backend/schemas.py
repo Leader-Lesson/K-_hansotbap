@@ -132,3 +132,69 @@ class SopMatch(BaseModel):
     score: float
     reason: str
     missing_steps: list[str] = []
+
+
+# ── F1 계획서 구조화 ──────────────────────────────────────────────────
+
+
+class SourceLine(BaseModel):
+    """파서가 읽은 원문 한 줄 (원문 근거 하이라이트용)."""
+
+    locator: str
+    text: str
+
+
+class ExtractedTask(BaseModel):
+    """계획서에서 뽑은 작업 1건 + 근거·확인 필요 표시. 사람이 확인·수정한 뒤 task 만 제출한다."""
+
+    task: Task
+    wbs_id: str | None = Field(default=None, description="원청 기준 일정(작업 분해표)에서 대응하는 작업 ID")
+    raw: dict[str, str] = Field(default={}, description="원문에 적힌 그대로: 업체·작업·위치·기간·시간·위험작업·선행조건")
+    sources: list[SourceRef] = Field(default=[], description="근거 줄. LLM이 베낀 글이 아니라 파서 원문에서 가져온다")
+    confidence: float = Field(description="0~1, 규칙 검증 결과로 계산 (가중치는 팀 설정값)")
+    needs_review: bool
+    warnings: list[str] = []
+
+
+class PlanExtraction(BaseModel):
+    """POST /api/plans 응답: 업로드한 계획서의 구조화 결과 (아직 제출 전)."""
+
+    draft_id: str
+    file: str
+    file_sha256: str
+    file_type: str  # pdf | xlsx | hwpx
+    method: str = Field(description="table_rules(규칙만) | llm(LLM 추출 + 규칙 검증)")
+    provider: str | None = None
+    model: str | None = None
+    contractor: str | None = None
+    tasks: list[ExtractedTask]
+    lines: list[SourceLine]
+    warnings: list[str] = []
+    cached: bool = False
+    created_at: datetime
+
+
+class PlanSubmission(BaseModel):
+    """POST /api/plans/submit 본문: 사람이 확인·수정한 작업 목록."""
+
+    contractor: str
+    file: str
+    tasks: list[Task] = Field(min_length=1)
+    submitted_by: str | None = None
+    draft_id: str | None = None
+
+
+class PlanRecord(BaseModel):
+    id: int
+    contractor: str
+    file: str
+    version: int = Field(description="같은 협력사의 몇 번째 제출인지 (수정 계획서 재제출 시 +1)")
+    submitted_at: datetime
+    submitted_by: str | None = None
+    task_count: int
+
+
+class PlanSubmitResult(BaseModel):
+    plan: PlanRecord
+    conflicts: list[Conflict]
+    refresh: bool = Field(default=True, description="판정 후 화면을 한 번 강제 새로고침한다")
