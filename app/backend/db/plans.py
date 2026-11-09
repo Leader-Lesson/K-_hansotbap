@@ -7,12 +7,14 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import threading
 from datetime import datetime
 
 from rules.data_loader import load_rules, load_wbs_tasks, load_zones
 from rules.engine import detect_conflicts, detect_sequence_violations
+from search.sop_match import match_plan
 from schemas import (
     Conflict,
     ConflictRecord,
@@ -21,6 +23,8 @@ from schemas import (
     PlanRecord,
     PlanSubmission,
     PlanSubmitResult,
+    SopMatch,
+    SourceLine,
     Task,
 )
 
@@ -83,13 +87,52 @@ def current_schedule() -> list[Task]:
     return list(tasks.values())
 
 
-def judge(tasks: list[Task]) -> list[Conflict]:
-    """F2 판정 자리. 규칙 엔진이 채워지면 여기서 나온 충돌이 그대로 화면에 간다."""
-    found = detect_conflicts(tasks, load_zones(), load_rules()) + detect_sequence_violations(tasks)
+def judge(tasks: list[Task], sop_matches: list[SopMatch] | None = None) -> list[Conflict]:
+    """F2 판정. sop_matches(F8)를 넘기면 표준서 필수 단계 누락을 '결함'으로 함께 낸다."""
+    found = detect_conflicts(tasks, load_zones(), load_rules(), sop_matches=sop_matches) + detect_sequence_violations(tasks)
     unique: dict[str, Conflict] = {}
     for c in found:
         unique.setdefault(c.id, c)
     return list(unique.values())
+
+
+# ── F8 계획서 원문 보관과 표준서 매칭 ──────────────────────────────────
+def save_plan_document(draft_id: str, filename: str, lines: list[SourceLine]) -> None:
+    """업로드한 계획서 원문 줄을 보관한다. 제출할 때 이 원문으로 표준서 필수 단계를 다시 확인한다."""
+    payload = json.dumps([line.model_dump() for line in lines], ensure_ascii=False)
+    with session() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO plan_documents (draft_id, filename, lines, created_at) VALUES (?, ?, ?, ?)",
+            (draft_id, filename, payload, datetime.now().isoformat(timespec="seconds")),
+        )
+
+
+def plan_document(draft_id: str) -> tuple[str, list[SourceLine]] | None:
+    with session() as conn:
+        row = conn.execute("SELECT filename, lines FROM plan_documents WHERE draft_id = ?", (draft_id,)).fetchone()
+    if not row:
+        return None
+    return row["filename"], [SourceLine.model_validate(x) for x in json.loads(row["lines"])]
+
+
+def sop_matches_for_schedule() -> list[SopMatch]:
+    """협력사별 최근 제출 계획서마다 그 원문으로 표준서 매칭. 원문이 없는 작업(기준 일정·draft 없이 제출)은 보지 않는다."""
+    out: list[SopMatch] = []
+    with session() as conn:
+        latest = conn.execute(
+            "SELECT p.id, p.draft_id FROM plans p"
+            " JOIN (SELECT contractor, MAX(id) AS plan_id FROM plans GROUP BY contractor) l ON l.plan_id = p.id"
+        ).fetchall()
+        plans = [(r["id"], r["draft_id"]) for r in latest if r["draft_id"]]
+        tasks_by_plan = {
+            pid: [Task.model_validate_json(t["payload"]) for t in conn.execute("SELECT payload FROM tasks WHERE plan_id = ?", (pid,))]
+            for pid, _ in plans
+        }
+    for pid, draft_id in plans:
+        doc = plan_document(draft_id)
+        if doc:
+            out.extend(match_plan(tasks_by_plan[pid], doc[1], doc[0]))
+    return out
 
 
 # ── 판정 결과 저장·조회 ────────────────────────────────────────────────
@@ -179,7 +222,8 @@ def submit_plan(sub: PlanSubmission) -> PlanSubmitResult:
                 "INSERT INTO tasks (id, plan_id, payload) VALUES (?, ?, ?)",
                 [(t.id, plan_id, t.model_dump_json()) for t in sub.tasks],
             )
-        conflicts = judge(current_schedule())
+        # 제출 순간 판정: 일정 전체 충돌(F2) + 제출 계획서의 표준서 필수 단계 누락(F8)
+        conflicts = judge(current_schedule(), sop_matches_for_schedule())
         with session() as conn:
             save_conflicts(conn, plan_id, conflicts, now)
             row = conn.execute(_PLAN_SELECT + " WHERE p.id = ?", (plan_id,)).fetchone()
