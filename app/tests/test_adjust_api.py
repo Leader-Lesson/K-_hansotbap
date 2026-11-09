@@ -50,7 +50,7 @@ def _p34_start() -> str:
 
 def test_submit_apply_resolve_and_revert():
     submitted = _submit()
-    assert TARGET in _ids(submitted["diff"]["introduced"])  # 새 충돌 알림
+    assert _status(TARGET) == "open"  # 제출 순간 판정돼 원청 조회에 저장된다
     assert submitted["recheck_ms"] is not None
     original_start = _p34_start()
 

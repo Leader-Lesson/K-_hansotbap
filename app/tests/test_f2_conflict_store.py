@@ -51,7 +51,6 @@ def test_no_conflicts_before_any_submission():
 
 def test_submit_persists_conflict_so_refresh_keeps_it():
     out = submit_s1()
-    assert {c["id"] for c in out["conflicts"] if c["rule_id"] == "R08"} == S1_CONFLICTS
 
     # 제출 응답을 버리고 다시 조회해도(= 판정 후 화면 강제 새로고침) 남아 있다
     records = client.get("/api/conflicts").json()
@@ -60,6 +59,19 @@ def test_submit_persists_conflict_so_refresh_keeps_it():
     assert rec["status"] == "open" and rec["resolved_at"] is None
     assert rec["plan_id"] == out["plan"]["id"] and rec["judged_at"]
     assert rec["conflict"]["rule_id"] == "R08" and rec["conflict"]["legal_basis"]
+
+
+def test_submit_response_stays_within_what_the_prime_shared():
+    """제출 응답은 원청이 공유한 범위만 담는다. 원청은 전체 판정을 그대로 본다."""
+    out = submit_s1()
+    assert out["conflicts"] == []
+    assert out["diff"] == {"resolved": [], "introduced": [], "grade_changed": []}
+    assert s1_ids(client.get("/api/conflicts").json()) == S1_CONFLICTS
+
+    shared = client.post("/api/shares", json={"conflict_ids": [P22_CONFLICT], "shared_by": "원청 담당자"})
+    assert shared.status_code == 200, shared.text
+    conflict = next(c for c in submit_s1()["conflicts"] if c["id"] == P22_CONFLICT)
+    assert not any(s["locator"] == "P22" for s in conflict["sources"])  # 상대 업체 원문은 빠진다
 
 
 def test_contractor_sees_only_conflicts_on_own_tasks():
@@ -87,7 +99,7 @@ def test_rejudge_marks_vanished_conflicts_resolved():
     res = client.post(
         "/api/plans/submit", json={"contractor": "가상-배관O", "file": "배관O_조정판.xlsx", "tasks": [p34]}
     )
-    assert not {c["id"] for c in res.json()["conflicts"]} & S1_CONFLICTS
+    assert res.status_code == 200, res.text
 
     assert s1_ids(client.get("/api/conflicts").json()) == set()  # 기본 조회에서는 빠진다
     history = client.get("/api/conflicts", params={"include_resolved": "true"}).json()
@@ -104,3 +116,32 @@ def test_adjusted_status_survives_rejudge():
     records = client.get("/api/conflicts").json()
     assert one(records, P22_CONFLICT)["status"] == "adjusted"
     assert one(records, "R08:P21>P34")["status"] == "open"
+
+
+def test_plan_id_is_the_submission_that_revealed_the_conflict():
+    """plan_id 는 그 충돌을 처음 드러낸 제출이다. 다음 제출로 다시 판정해도 앞 제출의 충돌을 가져가지 않는다
+    (상황판 '이 제출로 새로 드러난 충돌'·충돌 목록 '최근 제출' 필터가 이 값을 쓴다)."""
+    from db.seed import seed_demo
+
+    seeded = seed_demo()
+    before = {r["conflict"]["id"]: r["plan_id"] for r in client.get("/api/conflicts").json()}
+    assert before and set(before.values()) <= {p.id for p in seeded}
+
+    plan_id = submit_s1()["plan"]["id"]
+    after = {r["conflict"]["id"]: r["plan_id"] for r in client.get("/api/conflicts").json()}
+    mine = {cid for cid, pid in after.items() if pid == plan_id}
+    assert S1_CONFLICTS <= mine  # 이 제출이 드러낸 순서 위반
+    assert mine == set(after) - set(before)  # 이미 있던 충돌은 앞 제출 그대로
+    assert all(after[cid] == before[cid] for cid in set(before) & set(after))
+
+
+def test_cannot_submit_another_companys_plan():
+    """협력사는 자기 업체 계획서만 낸다. 배관O 계획서를 가설A로 제출하면 막는다 (서버에서)."""
+    ext = client.post("/api/plans", files={"file": ("배관O_수정.xlsx", s1_xlsx(), XLSX)}).json()
+    res = client.post(
+        "/api/plans/submit",
+        json={"contractor": "가상-가설A", "file": ext["file"], "tasks": [t["task"] for t in ext["tasks"]]},
+    )
+    assert res.status_code == 422
+    assert "가상-배관O" in str(res.json()["detail"]["problems"])
+    assert client.get("/api/plans").json() == []  # 기록도 남지 않는다

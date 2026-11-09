@@ -133,10 +133,11 @@ def test_end_to_end_upload_submit_conflict_then_adjust():
     ext = client.post("/api/plans", files={"file": ("배관O_수정.xlsx", s1_xlsx(), XLSX)}).json()
     tasks = [t["task"] for t in ext["tasks"]]
     first = client.post("/api/plans/submit", json={"contractor": "가상-배관O", "file": ext["file"], "tasks": tasks}).json()
-    ids = {c["id"] for c in first["conflicts"]}
+    ids = {r["conflict"]["id"] for r in client.get("/api/conflicts").json()}
     assert {"R08:P21>P34", "R08:P22>P34"} <= ids and first["refresh"] is True
 
     fixed = [t | {"start": "2027-03-03T08:00:00", "end": "2027-03-07T17:00:00"} if t["id"] == "P34" else t for t in tasks]
     second = client.post("/api/plans/submit", json={"contractor": "가상-배관O", "file": "배관O_조정.xlsx", "tasks": fixed}).json()
     assert second["plan"]["version"] == 2
-    assert not [c for c in second["conflicts"] if c["rule_id"] == "R08" and "P34" in c["task_ids"]]
+    remaining = [r["conflict"] for r in client.get("/api/conflicts").json()]
+    assert not [c for c in remaining if c["rule_id"] == "R08" and "P34" in c["task_ids"]]

@@ -60,6 +60,8 @@ export function PlanUpload({ contractor, zones, onSubmitted }: Props) {
   const setCrew = (id: string, v: string) => setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, crew: v.trim() === "" ? null : Math.max(0, Math.round(Number(v)) || 0) } : t)));
   const reviewOf = (id: string): ExtractedTask | undefined => extraction?.tasks.find((t) => t.task.id === id);
   const needsReview = extraction?.tasks.filter((t) => t.needs_review).length ?? 0;
+  // 계획서의 업체와 지금 보는 협력사가 다르면 제출할 수 없다 (서버가 422로 막는다)
+  const otherCompany = [...new Set(tasks.map((t) => t.contractor))].filter((c) => c && c !== contractor);
   const primaryMissing = extraction?.sop_matches.filter((m) => m.primary && m.missing_steps.length > 0) ?? [];
 
   return (
@@ -87,6 +89,12 @@ export function PlanUpload({ contractor, zones, onSubmitted }: Props) {
       </div>
 
       {error && <pre className="mt-3 whitespace-pre-wrap rounded bg-red-50 p-2 text-xs text-red-700">{error}</pre>}
+      {extraction && otherCompany.length > 0 && (
+        <p className="mt-3 rounded border border-red-300 bg-red-50 p-2 text-xs text-red-700">
+          이 계획서의 업체는 <b>{otherCompany.join(", ")}</b>입니다. 지금 <b>{contractor}</b>로 보고 있어 제출할 수 없습니다 — 오른쪽 위 "보는 사람"을{" "}
+          <b>{otherCompany[0]}</b>로 바꾼 뒤 다시 올려 주세요.
+        </p>
+      )}
 
       {extraction && (
         <div className="mt-4 grid gap-4">

@@ -63,6 +63,8 @@ def _check(sub: PlanSubmission) -> list[str]:
     zone_ids = {z.id for z in load_zones()}
     problems: list[str] = []
     seen: set[str] = set()
+    if not sub.contractor.strip():  # 빈 값을 넘기면 list_conflicts 가 원청으로 보고 전부 돌려준다
+        problems.append("제출 업체가 비어 있습니다")
     for t in sub.tasks:
         label = f"{t.id} {t.name}"
         if t.id in seen:
@@ -74,15 +76,21 @@ def _check(sub: PlanSubmission) -> list[str]:
             problems.append(f"{label}: 종료가 시작보다 늦어야 합니다")
         if not t.contractor.strip():
             problems.append(f"{label}: 업체가 비어 있습니다")
+        elif t.contractor != sub.contractor:
+            # 보는 사람(제출 협력사)과 계획서의 업체가 다르면 남의 일정을 대신 내는 것이 된다
+            problems.append(f"{label}: 계획서의 업체는 {t.contractor}인데 {sub.contractor}로 제출하려 합니다 — 보는 사람을 {t.contractor}로 바꿔 제출하세요")
     return problems
 
 
 @router.post("/plans/submit", response_model=PlanSubmitResult)
 def submit(sub: PlanSubmission) -> PlanSubmitResult:
-    """사람이 확인·수정한 작업을 제출한다. 제출 순간 현재 일정 전체로 F2 판정을 돌린다 (시스템은 승인·중지하지 않는다)."""
+    """사람이 확인·수정한 작업을 제출한다. 제출 순간 현재 일정 전체로 F2 판정을 돌린다 (시스템은 승인·중지하지 않는다).
+
+    응답에는 제출한 협력사에게 공유된 것만 담는다. 원청은 전체 판정을 GET /api/conflicts 로 읽는다.
+    """
     if problems := _check(sub):
         raise HTTPException(422, {"message": "제출 전에 고칠 곳이 있습니다", "problems": problems})
-    return submit_plan(sub)
+    return submit_plan(sub, viewer=sub.contractor)
 
 
 @router.get("/plans", response_model=list[PlanRecord])
