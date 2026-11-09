@@ -58,6 +58,10 @@ def test_s1_window_has_basis_and_disappears_after_adjustment():
 def test_contractor_sees_only_own_conflicts():
     _submit_s1()
     records = client.get("/api/conflicts").json()
+    shared = client.post(
+        "/api/shares", json={"conflict_ids": [r["conflict"]["id"] for r in records], "shared_by": "원청 담당자"}
+    )
+    assert shared.status_code == 200, shared.text
     tasks = {t["id"]: t for t in client.get("/api/tasks").json()}
     target = next(r["conflict"] for r in records if r["conflict"]["id"] == TARGET)
     involved = {tasks[t]["contractor"] for t in target["task_ids"]}

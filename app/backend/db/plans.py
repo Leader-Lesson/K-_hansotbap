@@ -26,6 +26,7 @@ from schemas import (
     PlanRecord,
     PlanSubmission,
     PlanSubmitResult,
+    SourceRef,
     Task,
 )
 
@@ -176,24 +177,39 @@ def _conflict_record(row) -> ConflictRecord:
         plan_id=row["plan_id"],
         judged_at=datetime.fromisoformat(row["judged_at"]),
         resolved_at=datetime.fromisoformat(row["resolved_at"]) if row["resolved_at"] else None,
+        shared_at=datetime.fromisoformat(row["shared_at"]) if row["shared_at"] else None,
     )
+
+
+def _without_others_sources(record: ConflictRecord, others: list[SourceRef]) -> ConflictRecord:
+    """상대 업체 계획서의 원문 문장을 뺀다. 표준서처럼 어느 업체 것도 아닌 근거는 남는다."""
+    conflict = record.conflict.model_copy(
+        update={"sources": [s for s in record.conflict.sources if s not in others]}
+    )
+    return record.model_copy(update={"conflict": conflict})
 
 
 def list_conflicts(contractor: str | None = None, include_resolved: bool = False) -> list[ConflictRecord]:
     """저장된 판정 결과.
 
-    협력사로 부르면 자기 작업이 걸린 충돌만 준다. 권한은 서버에서 거른다(프론트 필터로 대신하지 않는다).
-    상대 업체가 누구인지는 충돌 안에 남는다 — 혼재작업 조정에 필요한 정보이고, 기획서의 공유 범위
-    (인접 위치 작업·위험 요소·작업 인계 조건)에 들어간다.
+    협력사로 부르면 원청이 확인해 공유한 충돌 중 자기 작업이 걸린 것만 준다. 권한은 서버에서 거른다
+    (프론트 필터로 대신하지 않는다). 상대 업체가 누구인지는 충돌 안에 남는다 — 혼재작업 조정에 필요한
+    정보이고, 기획서의 공유 범위(인접 위치 작업·위험 요소·작업 인계 조건)에 들어간다.
     """
-    sql = "SELECT * FROM conflicts"
+    sql = "SELECT c.*, s.shared_at FROM conflicts c LEFT JOIN shares s ON s.conflict_id = c.id"
     if not include_resolved:
-        sql += " WHERE status != 'resolved'"
+        sql += " WHERE c.status != 'resolved'"
     with session() as conn:
         records = [_conflict_record(r) for r in conn.execute(sql)]
     if contractor:
-        mine = {t.id for t in current_schedule() if t.contractor == contractor}
-        records = [r for r in records if mine & set(r.conflict.task_ids)]
+        schedule = current_schedule()
+        mine = {t.id for t in schedule if t.contractor == contractor}
+        others = [t.source for t in schedule if t.contractor != contractor and t.source]
+        records = [
+            _without_others_sources(r, others)
+            for r in records
+            if r.shared_at and mine & set(r.conflict.task_ids)
+        ]
     return sorted(records, key=lambda r: (r.conflict.window_start, r.conflict.id))
 
 

@@ -131,6 +131,7 @@ class ConflictRecord(BaseModel):
     plan_id: int | None = Field(default=None, description="이 충돌을 드러낸 제출")
     judged_at: datetime
     resolved_at: datetime | None = None
+    shared_at: datetime | None = Field(default=None, description="원청이 확인해 협력사에 공유한 시각")
 
 
 class AdjustmentCandidate(BaseModel):
@@ -207,6 +208,71 @@ class AdjustmentResult(BaseModel):
     diff: ConflictDiff
     recheck_ms: float = Field(description="재판정에 걸린 시간(밀리초)")
     refresh: bool = Field(default=True, description="판정 후 화면을 한 번 강제 새로고침한다")
+
+
+class ShareRequest(BaseModel):
+    """POST /api/shares 본문: 원청이 확인해 협력사에 내려보낼 충돌."""
+
+    conflict_ids: list[str] = Field(min_length=1)
+    shared_by: str = Field(min_length=1, description="확인한 책임자")
+
+
+class SharedTask(BaseModel):
+    """협력사에게 보여 주는 인접 작업. 일정·위치·위험 유형만 담고 상대 업체의 원문은 담지 않는다."""
+
+    id: str
+    contractor: str
+    name: str
+    zone_id: str
+    start: datetime
+    end: datetime
+    hazards: list[Hazard] = []
+
+
+class SharedItem(BaseModel):
+    """협력사 공유 한 건: 인접 위치 작업, 위험 요소, 작업 인계 조건."""
+
+    conflict_id: str
+    type: ConflictType
+    grade: Grade
+    status: ConflictStatus
+    rule_id: str
+    legal_basis: str
+    window_start: datetime
+    window_end: datetime
+    reason: str
+    handover: str | None = Field(default=None, description="작업 인계 조건 (조정안 문구)")
+    my_task_ids: list[str] = Field(default=[], description="이 협력사의 작업. 원청으로 보면 빈 목록")
+    adjacent_tasks: list[SharedTask] = Field(default=[], description="이 충돌에 걸린 다른 작업")
+    adjustment: Adjustment | None = Field(default=None, description="이 충돌에 적용 중인 조정")
+    shared_by: str
+    shared_at: datetime
+
+
+class HistoryEventKind(str, Enum):
+    """이행 기록의 구분. 값의 순서는 같은 시각의 기록을 늘어놓는 순서다."""
+
+    PLAN_SUBMITTED = "plan_submitted"  # 계획서 제출
+    CONFLICT_JUDGED = "conflict_judged"  # 판정 (마지막으로 확인된 시각)
+    CONFLICT_SHARED = "conflict_shared"  # 원청 확인 후 협력사 공유
+    ADJUSTMENT_REPLACED = "adjustment_replaced"  # 같은 작업의 새 조정으로 대체
+    ADJUSTMENT_APPLIED = "adjustment_applied"  # 조정 적용
+    CONFLICT_RESOLVED = "conflict_resolved"  # 재판정에서 사라짐
+    ADJUSTMENT_REVERTED = "adjustment_reverted"  # 조정 되돌림
+    ADJUSTMENT_STALE = "adjustment_stale"  # 재제출로 조정이 무효가 됨
+
+
+class HistoryEvent(BaseModel):
+    """이행 기록 한 줄 (제64조)."""
+
+    at: datetime
+    kind: HistoryEventKind
+    target_id: str = Field(description="plan-<번호> 또는 충돌 ID")
+    actor: str | None = Field(default=None, description="책임자. 시스템이 남긴 기록은 null")
+    contractors: list[str] = []
+    detail: str
+    rule_id: str | None = None
+    legal_basis: str | None = None
 
 
 class OverlapCandidate(BaseModel):
