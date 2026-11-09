@@ -49,10 +49,10 @@ export function restrictionsFrom(conflicts: Conflict[], tasks: Task[]): ZoneRest
   return out;
 }
 
-/** 그날(07:00~다음 날 07:00)에 걸린 것만 */
+/** 그날 작업 시간(07:00~19:00)에 걸린 것만 — 야간조 없음 */
 export function restrictionsOn(list: ZoneRestriction[], date: string): ZoneRestriction[] {
   const dayStart = new Date(`${date}T07:00:00`).getTime();
-  const dayEnd = dayStart + 24 * 3600 * 1000;
+  const dayEnd = new Date(`${date}T19:00:00`).getTime();
   return list.filter((r) => new Date(r.start).getTime() < dayEnd && new Date(r.end).getTime() > dayStart);
 }
 

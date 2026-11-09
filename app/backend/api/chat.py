@@ -3,7 +3,8 @@
 from fastapi import APIRouter, Query
 
 from chat.service import ask, status
-from schemas import ChatRequest, ChatResponse, ChatStatus
+from llm.chat import choices, default_choice
+from schemas import ChatChoiceId, ChatChoices, ChatRequest, ChatResponse, ChatStatus
 
 router = APIRouter(tags=["chat"])
 
@@ -17,7 +18,15 @@ def chat(
     return ask(req, contractor)
 
 
+@router.get("/chat/models", response_model=ChatChoices)
+def chat_models() -> ChatChoices:
+    """화면에서 고를 수 있는 챗봇 모델 (로컬 LLM + Claude 3개)과 기본값(.env 설정과 같은 것)."""
+    return ChatChoices(choices=choices(), default=default_choice())
+
+
 @router.get("/chat/status", response_model=ChatStatus)
-def chat_status() -> ChatStatus:
-    """챗봇 LLM 연결 확인 (CHAT_PROVIDER 또는 LLM_PROVIDER 로 짧은 질문을 보내 본다)."""
-    return status()
+def chat_status(
+    choice: ChatChoiceId | None = Query(default=None, description="고른 모델로 확인. 비우면 CHAT_PROVIDER 또는 LLM_PROVIDER"),
+) -> ChatStatus:
+    """챗봇 LLM 연결 확인 (짧은 질문을 보내 본다)."""
+    return status(choice)

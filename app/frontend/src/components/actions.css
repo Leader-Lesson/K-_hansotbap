@@ -1,0 +1,44 @@
+/* 조치 카드(ActionCards) · 충돌 상세 서랍(ConflictDrawer): 시안(public/prototype/assets/css/styles.css)의 drawers·sec·pair·tc·chips·blockquote·case·prop·res 규칙.
+   상황판(.pb) 안에서만 쓰이므로 .pb 아래로 묶는다 (blockquote 같은 태그 규칙이 다른 화면으로 새지 않게).
+   카드 자체(.acts·.ac)와 공통 글씨(.pill·.btn·.sub·.kw·.t)는 views/board.css 에 있다. 색 토큰은 src/index.css */
+.pb .hq{display:inline-flex;align-items:center;font-size:12px;font-weight:700;background:var(--ink);color:var(--surface);border-radius:4px;padding:1px 8px;white-space:nowrap}
+.pb div.ac{cursor:default}
+
+/* 서랍: 오른쪽 고정, 좁은 화면에서는 전체 폭 */
+.pb .drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--surface);border-left:1px solid var(--line);z-index:40;display:flex;flex-direction:column;box-shadow:-12px 0 32px rgba(0,0,0,.12);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px);font-size:14px;line-height:1.55;color:var(--ink)}
+.pb .drawer>header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.pb .drawer .body{overflow:auto;padding:16px;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0}
+.pb .drawer h3{margin:0;font-size:16px;font-weight:500;text-wrap:balance}
+.pb .drawer .lead{margin:0;font-size:15px}
+.pb .x{appearance:none;border:0;background:none;width:30px;height:30px;border-radius:6px;font-size:18px;color:var(--ink-2);cursor:pointer}
+.pb .x:hover{background:var(--surface-2)}
+@keyframes cd-slide{from{transform:translateX(24px);opacity:.4}}
+@media (prefers-reduced-motion:no-preference){.pb .drawer.pop{animation:cd-slide .18s ease-out}}
+
+.pb .sec{display:flex;flex-direction:column;gap:8px}
+.pb .sec>.h{font-size:12px;color:var(--ink-3);font-weight:500}
+.pb .pair{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:stretch}
+@media (max-width:520px){.pb .pair{grid-template-columns:minmax(0,1fr)}.pb .pair .rel{display:none}}
+.pb .tc{border:1px solid var(--line);border-left:3px solid var(--pc);border-radius:6px;padding:8px 10px;background:var(--surface-2);min-width:0}
+.pb .tc .l{font-size:12.5px;color:var(--ink-2)}
+.pb .rel{align-self:center;font-size:12px;color:var(--ink-3);text-align:center;white-space:nowrap}
+.pb .chips{display:flex;flex-wrap:wrap;gap:6px}
+.pb .chip{font-size:12px;border:1px solid var(--line);border-radius:4px;padding:1px 7px;background:var(--surface)}
+.pb .chip.law{background:var(--blue-soft);border-color:var(--blue-soft)}
+.pb .why{margin:0;font-size:13px;color:var(--ink-2)}
+.pb blockquote{margin:0;padding:6px 10px;border-left:3px solid var(--line);background:var(--surface-2);border-radius:0 4px 4px 0;font-size:13px;overflow-wrap:anywhere}
+.pb blockquote cite{display:block;font-style:normal;font-size:11.5px;color:var(--ink-3)}
+.pb .case{border:1px solid var(--red);background:var(--red-soft);border-radius:6px;padding:8px 12px;font-size:13px}
+.pb .prop{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:9px 12px}
+.pb .prop .k{font-size:12px;color:var(--blue);font-weight:500}
+.pb .mv{font-size:13px;margin-top:2px}
+.pb .eff{font-size:12px;color:var(--ink-2);margin-top:2px}
+.pb .ai{font-family:var(--mono);font-size:10.5px;color:var(--violet);border:1px solid var(--violet);border-radius:3px;padding:0 4px;margin-right:6px;white-space:nowrap}
+.pb .row2{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-2)}
+.pb .row2 input[type=text]{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:5px 8px;min-width:0;width:12em;font:inherit;color:var(--ink)}
+.pb .res{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.pb .res li{display:flex;gap:6px;align-items:baseline}
+.pb .res li>.pill{flex:none}
+.pb .okbox{border:1px solid var(--ok);background:var(--ok-soft);border-radius:6px;padding:8px 12px;font-size:13px}
+.pb .err{margin:0;white-space:pre-wrap;border-radius:6px;background:var(--red-soft);color:var(--red);padding:6px 10px;font-size:12.5px}
+.pb .link:disabled{opacity:.5;cursor:default}

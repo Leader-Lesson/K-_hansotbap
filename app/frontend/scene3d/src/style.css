@@ -29,7 +29,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .app {
   display: grid;
   height: 100vh;
-  grid-template-columns: 200px 1fr auto;
+  grid-template-columns: 240px 1fr auto;   /* 왼쪽 위치 목록: 구역 이름이 줄바꿈되지 않게 */
   grid-template-rows: 60px 1fr 72px;
   grid-template-areas:
     "top top top"
@@ -253,7 +253,7 @@ body.full .full-exit { display: block; }
 .stage-tools { flex-wrap: wrap; row-gap: 6px; }
 .stage-hint { min-width: 0; flex: 1 1 160px; white-space: normal; }
 @media (max-width: 1200px) {
-  .app { grid-template-columns: 150px 1fr auto; }
+  .app { grid-template-columns: 190px 1fr auto; }
   .stage-hint { display: none; }
 }
 @media (max-width: 900px) {
@@ -478,11 +478,6 @@ body.embed .app { height: 100vh; }
 .vg-m .bad { color: #c62828; }
 .vg-m .good { color: #1f7a3a; }
 
-/* 잔업 계획서 버튼 (작업 상세) */
-.ot-box { margin-top: 12px; padding: 10px 12px; border: 1px dashed #9fb3c4; border-radius: 8px; background: #f7f9fb; }
-.ot-btn { width: 100%; padding: 9px; border-radius: 8px; border: 0; background: #2f3d5c; color: #fff; font-size: 15px; cursor: pointer; }
-.ot-btn:disabled { opacity: .45; cursor: not-allowed; }
-.ot-box small { display: block; margin-top: 6px; color: var(--muted); font-size: 13px; }
 
 /* ===== 3D 문제 말풍선 ===== */
 .pcall-host { pointer-events: none; }

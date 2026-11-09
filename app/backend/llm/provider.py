@@ -44,10 +44,11 @@ class ClaudeProvider:
     name = "claude"
 
     def __init__(self) -> None:
-        import anthropic
-
+        # 키부터 본다: SDK import 는 처음 한 번 수 초~수십 초 걸려(Windows 새 가상환경) 키가 없을 때 그만큼 기다리게 된다
         if not settings.anthropic_api_key:
             raise RuntimeError("ANTHROPIC_API_KEY 가 .env 에 없습니다")
+        import anthropic
+
         self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         self.model = settings.claude_model
         self.effort = settings.llm_effort  # 기능별로 바꿀 수 있다 (F6 챗봇은 CHAT_EFFORT)

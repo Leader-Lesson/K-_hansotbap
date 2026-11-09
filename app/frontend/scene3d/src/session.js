@@ -72,8 +72,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const nowIso = () => { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 const fdt = iso => { try { return iso ? fmtDateTime(iso) : '-'; } catch { return iso || '-'; } };
 
-/* 변경 종류 이름: 잔업 계획서는 긴급 변경과 같은 승인 절차를 타지만 이름을 구분 */
-const kindName = (ch) => (ch && ch.kind === 'OVERTIME' ? '잔업 계획서' : '긴급 작업 변경');
+const kindName = () => '긴급 작업 변경';
 
 export function buildSession({ topbar, zones = [], companies = [], onRoleChange, onDecision, onSimulate, previewRisks, previewGuidance } = {}) {
   const coById = Object.fromEntries(companies.map(c => [c.id, c]));
@@ -177,7 +176,7 @@ export function buildSession({ topbar, zones = [], companies = [], onRoleChange,
         <b>${esc(c.title || c.task?.title || '긴급 변경')}</b>
         <small>${esc((c.task?.zone_ids || []).map(zoneName).join(', '))}${c.task ? ` · ${esc(fdt(c.task.start))}~${esc(fdt(c.task.end).split(' ').pop())}` : ''}</small>
       </button>`).join('');
-    drop.innerHTML = `<h4>긴급 변경 · 잔업 계획서 알림</h4>${items || '<div class="ss-empty">들어온 긴급 변경이 없습니다</div>'}
+    drop.innerHTML = `<h4>긴급 변경 알림</h4>${items || '<div class="ss-empty">들어온 긴급 변경이 없습니다</div>'}
       ${onSimulate ? '<button type="button" class="ss-sim">▶ 긴급 변경 시뮬레이션 (시연용)</button>' : ''}`;
   }
 

@@ -57,7 +57,7 @@ class FakeProvider:
 
 
 def use(monkeypatch, provider):
-    monkeypatch.setattr(llm.chat, "chat_provider", lambda: provider)
+    monkeypatch.setattr(llm.chat, "chat_provider", lambda choice=None: provider)
 
 
 def pc(tool, **kw):
@@ -235,6 +235,87 @@ def test_api(demo, monkeypatch):
     assert c.post("/api/chat", json={"question": ""}).status_code == 422
     st = c.get("/api/chat/status").json()
     assert st["ok"] and st["provider"] == "fake" and st["latency_ms"] is not None
+
+
+# ── 화면에서 고르는 모델 ─────────────────────────────────────────────
+def _fake_get_provider(monkeypatch):
+    """get_provider(name) → 이름별 가짜 제공자 (기본 모델은 .env 에 있을 법한 값)."""
+
+    class P:
+        def __init__(self, name):
+            self.name = name
+            self.model = {"claude": "claude-sonnet-5-5", "unsloth": "unsloth/Qwen3.8-Flash-Next-GGUF"}.get(name, "local-model")
+            if name == "claude":
+                self.effort = "medium"
+
+    monkeypatch.setattr(llm.chat, "get_provider", lambda name=None: P(name or settings.llm_provider))
+
+
+@pytest.mark.parametrize(
+    "choice, provider, model",
+    [
+        ("local", "unsloth", "unsloth/Qwen3.8-Flash-Next-GGUF"),
+        ("claude-haiku", "claude", "claude-haiku-5-5"),
+        ("claude-sonnet", "claude", "claude-sonnet-5-5"),
+        ("claude-opus", "claude", "claude-opus-5-5"),
+    ],
+)
+def test_choice_picks_provider_and_model(monkeypatch, choice, provider, model):
+    """화면에서 고른 모델이 .env 의 CHAT_PROVIDER·CHAT_MODEL 보다 먼저다."""
+    _fake_get_provider(monkeypatch)
+    monkeypatch.setattr(settings, "chat_provider", "claude")
+    monkeypatch.setattr(settings, "chat_model", "claude-haiku-5-5")
+    p = llm.chat.chat_provider(choice)
+    assert (p.name, p.model) == (provider, model)
+    if provider == "claude":
+        assert p.effort == settings.chat_effort
+
+
+@pytest.mark.parametrize(
+    "chat_provider, chat_model, claude_model, want",
+    [
+        ("claude", "claude-haiku-5-5", "claude-opus-5-5", "claude-haiku"),
+        ("claude", "", "claude-opus-5-5", "claude-opus"),  # CHAT_MODEL 이 없으면 CLAUDE_MODEL
+        ("claude", "claude-old-1", "claude-old-1", "claude-haiku"),  # 목록에 없는 Claude 모델
+        ("unsloth", "", "claude-opus-5-5", "local"),
+    ],
+)
+def test_default_choice_follows_env(monkeypatch, chat_provider, chat_model, claude_model, want):
+    monkeypatch.setattr(settings, "chat_provider", chat_provider)
+    monkeypatch.setattr(settings, "chat_model", chat_model)
+    monkeypatch.setattr(settings, "claude_model", claude_model)
+    assert llm.chat.default_choice().value == want
+
+
+def test_api_models_and_choice(demo, monkeypatch):
+    """목록 4개 + 기본값, 고른 모델이 질문·연결 확인에 넘어가고, 목록에 없는 모델은 받지 않는다."""
+    seen = []
+    fake = FakeProvider(plan=ChatPlan(off_topic=False, calls=[pc("find_conflicts")]),
+                        draft=ChatDraft(answer="R07 금지 겹침 1건입니다.", refs=[f"conflict:{SHARED}"]))
+    monkeypatch.setattr(llm.chat, "chat_provider", lambda choice=None: seen.append(choice) or fake)
+    monkeypatch.setattr(settings, "chat_provider", "claude")
+    monkeypatch.setattr(settings, "chat_model", "claude-haiku-5-5")
+    c = TestClient(app)
+    m = c.get("/api/chat/models").json()
+    assert [x["id"] for x in m["choices"]] == ["local", "claude-haiku", "claude-sonnet", "claude-opus"]
+    assert m["default"] == "claude-haiku"
+    assert [x["model"] for x in m["choices"][1:]] == ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"]
+    res = c.post("/api/chat", json={"question": "3월 12일 겹치는 작업?", "today": "2027-02-19", "choice": "claude-opus"})
+    assert res.status_code == 200 and seen[-1] == "claude-opus"
+    assert c.get("/api/chat/status", params={"choice": "local"}).json()["ok"] and seen[-1] == "local"
+    assert c.post("/api/chat", json={"question": "안녕", "choice": "gpt-4o"}).status_code == 422
+    assert c.get("/api/chat/status", params={"choice": "claude-instant"}).status_code == 422
+
+
+def test_choices_mark_missing_keys(monkeypatch):
+    """키가 없으면 고를 수는 있게 두되 available=False 와 까닭을 준다 (화면이 회색으로 보여 준다)."""
+    monkeypatch.setattr(settings, "anthropic_api_key", "")
+    monkeypatch.setattr(settings, "unsloth_api_key", "x")
+    monkeypatch.setattr(settings, "unsloth_chat_model", "unsloth/Qwen3.8-Flash-Next-GGUF")
+    monkeypatch.setattr(settings, "chat_provider", "unsloth")
+    got = {c.id.value: (c.available, c.note) for c in llm.chat.choices()}
+    assert got["local"] == (True, None)
+    assert got["claude-opus"][0] is False and "ANTHROPIC_API_KEY" in got["claude-opus"][1]
 
 
 def test_status_reports_slow(monkeypatch):

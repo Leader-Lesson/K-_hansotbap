@@ -40,7 +40,10 @@
 .pb .jumps{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .pb .jump{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:1px 10px;font-size:12.5px}
 .pb .jump[aria-pressed="true"]{border-color:var(--blue);color:var(--blue)}
-.pb .tl-wrap{overflow-x:auto}
+.pb .jump:disabled{opacity:.4;cursor:default}
+/* 시간표는 이 상자 안에서만 가로로 스크롤한다. contain 이 없으면 .tl 의 최소 폭(860px)이 바깥 그리드 칸(원청·협력사 화면의 grid)을
+   밀어 좁은 화면에서 페이지 전체가 가로로 넘친다 (시안은 바깥이 block 이라 문제가 없다) */
+.pb .tl-wrap{overflow-x:auto;contain:inline-size}
 .pb .tl{--lab:178px;min-width:860px;position:relative}
 .pb .tl-risk,.pb .tl-scale,.pb .tl-row{display:grid;grid-template-columns:var(--lab) minmax(0,1fr)}
 .pb .tl-risk{border-bottom:1px solid var(--line-2)}
@@ -58,9 +61,12 @@
 .pb .tl-row .lab{padding:7px 12px;display:flex;flex-direction:column;justify-content:center;min-width:0;border-right:1px solid var(--line-2)}
 .pb .tl-row .lab .z{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .pb .tl-row .lab .rk{font-size:11.5px;color:var(--red)}
+.pb .tl-row .lab .zs{display:flex;flex-wrap:wrap;column-gap:4px;min-width:0}
+.pb .tl-row .lab .ds{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pb .tl-row .lab .cr{white-space:nowrap}
 .pb .tl-risk>.lab,.pb .tl-scale>:first-child,.pb .tl-row>.lab{position:sticky;left:0;z-index:4;background:var(--surface)}
 .pb .track{position:relative}
-.pb .tb{position:absolute;height:26px;border-radius:4px;border-left:3px solid var(--pc);background:color-mix(in srgb,var(--pc) 15%,var(--surface));padding:0 7px;display:flex;align-items:center;gap:6px;font-size:12.5px;white-space:nowrap;overflow:hidden;cursor:pointer;min-width:0}
+.pb .tb{position:absolute;height:26px;border-radius:4px;border:1px solid color-mix(in srgb,var(--pc) 35%,var(--line));border-left:3px solid var(--pc);background:color-mix(in srgb,var(--pc) 15%,var(--surface));padding:0 7px;display:flex;align-items:center;gap:6px;font-size:12.5px;white-space:nowrap;overflow:hidden;cursor:pointer;min-width:0}
 .pb .tb:hover{background:color-mix(in srgb,var(--pc) 24%,var(--surface))}
 .pb .tb.other{opacity:.55}
 .pb .tb.moved{outline:1.5px dashed var(--blue);outline-offset:1px}
@@ -90,11 +96,6 @@
 .pb .tlbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 14px;border-bottom:1px solid var(--line-2)}
 .pb .tctl{display:inline-flex;align-items:center;gap:4px}
 .pb .tctl select{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:2px 6px;font-variant-numeric:tabular-nums}
-.pb .sband{position:absolute;top:0;bottom:0;pointer-events:none}
-.pb .sband.day{background:color-mix(in srgb,var(--amber) 4%,transparent)}
-.pb .sband.night{background:color-mix(in srgb,var(--blue) 10%,transparent)}
-.pb .sband.hov{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--amber) 30%,transparent) 0 4px,transparent 4px 8px)}
-.pb .sw.sband{position:static;border:1px solid var(--line)}
 .pb .tl-scale .ticks .hovmk{top:7px;transform:translateX(-100%);font-size:10.5px;font-weight:700;color:var(--amber);padding-right:3px}
 .pb .tl-lines .hovl{position:absolute;top:0;bottom:0;border-left:1.5px dashed var(--amber)}
 .pb .tb.ot{border-left-style:dashed}
