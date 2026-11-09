@@ -100,6 +100,16 @@ def list_history(contractor: str | None = None) -> list[HistoryEvent]:
         )
         for p in list_plans(contractor)
     ]
+    for p in list_plans(contractor):
+        if p.decided_at and p.status.value in ("approved", "rejected"):
+            kind = Kind.PLAN_APPROVED if p.status.value == "approved" else Kind.PLAN_REJECTED
+            what = "원청 승인 — 겹침·출입 금지 구역 점검 뒤" if kind == Kind.PLAN_APPROVED else "원청 반려"
+            events.append(
+                HistoryEvent(
+                    at=p.decided_at, kind=kind, target_id=f"plan-{p.id}", actor=p.decided_by, contractors=[p.contractor],
+                    detail=f"{p.file} v{p.version}: {what}" + (f" · {p.decision_note}" if p.decision_note else ""),
+                )
+            )
 
     for r in records:
         c = r.conflict

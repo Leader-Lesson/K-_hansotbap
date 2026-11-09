@@ -13,6 +13,7 @@ import { GRADE_RANK } from "@/lib/format";
 import { usePerson } from "@/lib/person";
 import { groupByZone, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
 import type { AdjustmentResult, ConflictRecord, Grade, OverlapCandidate, PlanRecord, RiskWindow, SopInfo, SopMatch, Task, Zone } from "@/types";
+import { ApprovalPanel } from "@/views/ApprovalPanel";
 import { HistoryView } from "@/views/HistoryView";
 import { RestrictionPanel } from "@/views/RestrictionPanel";
 import { Scene3DTab } from "@/views/Scene3DTab";
@@ -67,6 +68,9 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops,
 
   // 충돌 목록: 가장 최근 제출이 만든 것만 기본으로 보여 준다 (기준 일정끼리의 충돌 100여 건에 묻히지 않게). 규칙별 묶음도 기본
   const latestPlan = useMemo(() => [...plans].sort((a, b) => b.id - a.id)[0] ?? null, [plans]);
+  // F5 원청 승인: 승인 대기 계획서 수(탭 배지). 3D·현황의 "확정" 작업은 승인된 계획서(와 기준 일정)의 것만 — 승인 대기 작업은 3D에 넣지 않는다
+  const pendingPlans = useMemo(() => plans.filter((p) => p.status === "pending"), [plans]);
+  const approvedTasks = useMemo(() => tasks.filter((t) => t.plan_status !== "pending"), [tasks]);
   const filter = useConflictFilter(conflicts, tasks, date, latestPlan?.id ?? null);
   const [groupRules, setGroupRules] = useState(true);
   const allContractors = useMemo(() => [...new Set(tasks.map((t) => t.contractor))].sort(), [tasks]);
@@ -153,6 +157,9 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops,
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="board">현황판</TabsTrigger>
+          <TabsTrigger value="approval">
+            승인 {pendingPlans.length > 0 && <span className="ml-1 rounded bg-amber-500 px-1.5 text-[10px] text-white">{pendingPlans.length}</span>}
+          </TabsTrigger>
           <TabsTrigger value="scene3d">3D·충돌</TabsTrigger>
           <TabsTrigger value="conflicts">충돌 목록 {open.length > 0 && <span className="ml-1 rounded bg-red-600 px-1.5 text-[10px] text-white">{open.length}</span>}</TabsTrigger>
           <TabsTrigger value="restrictions">출입 제한 {blockedZones > 0 && <span className="ml-1 rounded bg-red-600 px-1.5 text-[10px] text-white">{blockedZones}</span>}</TabsTrigger>
@@ -210,7 +217,22 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops,
           value="scene3d"
           className="h-[calc(100vh-180px)] min-h-[560px] overflow-hidden rounded-lg border border-stone-200"
         >
-          <Scene3DTab date={date} tasks={tasks} conflicts={open} restrictions={restrictions} role={{ kind: "prime" }} selectTaskId={selectedTask} />
+          <Scene3DTab date={date} tasks={approvedTasks} conflicts={open} restrictions={restrictions} role={{ kind: "prime" }} selectTaskId={selectedTask} />
+        </TabsContent>
+
+        <TabsContent value="approval">
+          <ApprovalPanel
+            plans={plans}
+            tasks={tasks}
+            zones={zones}
+            onDecided={onReload}
+            onShow3D={(taskId, day) => {
+              if (day !== date) setDate(day);
+              setSelectedTask(taskId);
+              setTab("scene3d");
+            }}
+            onShowConflict={() => setTab("conflicts")}
+          />
         </TabsContent>
 
         <TabsContent value="restrictions">
