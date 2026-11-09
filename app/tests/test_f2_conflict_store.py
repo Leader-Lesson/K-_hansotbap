@@ -145,3 +145,28 @@ def test_cannot_submit_another_companys_plan():
     assert res.status_code == 422
     assert "가상-배관O" in str(res.json()["detail"]["problems"])
     assert client.get("/api/plans").json() == []  # 기록도 남지 않는다
+
+
+def test_without_baseline_only_uploaded_plans_are_judged(monkeypatch):
+    """USE_BASELINE=false: 기준 일정(합성 37건) 없이 올린 계획서로만 일정을 만들고 판정한다 (문서에서 읽은 데이터만).
+    협력사 목록은 일정과 따로 나와서, 아무도 안 냈어도 업체를 골라 올릴 수 있다."""
+    from pathlib import Path
+
+    from config import settings
+
+    monkeypatch.setattr(settings, "use_baseline", False)
+    assert client.get("/api/tasks").json() == []
+    assert {"가상-축로I", "가상-배관O"} <= set(client.get("/api/contractors").json())
+
+    samples = Path(__file__).resolve().parents[1] / "samples"
+    name = "가상-축로I_노체축조_주간계획.xlsx"
+    ext = client.post("/api/plans?mode=rules", files={"file": (name, (samples / name).read_bytes(), XLSX)}, data={"contractor": "가상-축로I"}).json()
+    res = client.post("/api/plans/submit", json={"contractor": "가상-축로I", "file": name, "tasks": [t["task"] for t in ext["tasks"]]})
+    assert res.status_code == 200, res.text
+    assert {t["id"] for t in client.get("/api/tasks").json()} == {"P20", "P21", "P22"}
+
+    submit_s1()  # 배관O: P34를 축조(P21·P22) 완료 전으로
+    uploaded = {t["id"] for t in client.get("/api/tasks").json()}
+    records = client.get("/api/conflicts").json()
+    assert S1_CONFLICTS <= ids(records)  # 순서 위반은 두 계획서만으로 잡힌다
+    assert all(set(r["conflict"]["task_ids"]) <= uploaded for r in records)  # 기준 일정 작업이 걸린 충돌은 없다

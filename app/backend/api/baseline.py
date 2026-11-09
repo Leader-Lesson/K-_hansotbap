@@ -2,9 +2,9 @@
 
 from fastapi import APIRouter, Query
 
-from db.plans import current_schedule
+from db.plans import current_schedule, list_plans
 from db.shares import visible_tasks
-from rules.data_loader import load_rules, load_zones
+from rules.data_loader import load_rules, load_wbs_tasks, load_zones
 from rules.overlap import find_overlap_candidates
 from schemas import OverlapCandidate, Rule, Task, Zone
 
@@ -21,6 +21,14 @@ def zones() -> list[Zone]:
 @router.get("/rules", response_model=list[Rule])
 def rules() -> list[Rule]:
     return load_rules()
+
+
+@router.get("/contractors", response_model=list[str])
+def contractors() -> list[str]:
+    """'보는 사람'에서 고를 협력사(가상-…): 작업 분해표의 업체 + 계획서를 낸 업체.
+    일정과 따로 준다 — 기준 일정을 끄고(USE_BASELINE=false) 아무도 안 냈어도 협력사를 골라 계획서를 올릴 수 있게."""
+    names = {t.contractor for t in load_wbs_tasks()} | {p.contractor for p in list_plans()}
+    return sorted(n for n in names if n.startswith("가상-"))
 
 
 @router.get("/tasks", response_model=list[Task])

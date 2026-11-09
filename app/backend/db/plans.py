@@ -14,6 +14,7 @@ import threading
 import time
 from datetime import datetime
 
+from config import settings
 from rules.adjust import apply_adjustments, diff_conflicts
 from rules.data_loader import load_rules, load_wbs_tasks, load_zones
 from rules.engine import detect_conflicts, detect_sequence_violations, is_all_zone_conflict, scope_all_zone_conflict
@@ -85,8 +86,11 @@ def list_plans(contractor: str | None = None) -> list[PlanRecord]:
 
 
 def base_schedule() -> list[Task]:
-    """원청 기준 일정 위에 협력사별 최근 제출분을 덮은 원본 일정 (F4 조정을 얹기 전)."""
-    tasks = {t.id: t for t in load_wbs_tasks()}
+    """원청 기준 일정 위에 협력사별 최근 제출분을 덮은 원본 일정 (F4 조정을 얹기 전).
+
+    USE_BASELINE=false 면 기준 일정 없이 제출분만 — 문서에서 읽은 작업만으로 판정한다.
+    """
+    tasks = {t.id: t for t in load_wbs_tasks()} if settings.use_baseline else {}
     with session() as conn:
         latest = conn.execute("SELECT contractor, MAX(id) AS plan_id FROM plans GROUP BY contractor").fetchall()
         for row in sorted(latest, key=lambda r: r["plan_id"]):

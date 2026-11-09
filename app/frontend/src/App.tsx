@@ -64,9 +64,9 @@ export default function App() {
     void load();
   }, [load]);
 
-  // 역할 선택 목록은 전체 일정에서 뽑는다 (협력사로 좁혀 받은 뒤에도 다른 업체로 바꿀 수 있게)
+  // 역할 선택 목록은 협력사 목록(작업 분해표 업체 + 제출 업체)에서 — 일정이 비어 있어도(USE_BASELINE=false) 고를 수 있게
   useEffect(() => {
-    api.tasks().then((t) => setAllContractors([...new Set(t.map((x) => x.contractor))].filter((c) => c.startsWith("가상-")).sort())).catch(() => {});
+    api.contractors().then(setAllContractors).catch(() => {});
   }, []);
 
   useEffect(() => {

@@ -51,6 +51,9 @@ class Settings(BaseSettings):
 
     # 시연 기준: 광양 2고로 개수 D0
     project_d0: str = "2026-11-12"
+    # 기준 일정(data/gy2bf_wbs.csv, 합성 작업 분해표 37건)을 화면·판정 일정에 넣을지.
+    # false 면 올린 계획서로만 일정을 만든다(문서에서 읽은 데이터만). 추출의 작업 ID 연결·선행 관계는 계속 기준 일정을 참고한다
+    use_baseline: bool = True
 
 
 settings = Settings()
