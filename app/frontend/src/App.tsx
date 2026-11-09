@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/api/client";
 import { restrictionsFrom } from "@/lib/restrictions";
+import { ChatBot } from "@/components/ChatBot";
 import type { AdjustmentResult, ConflictRecord, OverlapCandidate, PlanRecord, PlanSubmitResult, SopInfo, SopMatch, Task, ViewerRole, Zone } from "@/types";
 import { ContractorView } from "@/views/ContractorView";
 import { DATE_KEY, PrimeView } from "@/views/PrimeView";
@@ -219,6 +220,9 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* F6 AI 챗봇: 보는 사람이 바뀌면 key 로 새로 만들어 앞 역할의 대화가 남지 않게 한다 */}
+      <ChatBot key={roleValue} contractor={contractor} />
     </div>
   );
 }
