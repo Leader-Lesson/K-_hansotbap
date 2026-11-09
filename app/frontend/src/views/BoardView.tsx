@@ -3,6 +3,7 @@
 // 판정·위험 시간대·조정은 서버 규칙이 한 것이고 여기서는 보여 주기만 한다. 협력사는 서버가 거른 데이터만 받는다(자기 작업 + 공유된 충돌의 상대 작업)
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { api } from "@/api/client";
+import { DEF_NOW, useShell } from "@/lib/shell";
 import { ConflictList } from "@/components/ConflictList";
 import { CONFLICT_TYPE_LABEL, GRADE_RANK } from "@/lib/format";
 import { restrictionsFrom } from "@/lib/restrictions";
@@ -25,8 +26,6 @@ interface Props {
 const H0 = 7; // 기획서 F3: 07~19시, 30분 칸
 const H1 = 19;
 const SLOTS = (H1 - H0) * 2;
-const DEF_NOW = 10.5; // 시연 시각 기본 10:30 (시안과 같음) [팀 설정값]
-const NOW_KEY = "hansotbap.now";
 const LANE = 30; // 막대 한 줄 높이(px) — 시안과 같음
 const GRADE_VAR: Record<Grade, string> = { 금지: "var(--red)", 조건부: "var(--amber)", 결함: "var(--violet)" };
 const GRADE_PILL: Record<Grade, string> = { 금지: "ban", 조건부: "cond", 결함: "def" };
@@ -38,11 +37,6 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const hh = (v: number) => `${pad(Math.floor(v))}:${pad(Math.round((v % 1) * 60))}`;
 const hourOf = (iso: string) => Number(iso.slice(11, 13)) + Number(iso.slice(14, 16)) / 60;
 const short = (c: string) => c.replace(/^가상-/, "");
-const shiftDay = (d: string, n: number) => {
-  const x = new Date(`${d}T00:00:00`);
-  x.setDate(x.getDate() + n);
-  return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
-};
 
 /** 받침에 맞는 조사 (한글이 아니면 '이(가)' 꼴) */
 function josa(word: string, withBatchim: string, without: string): string {
@@ -84,11 +78,7 @@ type DayConflict = { rec: ConflictRecord; c: Conflict; h0: number; h1: number };
 export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans, onAdjusted, onShared, onShow3D }: Props) {
   const me = role.kind === "contractor" ? role.contractor : undefined;
   const isPrime = !me;
-  const [now, setNowState] = useState<number>(() => Number(sessionStorage.getItem(NOW_KEY)) || DEF_NOW);
-  const setNow = (v: number) => {
-    setNowState(v);
-    sessionStorage.setItem(NOW_KEY, String(v));
-  };
+  const { now, setNow } = useShell(); // 시연 시각은 헤더 큰 시계와 같은 값
   const [sel, setSel] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [risk, setRisk] = useState<RiskWindow[]>([]);
@@ -375,13 +365,6 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
         </header>
 
         <div className="tlbar">
-          <button type="button" className="jump" onClick={() => setDate(shiftDay(date, -1))} aria-label="전날">
-            ◀
-          </button>
-          <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className="jump" />
-          <button type="button" className="jump" onClick={() => setDate(shiftDay(date, 1))} aria-label="다음 날">
-            ▶
-          </button>
           <label className="sub">
             지금{" "}
             <select value={now} onChange={(e) => setNow(Number(e.target.value))} className="jump">

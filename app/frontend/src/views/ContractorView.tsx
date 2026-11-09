@@ -2,12 +2,12 @@
 // 권한: 작업·충돌·표준서 매칭·공유·위험 시간대는 서버가 contractor 로 거른 것만 받는다 (자기 작업 + 공유된 충돌의 상대 작업)
 import { useMemo, useState } from "react";
 import { ConflictList } from "@/components/ConflictList";
-import { PlanUpload } from "@/components/PlanUpload";
 import { SopMatchPanel } from "@/components/SopMatchPanel";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { GRADE_RANK, HAZARD_LABEL, fmtRange } from "@/lib/format";
 import { groupByZone, restrictionsForContractor, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
-import type { ConflictRecord, PlanRecord, PlanSubmitResult, SopInfo, SopMatch, Task, Zone } from "@/types";
+import { useShell, useShellRegister } from "@/lib/shell";
+import type { ConflictRecord, PlanRecord, SopInfo, SopMatch, Task, Zone } from "@/types";
 import { HistoryView } from "@/views/HistoryView";
 import { RestrictionPanel } from "@/views/RestrictionPanel";
 import { Scene3DTab } from "@/views/Scene3DTab";
@@ -25,10 +25,9 @@ interface Props {
   sops: SopInfo[]; // 원청 작업표준서 목록 — 내 작업에 적용되는 것을 먼저 보여 준다
   plans: PlanRecord[]; // 내 제출 이력 (서버가 걸러 준다)
   restrictions: ZoneRestriction[]; // 금지 판정 → 출입 제한 (내 작업이 걸린 것만 다시 거른다)
-  onSubmitted: (result: PlanSubmitResult) => void;
 }
 
-export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches, sops, plans, restrictions, onSubmitted }: Props) {
+export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches, sops, plans, restrictions }: Props) {
   const mine = tasks.filter((t) => t.contractor === contractor);
   const myRestrictions = useMemo(() => restrictionsForContractor(restrictions, tasks, contractor), [restrictions, tasks, contractor]);
   // 3D 기본 날짜: 내 충돌 중 가장 높은 등급(같으면 먼저 시작하는 것)의 시작일 → 없으면 내 첫 작업 시작일
@@ -38,36 +37,29 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
     )[0];
     return (top?.conflict.window_start ?? [...mine].sort((a, b) => a.start.localeCompare(b.start))[0]?.start ?? "2027-01-21").slice(0, 10);
   }, [conflicts, mine]);
-  const [dateOverride, setDateOverride] = useState<string | null>(null);
-  const date = dateOverride ?? defaultDate;
-  const setDate = setDateOverride;
+  // 날짜·탭은 헤더(AppHeader)와 같이 쓴다
+  const { date, setDate, tab, setTab } = useShell();
   const zoneName = (id: string) => zones.find((z) => z.id === id)?.name ?? id;
-  const [tab, setTab] = useState("board");
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const blockedZones = useMemo(() => groupByZone(restrictionsOn(myRestrictions, date), zones).length, [myRestrictions, date, zones]);
+  // 헤더 탭 (시안처럼 화면 위 머리에 둔다)
+  useShellRegister(defaultDate, [
+    { value: "board", label: "현재 상황판" },
+    { value: "mine", label: `내 작업 ${mine.length}` },
+    { value: "conflicts", label: "나와 겹친 충돌", count: conflicts.length },
+    { value: "shared", label: "원청 공유·공지" },
+    { value: "restrictions", label: "작업 금지 구역", count: blockedZones },
+    { value: "sops", label: "표준서" },
+    { value: "scene3d", label: "내 작업 3D" },
+    { value: "tbm", label: "TBM 확인" },
+    { value: "history", label: "내 이력" },
+  ]);
   // 공유·조정이 바뀌면 "원청 공유·공지"를 다시 부른다 (App 이 다시 불러온 충돌 목록이 바뀐 것으로 안다)
   const conflictsKey = conflicts.map((r) => `${r.conflict.id}:${r.status}:${r.shared_at ?? ""}`).join("|");
 
   return (
     <div className="grid gap-4">
-      <PlanUpload contractor={contractor} zones={zones} onSubmitted={onSubmitted} />
-
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="board">상황판</TabsTrigger>
-          <TabsTrigger value="mine">내 작업 {mine.length}</TabsTrigger>
-          <TabsTrigger value="conflicts">
-            나와 겹친 충돌 {conflicts.length > 0 && <span className="ml-1 rounded bg-red-600 px-1.5 text-[10px] text-white">{conflicts.length}</span>}
-          </TabsTrigger>
-          <TabsTrigger value="shared">원청 공유·공지</TabsTrigger>
-          <TabsTrigger value="restrictions">
-            작업 금지 구역 {blockedZones > 0 && <span className="ml-1 rounded bg-red-600 px-1.5 text-[10px] text-white">{blockedZones}</span>}
-          </TabsTrigger>
-          <TabsTrigger value="sops">표준서</TabsTrigger>
-          <TabsTrigger value="scene3d">내 작업 3D</TabsTrigger>
-          <TabsTrigger value="tbm">TBM 확인</TabsTrigger>
-          <TabsTrigger value="history">내 이력</TabsTrigger>
-        </TabsList>
 
         <TabsContent value="board">
           <BoardView

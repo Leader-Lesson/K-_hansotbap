@@ -5,14 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/api/client";
 import { ConflictFilter, useConflictFilter } from "@/components/ConflictFilter";
 import { ConflictList } from "@/components/ConflictList";
-import { GradeBadge } from "@/components/ConflictBadge";
 import { RiskWindowList } from "@/components/RiskWindowList";
 import { SopMatchPanel } from "@/components/SopMatchPanel";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { GRADE_RANK } from "@/lib/format";
 import { usePerson } from "@/lib/person";
 import { groupByZone, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
-import type { AdjustmentResult, ConflictRecord, Grade, OverlapCandidate, PlanRecord, RiskWindow, SopInfo, SopMatch, Task, Zone } from "@/types";
+import { useShell, useShellRegister } from "@/lib/shell";
+import type { AdjustmentResult, ConflictRecord, PlanRecord, RiskWindow, SopInfo, SopMatch, Task, Zone } from "@/types";
 import { HistoryView } from "@/views/HistoryView";
 import { RestrictionPanel } from "@/views/RestrictionPanel";
 import { Scene3DTab } from "@/views/Scene3DTab";
@@ -20,12 +20,9 @@ import { SopLibrary } from "@/views/SopLibrary";
 import { TbmView } from "@/views/TbmView";
 import { BoardView } from "@/views/BoardView";
 
-export const DATE_KEY = "hansotbap.date";
-
 interface Props {
   zones: Zone[];
   tasks: Task[];
-  overlaps: OverlapCandidate[];
   conflicts: ConflictRecord[]; // 서버 판정 결과 (해소된 것 제외)
   sopMatches: SopMatch[];
   sops: SopInfo[]; // 원청 작업표준서 목록 (공통 4 + 작업별)
@@ -35,7 +32,7 @@ interface Props {
   onReload: () => void; // 협력사 공유 뒤 다시 불러오기
 }
 
-export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onReload }: Props) {
+export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onReload }: Props) {
   // 기본 날짜: 가장 최근 제출한 협력사의 작업이 걸린 충돌 중 가장 높은 등급(같으면 먼저 시작)의 시작일.
   // 제출 직후 그 협력사가 낸 충돌이 있는 날로 바로 간다. 제출이 없으면 기준 일정의 한 날
   const defaultDate = useMemo(() => {
@@ -47,23 +44,13 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops,
       .sort((a, b) => GRADE_RANK[b.conflict.grade] - GRADE_RANK[a.conflict.grade] || a.conflict.window_start.localeCompare(b.conflict.window_start))[0];
     return (top?.conflict.window_start ?? "2027-01-21").slice(0, 10);
   }, [conflicts, tasks, plans]);
-  // 판정 후 강제 새로고침을 해도 보던 날짜가 남게 한다 (새 제출이 오면 App 이 지워서 새 충돌 날짜로 간다)
-  const [dateOverride, setDateOverride] = useState<string | null>(() => sessionStorage.getItem(DATE_KEY));
-  const date = dateOverride ?? defaultDate;
-  const setDate = setDateOverride;
-  useEffect(() => sessionStorage.setItem(DATE_KEY, date), [date]);
-  const [tab, setTab] = useState("board");
+  // 날짜·탭은 헤더(AppHeader)와 같이 쓴다. 고른 날짜는 새로고침해도 남고, 새 제출이 오면 App 이 지워 새 충돌 날짜로 간다
+  const { date, setDate, tab, setTab } = useShell();
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [sopView, setSopView] = useState<"matches" | "library">("matches");
   const blockedZones = useMemo(() => groupByZone(restrictionsOn(restrictions, date), zones).length, [restrictions, date, zones]);
 
   const open = useMemo(() => conflicts.map((r) => r.conflict), [conflicts]);
-  const todays = useMemo(() => {
-    const dayStart = new Date(`${date}T07:00:00`);
-    const dayEnd = new Date(`${date}T19:00:00`);
-    return tasks.filter((t) => new Date(t.start) < dayEnd && new Date(t.end) > dayStart);
-  }, [tasks, date]);
-  const contractors = new Set(todays.map((t) => t.contractor));
 
   // 충돌 목록: 가장 최근 제출이 만든 것만 기본으로 보여 준다 (기준 일정끼리의 충돌 100여 건에 묻히지 않게). 규칙별 묶음도 기본
   const latestPlan = useMemo(() => [...plans].sort((a, b) => b.id - a.id)[0] ?? null, [plans]);
@@ -110,8 +97,16 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops,
     }
   };
 
-  const counts = { 금지: 0, 조건부: 0, 결함: 0 } as Record<Grade, number>;
-  for (const c of open) counts[c.grade] += 1;
+  // 헤더 탭 (시안처럼 화면 위 머리에 둔다)
+  useShellRegister(defaultDate, [
+    { value: "board", label: "현재 상황판" },
+    { value: "scene3d", label: "3D · 충돌" },
+    { value: "conflicts", label: "충돌 목록", count: open.length },
+    { value: "restrictions", label: "출입 제한", count: blockedZones },
+    { value: "sops", label: "표준서" },
+    { value: "tbm", label: "TBM 확인" },
+    { value: "history", label: "이력" },
+  ]);
 
   // 충돌 상세의 [3D로 보기]: 충돌이 걸린 날짜로 옮기고 3D 탭에서 그 작업을 고른다
   const show3D = (taskId: string, r: ConflictRecord) => {
@@ -123,43 +118,7 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops,
 
   return (
     <div className="grid gap-4">
-      <section className="flex flex-wrap items-center gap-4 rounded-lg bg-white p-3 text-sm shadow-sm">
-        <label className="flex items-center gap-2">
-          날짜
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="rounded border border-stone-300 px-2 py-1"
-          />
-        </label>
-        <span>업체 {contractors.size}곳</span>
-        <span>작업 {todays.length}건</span>
-        <span className="text-stone-500">겹침 후보(전체 공정) {overlaps.length}쌍</span>
-        <span className="ml-auto flex items-center gap-2">
-          충돌 {open.length}건
-          {(["금지", "조건부", "결함"] as Grade[]).map(
-            (g) =>
-              counts[g] > 0 && (
-                <span key={g} className="flex items-center gap-1">
-                  <GradeBadge grade={g} />
-                  <span className="text-xs text-stone-600">{counts[g]}</span>
-                </span>
-              ),
-          )}
-        </span>
-      </section>
-
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="board">현황판</TabsTrigger>
-          <TabsTrigger value="scene3d">3D·충돌</TabsTrigger>
-          <TabsTrigger value="conflicts">충돌 목록 {open.length > 0 && <span className="ml-1 rounded bg-red-600 px-1.5 text-[10px] text-white">{open.length}</span>}</TabsTrigger>
-          <TabsTrigger value="restrictions">출입 제한 {blockedZones > 0 && <span className="ml-1 rounded bg-red-600 px-1.5 text-[10px] text-white">{blockedZones}</span>}</TabsTrigger>
-          <TabsTrigger value="sops">표준서</TabsTrigger>
-          <TabsTrigger value="tbm">TBM 확인</TabsTrigger>
-          <TabsTrigger value="history">이력</TabsTrigger>
-        </TabsList>
 
         <TabsContent value="board" className="grid gap-4">
           {/* 시안 상황판(#board) 레이아웃을 서버 데이터로: 숫자 띠 · 30분 칸 시간표 · 위험 시간대 띠 · 조치 카드 · 충돌 상세 */}
