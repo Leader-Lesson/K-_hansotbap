@@ -742,7 +742,7 @@ function barrierList(t) {
   // 부모(서버 금지 판정·시안 zoneMap)가 넘긴 제한을 먼저 세우고, 브라우저 규칙의 위험 영역(낙하 중앙부 같은 방위 정보)을 보탠다.
   // 서버 판정은 구역 단위라 방위가 없고, 브라우저 규칙만으로는 서버가 금지한 구역을 빠뜨릴 수 있어서 둘을 합친다
   if (state.restrictions) {
-    for (const r of state.restrictions) if (r.start <= t && t < r.end) r.zone_ids.forEach((zid) => add(zid, r.blocked, null, r.end, r.reason, r.source_ids));
+    for (const r of state.restrictions) if (isActive(r, t)) r.zone_ids.forEach((zid) => add(zid, r.blocked, null, r.end, r.reason, r.source_ids));
   }
   {
     const live = liveTasks();

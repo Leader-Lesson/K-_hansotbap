@@ -28,6 +28,31 @@ const PALETTE = ['#2e6fd0', '#8a3fa0', '#1f8a8a', '#b08300', '#a0522d', '#3f7f4f
 /* ISO ('2027-01-21T22:00:00' 또는 '...+09:00') → 'YYYY-MM-DDTHH:MM' */
 const iso16 = (s) => String(s || '').slice(0, 16);
 
+/* 여러 날 작업은 매일 시작 시각~끝 시각에만 일한다 (서버 rules/overlap.py work_periods 와 같은 약속).
+   07:00 → 12:00 이면 매일 오전, 19:00 → 07:00 이면 매일 밤, 끝 시각 = 시작 시각이면 24시간 연속.
+   그 밖의 시간을 pauses([[시작, 끝], …] iso16)로 넘기면 isActive·activeIntervals 가 진행 중이 아닌 것으로 본다 */
+const DAY_MIN = 1440;
+const toUtcMin = (iso) => {
+  const [d, hm] = iso16(iso).split('T');
+  const [y, mo, da] = d.split('-').map(Number), [h, mi] = (hm || '00:00').split(':').map(Number);
+  return Date.UTC(y, mo - 1, da, h, mi) / 60000;
+};
+const fromUtcMin = (m) => new Date(m * 60000).toISOString().slice(0, 16);
+export function offHours(start, end) {
+  if (!start || !end) return [];
+  const s = toUtcMin(start), e = toUtcMin(end), total = e - s;
+  if (!(total > 0)) return [];
+  let len = (((e % DAY_MIN) - (s % DAY_MIN)) % DAY_MIN + DAY_MIN) % DAY_MIN || DAY_MIN;
+  len = Math.min(len, total);
+  const days = Math.floor((total - len) / DAY_MIN);
+  const out = [];
+  for (let k = 0; k < days; k++) {
+    const gapS = s + k * DAY_MIN + len, gapE = s + (k + 1) * DAY_MIN;
+    if (gapE > gapS) out.push([fromUtcMin(gapS), fromUtcMin(gapE)]);
+  }
+  return out;
+}
+
 /* 협력사 이름 목록 → Company[] (id = 원래 협력사 문자열, 권한·승인 비교에 그대로 씀) */
 export function companiesFrom(tasks) {
   const names = [...new Set(tasks.map((t) => t.contractor).filter(Boolean))].sort();
@@ -42,6 +67,7 @@ export function taskFrom(t) {
   return {
     id: t.id, company_id: t.contractor, title: t.name, zone_ids: ZONE_MAP[t.zone_id] ?? [], src_zone: t.zone_id,
     start: iso16(t.start), end: iso16(t.end), crew: t.crew ?? null, crew_unknown: t.crew == null,
+    pauses: offHours(t.start, t.end), // 작업시간 밖(밤·쉬는 시간대)은 진행 중이 아님
     work_types, systems, shift: t.shift || null, wbs: t.id,
     preconditions: (t.predecessors || []).map((ref) => ({ kind: 'AFTER_TASK', ref, text: `${ref} 완료 후` })),
     source: t.source || null, status: 'active',
@@ -60,6 +86,7 @@ export function conflictFrom(c, taskById) {
     task_ids: c.task_ids || [], company_ids: [...new Set(ts.map((t) => t.company_id))],
     zone_ids: [...new Set(ts.flatMap((t) => t.zone_ids))],
     start: iso16(c.window_start), end: iso16(c.window_end),
+    pauses: offHours(c.window_start, c.window_end), // 충돌 기간도 매일 그 시간대에만
     reason: c.reason || '', law_ref: c.legal_basis || '', suggestion: c.suggestion ? { text: c.suggestion } : null,
     sources: c.sources || [], source: 'seed',
   };
@@ -76,7 +103,7 @@ export function fromHansotbap({ tasks = [], conflicts, restrictions } = {}) {
     conflicts: Array.isArray(conflicts) ? conflicts.map((c) => conflictFrom(c, byId)) : undefined,
     // 방위별 출입 제한 [{zone_id, start, end, blocked:['N',…], reason}] → scene3d 구역
     restrictions: Array.isArray(restrictions)
-      ? restrictions.map((r) => ({ zone_ids: ZONE_MAP[r.zone_id] ?? [], start: iso16(r.start), end: iso16(r.end), blocked: r.blocked || [], source_ids: r.source_ids || [], reason: r.reason || '' }))
+      ? restrictions.map((r) => ({ zone_ids: ZONE_MAP[r.zone_id] ?? [], start: iso16(r.start), end: iso16(r.end), pauses: offHours(r.start, r.end), blocked: r.blocked || [], source_ids: r.source_ids || [], reason: r.reason || '' }))
       : undefined,
   };
 }
