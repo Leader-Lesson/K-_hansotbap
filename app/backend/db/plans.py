@@ -3,17 +3,22 @@
 현재 일정 = 원청 기준 일정(작업 분해표) 위에, 협력사별 가장 최근 제출 계획서의 작업을 덮어쓴 것.
 - 계획서 작업이 기준 일정 작업과 같은 ID(예: P34)면 기준 일정의 그 작업을 대체한다.
 - 같은 협력사가 다시 제출하면 그 협력사의 예전 제출분은 빠지고 새 제출분만 남는다 (계획 변경 = 수정 계획서 재제출).
+- 위 결과가 base_schedule(). current_schedule() 은 그 위에 원청이 적용한 F4 조정(active)을 얹은 것이다.
 """
 
 from __future__ import annotations
 
 import sqlite3
 import threading
+import time
 from datetime import datetime
 
+from rules.adjust import apply_adjustments, diff_conflicts
 from rules.data_loader import load_rules, load_wbs_tasks, load_zones
 from rules.engine import detect_conflicts, detect_sequence_violations
 from schemas import (
+    Adjustment,
+    AdjustmentStatus,
     Conflict,
     ConflictRecord,
     ConflictStatus,
@@ -24,6 +29,7 @@ from schemas import (
     Task,
 )
 
+from .adjustments import active_adjustments, close_adjustment
 from .database import session
 
 # 판정은 제출 순간 한 번. 동시에 들어오면 먼저 들어온 계획부터 하나씩 처리한다
@@ -72,7 +78,8 @@ def list_plans(contractor: str | None = None) -> list[PlanRecord]:
         return [_record(r) for r in conn.execute(sql + " ORDER BY p.id", args)]
 
 
-def current_schedule() -> list[Task]:
+def base_schedule() -> list[Task]:
+    """원청 기준 일정 위에 협력사별 최근 제출분을 덮은 원본 일정 (F4 조정을 얹기 전)."""
     tasks = {t.id: t for t in load_wbs_tasks()}
     with session() as conn:
         latest = conn.execute("SELECT contractor, MAX(id) AS plan_id FROM plans GROUP BY contractor").fetchall()
@@ -81,6 +88,34 @@ def current_schedule() -> list[Task]:
                 task = Task.model_validate_json(t["payload"])
                 tasks[task.id] = task
     return list(tasks.values())
+
+
+def _fits(adj: Adjustment, raw: dict[str, Task]) -> bool:
+    """조정이 아직 쓸 수 있는가: 조정의 기준이던 원본 일정이 그대로인가."""
+    task = raw.get(adj.task_id)
+    return task is not None and task.start == adj.original_start and task.end == adj.original_end
+
+
+def current_schedule(exclude_adjustment: str | None = None) -> list[Task]:
+    """판정·화면이 보는 일정 = 원본 일정 + 쓸 수 있는 active 조정. 읽기만 한다.
+
+    exclude_adjustment 를 주면 그 조정을 뺀 일정을 돌려준다 (되돌린 결과를 저장 전에 판정할 때).
+    """
+    raw = base_schedule()
+    by_id = {t.id: t for t in raw}
+    return apply_adjustments(
+        raw, [a for a in active_adjustments() if a.id != exclude_adjustment and _fits(a, by_id)]
+    )
+
+
+def _close_stale_adjustments(closed_at: str) -> None:
+    """협력사 재제출로 기준 일정이 달라진 active 조정을 stale 로 닫는다 (지우지 않는다)."""
+    by_id = {t.id: t for t in base_schedule()}
+    stale = [a for a in active_adjustments() if not _fits(a, by_id)]
+    if stale:
+        with session() as conn:
+            for a in stale:
+                close_adjustment(conn, a.id, AdjustmentStatus.STALE, closed_at)
 
 
 def judge(tasks: list[Task]) -> list[Conflict]:
@@ -165,6 +200,7 @@ def list_conflicts(contractor: str | None = None, include_resolved: bool = False
 def submit_plan(sub: PlanSubmission) -> PlanSubmitResult:
     with _submit_lock:
         now = datetime.now().isoformat(timespec="seconds")
+        before = judge(current_schedule())  # 이 제출이 들어오기 전 판정 (새 충돌 알림용)
         with session() as conn:
             version = 1 + conn.execute(
                 "SELECT COUNT(*) FROM plans WHERE contractor = ?", (sub.contractor,)
@@ -179,8 +215,13 @@ def submit_plan(sub: PlanSubmission) -> PlanSubmitResult:
                 "INSERT INTO tasks (id, plan_id, payload) VALUES (?, ?, ?)",
                 [(t.id, plan_id, t.model_dump_json()) for t in sub.tasks],
             )
+        _close_stale_adjustments(now)
+        started = time.perf_counter()
         conflicts = judge(current_schedule())
+        recheck_ms = (time.perf_counter() - started) * 1000
         with session() as conn:
             save_conflicts(conn, plan_id, conflicts, now)
             row = conn.execute(_PLAN_SELECT + " WHERE p.id = ?", (plan_id,)).fetchone()
-    return PlanSubmitResult(plan=_record(row), conflicts=conflicts)
+    return PlanSubmitResult(
+        plan=_record(row), conflicts=conflicts, diff=diff_conflicts(before, conflicts), recheck_ms=recheck_ms
+    )

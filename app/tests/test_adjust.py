@@ -68,6 +68,18 @@ def test_apply_keeps_original_plan_and_removing_the_record_restores_conflicts():
     assert TARGET in _ids(recheck(tasks, [], zones, rules))  # 기록을 빼면(되돌리기) 충돌이 다시 나온다
 
 
+def test_two_task_conflict_gets_both_directions_and_grouped_conflict_gets_none():
+    tasks, zones, rules = load_wbs_tasks(), load_zones(), load_rules()
+    by_id = {c.id: c for c in detect_conflicts(tasks, zones, rules)}
+
+    candidates = propose_adjustments(by_id["R16:P23>P20"], tasks, zones, rules)  # S2 위아래
+    assert {c.task_id for c in candidates} == {"P23", "P20"}
+    assert [c.recommended for c in candidates] == [True, False]
+
+    grouped = next(c for cid, c in by_id.items() if cid.endswith(">ALL"))
+    assert propose_adjustments(grouped, tasks, zones, rules) == []  # 위치를 정해 재제출할 일
+
+
 def test_diff_reports_resolved_introduced_and_grade_changed():
     before = [_conflict("a"), _conflict("b", Grade.PROHIBITED)]
     after = [_conflict("b", Grade.CONDITIONAL), _conflict("c")]

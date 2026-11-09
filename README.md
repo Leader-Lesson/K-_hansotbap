@@ -11,7 +11,7 @@
 ```
 app/
   backend/            FastAPI (Python)
-    api/              라우터 (/api/health, /zones, /rules, /tasks, /overlaps, /conflicts, /plans)
+    api/              라우터 (/api/health, /zones, /rules, /tasks, /overlaps, /conflicts, /plans, /adjustments)
     parsers/          pdf, xlsx, hwpx → 텍스트 (위치 표식 포함)
     llm/              LLMProvider: Claude | Unsloth Studio
     rules/            F2 판정, F8 누락 판정, F9 점수 (pytest 대상)
