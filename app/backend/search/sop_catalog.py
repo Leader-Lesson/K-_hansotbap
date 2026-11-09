@@ -2,6 +2,8 @@
 
 - 필수 단계: index.csv '필수 단계' 칸(; 로 구분)
 - 핵심 단계(빠지면 결함): 표준서 마크다운 '## 판정에 쓰는 기준'의 "절차에 4·5 단계가 없으면 …" 문장에서 읽는다
+- 작업명 낱말: index.csv '작업명 낱말' 칸(, 로 구분) — 작업명에 이 낱말이 있으면 그 표준서를 가리킨다고 본다 [팀 설정값]
+- 작업별 표준서(SOP-P01~P37): 기준 일정 작업 하나에만 적용. 공통 표준서(SOP-01~04)는 작업 유형별
   표준서를 고치면 코드 수정 없이 기준이 바뀐다.
 """
 
@@ -30,6 +32,12 @@ class Sop:
     steps: tuple[str, ...]
     critical: frozenset[int]  # 1부터
     source: str
+    name_keywords: tuple[str, ...] = ()  # index.csv '작업명 낱말' 칸 (없으면 빈 튜플)
+
+    @property
+    def per_task(self) -> bool:
+        """작업별 표준서(원청이 그 작업에 쓰라고 정한 것). 적용 작업 예가 그 작업 하나다."""
+        return self.id.startswith("SOP-P")
 
     def text(self) -> str:
         path = SOP_DIR / self.file
@@ -80,6 +88,7 @@ def load_sops() -> tuple[Sop, ...]:
                 steps=tuple(_split(r["필수 단계(;로 구분)"], ";")),
                 critical=_critical_steps(md),
                 source=r.get("출처", "").strip(),
+                name_keywords=tuple(_split(r.get("작업명 낱말") or "", ",")),
             )
         )
     return tuple(out)
