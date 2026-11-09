@@ -30,6 +30,7 @@ BACKEND = Path(__file__).resolve().parents[1] / "backend"
 sys.path.insert(0, str(BACKEND))
 
 from llm.extract import extract_plan  # noqa: E402
+from parsers.docx import parse_docx  # noqa: E402
 from parsers.hwpx import parse_hwpx  # noqa: E402
 from parsers.normalize import name_similarity  # noqa: E402
 from parsers.pdf import parse_pdf  # noqa: E402
@@ -37,7 +38,7 @@ from parsers.xlsx import parse_xlsx  # noqa: E402
 from parsers.document import ParsedDocument  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
-PARSERS = {".pdf": parse_pdf, ".xlsx": parse_xlsx, ".hwpx": parse_hwpx}
+PARSERS = {".pdf": parse_pdf, ".xlsx": parse_xlsx, ".hwpx": parse_hwpx, ".docx": parse_docx}
 FIELDS = ("contractor", "name", "zone_id", "start", "end", "shift", "headcount", "hazards", "predecessors", "wbs_id")
 LABEL = {
     "contractor": "업체", "name": "작업명", "zone_id": "구역", "start": "시작일", "end": "종료일",

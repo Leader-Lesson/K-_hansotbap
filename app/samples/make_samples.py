@@ -1,4 +1,4 @@
-"""합성 협력사 계획서 5건 생성 (PDF 2 · 엑셀 1 · HWPX 2). 협력사명은 모두 가상, 모든 파일에 "합성 데이터" 표시.
+"""합성 협력사 계획서 8건 생성 (PDF 3 · 엑셀 1 · HWPX 3 · Word 1). 협력사명은 모두 가상, 모든 파일에 "합성 데이터" 표시.
 
     cd app/backend && uv run python ../samples/make_samples.py
 
@@ -30,7 +30,9 @@ from openpyxl.utils import get_column_letter
 HERE = Path(__file__).resolve().parent
 ANSWERS = HERE / "answers"
 SYNTH = "※ 본 문서는 해커톤 시연용 합성 데이터이며 협력사명·일정·인원은 모두 가상입니다."
-FONT = "korea"  # PyMuPDF 내장 CJK 글꼴
+# PyMuPDF 내장 CJK 글꼴. 시스템 TTF(AppleGothic 등)를 insert_text 로 넣으면 보기엔 좋지만 PyMuPDF 가 글자를 다시 읽을 때
+# 순서·띄어쓰기가 깨져(표 칸 "2 20 02 26 …") F1 파서가 못 읽는다. 계획서 샘플은 "읽히는 것"이 먼저라 내장 글꼴을 쓴다.
+FONT_KW = {"fontname": "korea"}
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -111,7 +113,7 @@ def _pdf_table(page: pymupdf.Page, x0: float, y0: float, widths: list[float], ro
                 page.draw_rect(rect, color=(0, 0, 0), fill=(0.88, 0.92, 0.97), width=0.8)
             else:
                 page.draw_rect(rect, color=(0, 0, 0), width=0.6)
-            rc = page.insert_textbox(rect + (3, 3, -3, -2), val, fontname=FONT, fontsize=font, align=pymupdf.TEXT_ALIGN_LEFT)
+            rc = page.insert_textbox(rect + (3, 3, -3, -2), val, **FONT_KW, fontsize=font, align=pymupdf.TEXT_ALIGN_LEFT)
             if rc < 0:
                 raise SystemExit(f"표 칸이 좁아 글이 넘칩니다: {val!r} (행 높이 {h}, 폭 {w})")
             x += w
@@ -121,7 +123,7 @@ def _pdf_table(page: pymupdf.Page, x0: float, y0: float, widths: list[float], ro
 
 def _pdf_lines(page: pymupdf.Page, x: float, y: float, lines: list[str], size: float = 9, gap: float = 14) -> float:
     for ln in lines:
-        page.insert_text((x, y), ln, fontname=FONT, fontsize=size)
+        page.insert_text((x, y), ln, **FONT_KW, fontsize=size)
         y += gap
     return y
 
@@ -132,15 +134,15 @@ def _pdf_lines(page: pymupdf.Page, x: float, y: float, lines: list[str], size: f
 def make_gigye_pdf() -> tuple[Path, dict]:
     doc = pymupdf.open()
     page = doc.new_page()  # A4 세로
-    page.insert_text((50, 55), "작 업 계 획 서", fontname=FONT, fontsize=18)
-    page.insert_text((50, 72), "광양 2고로 개수 — 노정 장입설비(벨리스 탑) 설치", fontname=FONT, fontsize=10)
+    page.insert_text((50, 55), "작 업 계 획 서", **FONT_KW, fontsize=18)
+    page.insert_text((50, 72), "광양 2고로 개수 — 노정 장입설비(벨리스 탑) 설치", **FONT_KW, fontsize=10)
     # 결재란
     for i, (k, v) in enumerate([("작성", "김가상"), ("검토", "이가상"), ("승인", "")]):
         x = 380 + i * 55
         page.draw_rect(pymupdf.Rect(x, 40, x + 55, 58), width=0.6, fill=(0.9, 0.9, 0.9))
         page.draw_rect(pymupdf.Rect(x, 58, x + 55, 85), width=0.6)
-        page.insert_text((x + 18, 53), k, fontname=FONT, fontsize=8)
-        page.insert_text((x + 14, 76), v, fontname=FONT, fontsize=8)
+        page.insert_text((x + 18, 53), k, **FONT_KW, fontsize=8)
+        page.insert_text((x + 14, 76), v, **FONT_KW, fontsize=8)
     y = _pdf_lines(page, 50, 100, [
         "협력사: 가상-기계J (장비 제작사)      공종: 기계      작성일: 2026-12-28",
         "현장 책임자: 박가상(가상)      비상연락: 000-0000-0000(가상)",
@@ -193,9 +195,9 @@ def make_jegwan_pdf() -> tuple[Path, dict]:
     doc = pymupdf.open()
     page = doc.new_page(width=842, height=595)  # A4 가로
     page.draw_rect(pymupdf.Rect(40, 35, 802, 70), width=1.0)
-    page.insert_text((50, 58), "월간 공사 계획 (가스 계통 보수)", fontname=FONT, fontsize=16)
-    page.insert_text((560, 50), "문서번호: JG-2026-11-07 (가상)", fontname=FONT, fontsize=8)
-    page.insert_text((560, 63), "개정: 1차  작성일: 2026.11.10", fontname=FONT, fontsize=8)
+    page.insert_text((50, 58), "월간 공사 계획 (가스 계통 보수)", **FONT_KW, fontsize=16)
+    page.insert_text((560, 50), "문서번호: JG-2026-11-07 (가상)", **FONT_KW, fontsize=8)
+    page.insert_text((560, 63), "개정: 1차  작성일: 2026.11.10", **FONT_KW, fontsize=8)
     y = _pdf_lines(page, 50, 90, [
         "협력업체 : 가상-제관F      공종 : 제관·내화물      공사명 : 광양 2고로 개수 상승관·하강관 및 가스청정설비 보수",
         "안전관리자 : 최가상(가상)      작업 책임자 : 정가상(가상)",
@@ -485,11 +487,264 @@ def make_bigye_hwpx() -> tuple[Path, dict]:
     }
     return path, answer
 
+# ──────────────────────────────────────────────────────────────────────
+# 6. 가상-양중C — PDF (중장비 작업계획서: 결재란 + 일정표 + 장비·비용 표) — S3 대형 인양
+#    3D·판정에 필요한 칸을 모두 둔 "완성도 높은" 계획서 예시: 구역 안 세부 위치, 작업시간, 인원, 투입 장비, 선행 조건(기준 ID)
+# ──────────────────────────────────────────────────────────────────────
+def make_yangjung_pdf() -> tuple[Path, dict]:
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_text((50, 60), "중 장 비 작 업 계 획 서", **FONT_KW, fontsize=18)
+    page.insert_text((50, 96), "광양 2고로 개수 — 대형 크레인 조립 · 신 철피 링블록 반입 · 노내 호이스트 운영", **FONT_KW, fontsize=9.5)
+    for i, (k, v) in enumerate([("작성", "장가상"), ("검토", "오가상"), ("승인", "")]):
+        x = 380 + i * 55
+        page.draw_rect(pymupdf.Rect(x, 40, x + 55, 58), width=0.6, fill=(0.9, 0.9, 0.9))
+        page.draw_rect(pymupdf.Rect(x, 58, x + 55, 85), width=0.6)
+        page.insert_text((x + 18, 53), k, **FONT_KW, fontsize=8)
+        page.insert_text((x + 14, 76), v, **FONT_KW, fontsize=8)
+    y = _pdf_lines(page, 50, 114, [
+        "협력사: 가상-양중C (양중 전문)      공종: 양중      작성일: 2026-11-05",
+        "문서번호: YJ-26-011(가상)      현장소장: 장가상(가상)      안전관리자: 오가상(가상)",
+        "비상연락: 000-0000-0000(가상)",
+        SYNTH,
+    ])
+    y = _pdf_lines(page, 50, y + 6, ["1. 작업 일정표"], size=10)
+    header = ["작업명", "작업위치", "기간", "작업시간", "인원", "투입장비", "위험작업", "선행조건"]
+    rows = [
+        header,
+        ["대형 크레인 기초 파일·크레인 조립", "크레인 기초 구역 (노체 남측)", "2026.09.28 ~ 2026.11.09", "07:00~18:00", "16", "크롤러 크레인 1,600t(조립), 보조 크레인 250t, 트레일러 6대", "중량물, 고소", "P01 가설 펜스·동선 구축 완료 후"],
+        ["신 철피 링블록 반입·설치(대형 인양)", "노체 철피 외부 남측 (크레인 측 반원)", "2026.12.27 ~ 2027.01.03", "07:00~17:00", "20", "크롤러 크레인 1,600t, 보조 크레인 250t, 다축 트레일러 2대", "중량물, 고소", "P15 구 블록 반출, P02 크레인 조립, P03 링블록 선조립 완료 후"],
+        ["공사용 호이스트·승강설비 운영", "노흉 승강로 (북측)", "2026.11.27 ~ 2027.03.02", "07:00~19:00", "4", "노내 호이스트 2기(2t), 체인블록 3t", "고소, 중량물", "P12 노내 장입물 배출 완료 후"],
+    ]
+    y = _pdf_table(page, 40, y + 4, [88, 74, 68, 42, 28, 92, 42, 84], rows, row_h=70, font=7.2)
+    y = _pdf_lines(page, 50, y + 14, ["2. 투입 장비 (3D 배치·간섭 검토용)"], size=10)
+    eq = [
+        ["장비명", "규격", "대수", "배치 위치", "사용 기간", "용도"],
+        ["크롤러 크레인", "1,600t (주 붐 84m)", "1", "크레인 기초 구역", "2026.11.09 ~ 2027.01.03", "링블록(최대 505t) 인양"],
+        ["보조 크레인", "250t", "1", "크레인 기초 구역 동측", "2026.09.28 ~ 2027.01.03", "주 크레인 조립, 소물 인양"],
+        ["다축 트레일러", "SPMT 2조", "2", "야드 → 크레인 패드", "2026.12.27 ~ 2027.01.03", "링블록 운반"],
+        ["노내 호이스트", "2t × 2기", "2", "노흉 내부 승강로", "2026.11.27 ~ 2027.03.02", "축조 자재·인원 승강"],
+    ]
+    y = _pdf_table(page, 40, y + 4, [70, 90, 28, 100, 110, 120], eq, row_h=32, font=7.4)
+    y = _pdf_lines(page, 50, y + 14, ["3. 예상 비용 (가상 금액, 단위 천원)"], size=10)
+    cost = [
+        ["항목", "금액", "산정 근거"],
+        ["장비 임차 (크롤러 1,600t·보조 250t·SPMT)", "1,850,000", "임차 일수 × 단가 (가상)"],
+        ["인건비 (운전원·신호수·리거 20명)", "620,000", "투입 인원 × 공수 (가상)"],
+        ["크레인 기초 파일·매트", "480,000", "파일 32본 + 철판 매트 (가상)"],
+        ["안전관리비", "95,000", "출입 통제 펜스·표지·무전기·풍속계 (가상)"],
+    ]
+    _pdf_table(page, 40, y + 4, [220, 80, 218], cost, row_h=28, font=7.4)
+
+    page = doc.new_page()
+    y = _pdf_lines(page, 50, 55, ["4. 작업 절차 및 안전조치"], size=10)
+    y = _pdf_lines(page, 60, y, [
+        "(1) 크레인 조립",
+        "  ① 중장비 작업계획서 작성(크레인 제원·조립 순서·지반 지내력)  ② 파일 기초 지내력 시험 결과 확인",
+        "  ③ 조립 구역 출입 통제 펜스·표지 설치  ④ 신호수 지정(조립용 보조 크레인 인양)",
+        "  ⑤ 붐·카운터웨이트 인양 시 하부 출입 통제  ⑥ 붐 상부 핀 체결 시 안전대 체결",
+        "  ⑦ 풍속 확인(10m/s 이상 조립 중지)  ⑧ 조립 완료 후 하중시험·검사 기록",
+        "(2) 링블록 인양",
+        "  ① 중장비 작업계획서(링블록 중량·크레인 정격·인양 경로도)  ② 줄걸이 용구 점검·블록 중량 확인(정격 하중 대비)",
+        "  ③ 신호수 지정, 무전 신호 통일  ④ 인양 경로 하부 전면 출입 통제(주상·크레인 패드·야드)",
+        "  ⑤ 작업반경 내 인원 철수 확인(비계·고소 작업 중지)  ⑥ 풍속 확인(10m/s 이상 인양 중지)",
+        "  ⑦ 블록 안착 후 가볼트 체결 확인 전 줄걸이 해제 금지  ⑧ 인양 종료 후 구역 해제 통보",
+        "(3) 호이스트 운영",
+        "  ① 호이스트 설치 검사·정격 하중 표지  ② 운전원 지정·신호 방법 통일",
+        "  ③ 승강로 하부 출입 통제(낙하물 방지)  ④ 탑승 인원·적재 하중 초과 금지 확인",
+        "  ⑤ 노정 개구부 승강 출입구 난간·덮개 확인  ⑥ 일일 와이어·브레이크 점검 기록",
+        "  ⑦ 노 내부 작업 업체 인양 시간 조정 기록  ⑧ 운영 종료·전원 차단 확인",
+    ], size=7.8, gap=12)
+    y = _pdf_lines(page, 50, y + 10, ["5. 보호구·비상 조치"], size=10)
+    _pdf_lines(page, 60, y, [
+        "- 보호구: 안전모·안전화·안전대(고소), 리거 절연장갑, 무전기(신호수 전원), 풍속계 2대",
+        "- 인양 중 풍속 10m/s 초과·시야 불량 시 즉시 중지, 블록은 지상 또는 가볼트 체결 상태로 대기",
+        "- 사고 발생 시 크레인 정지 → 작업반경 출입 통제 유지 → 원청 상황실·119 연락(연락처 가상)",
+    ], size=7.8, gap=12)
+    path = HERE / "가상-양중C_대형인양_중장비작업계획서.pdf"
+    doc.save(path, garbage=3, deflate=True)
+    answer = {
+        "file": path.name,
+        "contractor": "가상-양중C",
+        "format": "pdf",
+        "tasks": [
+            {"wbs_id": "P02", "name": "대형 크레인 기초 파일·크레인 조립", "zone_id": "CRANE_PAD", "start": "2026-09-28", "end": "2026-11-09", "shift": "day", "headcount": 16, "equipment": ["크롤러 크레인 1,600t", "보조 크레인 250t", "트레일러 6대"], "hazards": ["heavy_lift", "height"], "predecessors": ["P01"]},
+            {"wbs_id": "P17", "name": "신 철피 링블록 반입·설치(대형 인양)", "zone_id": "SHELL", "start": "2026-12-27", "end": "2027-01-03", "shift": "day", "headcount": 20, "equipment": ["크롤러 크레인 1,600t", "보조 크레인 250t", "다축 트레일러 2대"], "hazards": ["heavy_lift", "height"], "predecessors": ["P15", "P02", "P03"]},
+            {"wbs_id": "P31", "name": "공사용 호이스트·승강설비 운영", "zone_id": "STACK", "start": "2026-11-27", "end": "2027-03-02", "shift": "day", "headcount": 4, "equipment": ["노내 호이스트 2기(2t)", "체인블록 3t"], "hazards": ["heavy_lift", "height"], "predecessors": ["P12"]},
+        ],
+        "expected_conflicts": [
+            {"scenario": "S3", "type": "same_time_zone", "rule_ids": ["R18"], "with": "가상-주상K P24 출선장 개조 (CASTHOUSE, 2026-11-22~2027-03-07)", "note": "링블록 인양 경로 아래 출선장 작업 — 인양 시간대 분리·출입통제 (기준 일정 그대로여도 걸린다)"},
+            {"scenario": "S3-변형", "type": "same_time_zone", "rule_ids": ["R18", "R20"], "with": "가상-비계N 노체 철피 외부 비계 설치 (SHELL, 2026-12-28~2027-01-05)", "note": "비계N 계획서가 올라와 있을 때만. 인양 중 같은 철피 외부 고소 작업"},
+        ],
+        "note": "기준 일정 그대로. 3D에 필요한 칸(세부 위치·시간·인원·장비)과 비용 표를 모두 갖춘 예시. 작업별 표준서 핵심 단계가 절차에 다 적혀 있어 결함 없음",
+    }
+    return path, answer
+
+
+# ──────────────────────────────────────────────────────────────────────
+# 7. 가상-기계E — Word(.docx) (업체 정보 표 + 작업 표 + 장비·비용 표) — S5 잔선 출선 중 노정 해체 하루 앞당김
+# ──────────────────────────────────────────────────────────────────────
+def make_gigyeE_docx() -> tuple[Path, dict]:
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml.ns import qn
+    from docx.shared import Pt
+
+    d = Document()
+    style = d.styles["Normal"]
+    style.font.name = "맑은 고딕"
+    style.font.size = Pt(9.5)
+    style.element.rPr.rFonts.set(qn("w:eastAsia"), "맑은 고딕")
+
+    def table(rows: list[list[str]], widths: list[float] | None = None):
+        t = d.add_table(rows=len(rows), cols=len(rows[0]))
+        t.style = "Table Grid"
+        for r, row in enumerate(rows):
+            for c, val in enumerate(row):
+                cell = t.cell(r, c)
+                cell.text = val
+                for p in cell.paragraphs:
+                    for run in p.runs:
+                        run.font.size = Pt(8.5)
+                        if r == 0:
+                            run.bold = True
+        return t
+
+    h = d.add_paragraph()
+    h.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = h.add_run("작 업 계 획 서 (기계 정비)")
+    run.bold = True
+    run.font.size = Pt(16)
+    d.add_paragraph("광양 2고로 개수 — 노정 장입설비 해체 · 풍구 철거 · 스테이브 설치")
+    d.add_paragraph(SYNTH)
+    table([
+        ["업체명", "가상-기계E (기계 정비)", "공종", "기계 정비 + 배관"],
+        ["작성일", "2026-11-10", "문서번호", "GE-2026-11-03 (가상)"],
+        ["현장소장", "한가상(가상)", "안전관리자", "구가상(가상)"],
+        ["비상연락", "000-0000-0000 (가상)", "원청 담당", "원청 정비팀 (가상)"],
+    ])
+    d.add_paragraph("")
+    d.add_paragraph("1. 작업 내역").runs[0].bold = True
+    table([
+        ["공종", "작업명", "작업 장소", "착수일", "완료일", "작업시간", "투입인원", "투입 장비", "위험요인", "선행조건"],
+        ["기계 정비", "노정 장입설비(벨리스 탑·호퍼) 해체", "노정 플랫폼 동측 (호퍼 하부)", "2026-11-14", "2026-11-26", "07:00~18:00", "14", "250t 크레인, 산소절단기 4조, 체인블록 5t", "화기(용단), 고소, 중량물, 잔류가스", "에너지 격리(LOTO) 완료 후"],
+        ["기계 정비", "풍구·냉각기·송풍지관 철거", "풍구 레벨 플랫폼 전 둘레", "2026-11-17", "2026-11-27", "07:00~18:00", "10", "체인블록 3t, 산소절단기 2조, 지게차 3t", "화기, 중량물", "에너지 격리(LOTO) 완료 후"],
+        ["기계+배관", "스테이브·냉각판 설치와 냉각수 배관 연결", "노복·조안 내부 (스테이브 1~9단)", "2027-01-06", "2027-02-05", "07:00~18:00", "18", "노내 호이스트, 용접기 4대, 달비계 2조", "화기(용접), 밀폐공간, 고소, 중량물", "철피 용접·비파괴검사 완료 후"],
+    ])
+    d.add_paragraph("")
+    d.add_paragraph("2. 투입 장비·인원 (3D 배치용)").runs[0].bold = True
+    table([
+        ["장비명", "규격", "대수", "배치 위치", "사용 기간"],
+        ["이동식 크레인", "250t", "1", "노정 플랫폼 옆 크레인 패드", "2026-11-14 ~ 2026-11-26"],
+        ["산소절단기", "LPG·O2 세트", "6", "노정 2조 → 풍구 레벨 2조, 예비 2조", "2026-11-14 ~ 2026-11-27"],
+        ["체인블록", "3t·5t", "6", "노정 동측·풍구 레벨", "2026-11-14 ~ 2026-11-27"],
+        ["노내 호이스트(양중C 운영)", "2t", "2", "노흉 내부 승강로", "2027-01-06 ~ 2027-02-05"],
+        ["용접기", "인버터 400A", "4", "노복·조안 내부", "2027-01-06 ~ 2027-02-05"],
+    ])
+    d.add_paragraph("")
+    d.add_paragraph("3. 예상 비용 (가상 금액, 단위 천원)").runs[0].bold = True
+    table([
+        ["항목", "금액", "비고"],
+        ["인건비 (기계공·용접사·신호수 42명)", "1,120,000", "투입 인원 × 공수 (가상)"],
+        ["장비 임차 (250t 크레인·호이스트·용접기)", "310,000", "임차 일수 × 단가 (가상)"],
+        ["스테이브·냉각수 배관 자재", "2,450,000", "원청 지급 자재 제외 (가상)"],
+        ["안전관리비", "68,000", "가스측정기·방화포·안전대 (가상)"],
+    ])
+    d.add_paragraph("")
+    d.add_paragraph("4. 작업 절차 및 안전조치").runs[0].bold = True
+    for line in [
+        "(1) 노정 해체: 작업허가서 발급(화기·고소·중장비) → 노정 잔류가스 측정(CO 30ppm 미만, LEL 10% 미만) 후 진입 → 화재감시자 배치(절단 중 상주, 종료 후 30분 감시)",
+        "    → 노정 개구부 덮개·난간 설치(추락 방지) → 해체 부재 인양 신호수 지정·줄걸이 점검 → 인양 경로 하부·노 내부 출입 통제 → 안전대 체결 확인 → 해체 완료·개구부 보호 상태 인계 기록",
+        "(2) 풍구 철거: 작업허가서(화기·중장비) 발급 → 송풍·냉각수 LOTO 확인(P06 격리 목록 대조) → 냉각수 배관 잔압 제거·배수 확인 → 화재감시자 배치(볼트 절단·용단)",
+        "    → 풍구·냉각기 인양 신호수 지정·줄걸이 점검 → 환상관 아래 주상 하부 출입 통제 → 철거품 반출 경로 확보·유도자 배치 → 철거 완료 개구부 막음 확인·허가서 반납",
+        "(3) 스테이브 설치: 작업허가서(화기·밀폐·고소) 발급 → 작업 전 산소·가스 측정 후 진입(노 내부) → 감시인 배치·출입자 명부 기록 → 스테이브 인양 신호수 지정·호이스트 하부 출입 통제",
+        "    → 화재감시자 배치(배관 용접) → 달비계·안전대 체결 확인 → 작업반경 내 인원 철수 확인 → 냉각수 배관 연결 후 가압 전 인원 철수 확인 → 설치 완료 검사(압력시험 P33 인계)",
+        "(4) 보호구: 안전모·안전화·보안경, 용접 보안면·방열 장갑, 안전대(2중 걸이), 휴대용 CO 경보기(노정·노 내부)",
+    ]:
+        d.add_paragraph(line)
+    path = HERE / "가상-기계E_노정해체_스테이브설치_작업계획서.docx"
+    d.save(path)
+    answer = {
+        "file": path.name,
+        "contractor": "가상-기계E",
+        "format": "docx",
+        "tasks": [
+            {"wbs_id": "P09", "name": "노정 장입설비(벨리스 탑·호퍼) 해체", "zone_id": "TOP", "start": "2026-11-14", "end": "2026-11-26", "shift": "day", "headcount": 14, "equipment": ["250t 크레인", "산소절단기 4조", "체인블록 5t"], "hazards": ["gas", "heavy_lift", "height", "hot_work"], "predecessors": ["P06"]},
+            {"wbs_id": "P11", "name": "풍구·냉각기·송풍지관 철거", "zone_id": "TUYERE", "start": "2026-11-17", "end": "2026-11-27", "shift": "day", "headcount": 10, "equipment": ["체인블록 3t", "산소절단기 2조", "지게차 3t"], "hazards": ["heavy_lift", "hot_work"], "predecessors": ["P06"]},
+            {"wbs_id": "P19", "name": "스테이브·냉각판 설치와 냉각수 배관 연결", "zone_id": "BELLY_BOSH", "start": "2027-01-06", "end": "2027-02-05", "shift": "day", "headcount": 18, "equipment": ["노내 호이스트", "용접기 4대", "달비계 2조"], "hazards": ["confined", "heavy_lift", "height", "hot_work"], "predecessors": ["P18"]},
+        ],
+        "expected_conflicts": [
+            {"scenario": "S5", "type": "same_time_zone", "rule_ids": ["R12"], "with": "가상-출선D P07 잔선구 출선(산소 랜싱) (HEARTH, 2026-11-13~11-14)", "note": "노정 해체를 기준(11-15)보다 하루 앞당겨 출선 통제 시간대(24h)에 착수 — 금지"},
+        ],
+        "note": "P09 착수일을 2026-11-14로 앞당겨 제출(기준 11-15). Word 양식 예시. 작업별 표준서 핵심 단계가 절차에 다 적혀 있어 결함 없음",
+    }
+    return path, answer
+
+
+# ──────────────────────────────────────────────────────────────────────
+# 8. 가상-축로L — HWPX (월간 계획, 표 + 절차 문단) — S6 열풍로 보수 연장 중 승온
+# ──────────────────────────────────────────────────────────────────────
+def make_chukroL_hwpx() -> tuple[Path, dict]:
+    title = "열풍로·환상관 내화물 보수 월간 작업계획"
+    body = _para(title, char_pr=2, first=True)
+    body += _para("협력업체: 가상-축로L (축로)   현장대리인: 문가상(가상)   작성: 2026-11-12   개정: 2차(2027-02-20, 열풍로 보수 기간 연장)")
+    body += _para(SYNTH)
+    body += _para("1. 공정 개요: 열풍로 2·3호 돔·축열 연와·버너 보수와 열풍 본관·환상관 내화물 축조. 돔 연와 손상이 예상보다 커 열풍로 보수를 3월 6일까지 연장함.")
+    rows = [
+        ["구분", "공정명", "작업장소", "착수일", "완료일", "근무", "작업인원", "투입장비", "필요허가", "착수조건"],
+        ["보수", "열풍로 돔·축열 연와·버너 보수", "열풍로 2·3호 돔 내부", "2026.11.17", "2027.03.06", "주간", "16", "돔 내부 달비계 2조, 연와 호이스트 1t, 용접기 2대, 환기팬", "화기, 밀폐공간, 고소", "에너지 격리(LOTO) 완료 후"],
+        ["축조", "열풍 본관·환상관 내화물", "풍구 레벨 환상관 내부", "2026.12.22", "2027.02.15", "주간", "12", "환상관 이동 발판, 환기팬 2대, 벽돌 운반 대차", "밀폐공간, 고소", "송풍지관 철거 완료 후"],
+    ]
+    body += _table(rows, [2400, 7200, 6000, 4200, 4200, 2400, 2800, 8000, 5400, 6400])
+    body += _para("2. 투입 장비·인원: 달비계 2조(돔 내부), 연와 호이스트 1t(열풍로 외벽 개구부), 용접기 2대(버너 보수), 환기팬 3대, 산소·CO 측정기 3대, 공기호흡기 2조. 인원은 축로공 20명·감시인 4명·반장 2명·안전관리자 1명·운전원 1명.")
+    body += _para("3. 예상 비용(가상, 천원): 축열 연와·캐스터블 자재 1,320,000 / 인건비 980,000 / 장비 임차 140,000 / 안전관리비 52,000")
+    body += _para("4. 작업 절차 (열풍로 보수)")
+    for step in [
+        "① 작업허가서(화기·밀폐·고소) 발급",
+        "② 열풍로 가스(BFG·COG) 차단·맹판 확인 — 승온(P35) 허가와 상호 참조 번호 기재",
+        "③ 작업 전 산소·CO 측정 후 진입, 연속 측정 (O2 18~23.5%, CO 30ppm 미만)",
+        "④ 감시인 배치·출입자 명부 기록",
+        "⑤ 돔 내부 달비계·안전대 체결 확인",
+        "⑥ 버너 용접 화재감시자 배치, 종료 후 30분 감시",
+        "⑦ 연와 반입 호이스트 하부 출입 통제",
+        "⑧ 보수 완료·전원 퇴출 확인 서명 후 승온(P35) 허용",
+    ]:
+        body += _para(step)
+    body += _para("5. 작업 절차 (환상관 내화물)")
+    for step in [
+        "① 밀폐공간 작업허가서 발급",
+        "② 작업 전 산소농도·CO 측정 후 진입",
+        "③ 환상관 내부 환기팬 가동·연속 측정",
+        "④ 감시인 배치·출입자 명부 기록",
+        "⑤ 환상관 내부 이동 발판·안전대 체결 확인",
+        "⑥ 송풍 계통 LOTO 확인 (송풍지관 P11 철거 완료)",
+        "⑦ 내화물 반입 개구부 하부 출입 통제",
+        "⑧ 작업 종료 퇴출 확인 서명 (송풍 라인 복구 P34 인계)",
+    ]:
+        body += _para(step)
+    body += _para("6. 보호구·비상: 안전모·안전화·안전대·방진마스크, 휴대용 산소 경보기. 가스 경보 시 전원 퇴출 후 원청 상황실 보고, 구조는 공기호흡기 착용자만.")
+    path = HERE / "가상-축로L_열풍로_환상관_내화물_월간계획.hwpx"
+    write_hwpx(path, title, body)
+    answer = {
+        "file": path.name,
+        "contractor": "가상-축로L",
+        "format": "hwpx",
+        "tasks": [
+            {"wbs_id": "P26", "name": "열풍로 돔·축열 연와·버너 보수", "zone_id": "STOVE", "start": "2026-11-17", "end": "2027-03-06", "shift": "day", "headcount": 16, "equipment": ["돔 내부 달비계 2조", "연와 호이스트 1t", "용접기 2대", "환기팬"], "hazards": ["confined", "height", "hot_work"], "predecessors": ["P06"]},
+            {"wbs_id": "P27", "name": "열풍 본관·환상관 내화물", "zone_id": "TUYERE", "start": "2026-12-22", "end": "2027-02-15", "shift": "day", "headcount": 12, "equipment": ["환상관 이동 발판", "환기팬 2대", "벽돌 운반 대차"], "hazards": ["confined", "height"], "predecessors": ["P11"]},
+        ],
+        "expected_conflicts": [
+            {"scenario": "S6", "type": "sequence", "rule_ids": ["R08", "R07"], "with": "원청-제선 P35 열풍로 승온·가스 계통 기밀시험·퍼지 (STOVE, 2027-03-04~03-20)", "note": "열풍로 보수를 03-06까지 연장해 제출 → 보수 완료 전 승온·가스 투입 — 금지. 조정안: 승온을 보수 완료·퇴출 확인 후로"},
+        ],
+        "note": "P26 완료일을 2027-03-06으로 연장해 제출(기준 02-25). HWPX 양식 예시. 작업별 표준서 핵심 단계가 절차에 다 적혀 있어 결함 없음",
+    }
+    return path, answer
+
 
 def main() -> None:
     ANSWERS.mkdir(exist_ok=True)
     made = []
-    for fn in (make_chukro_xlsx, make_gigye_pdf, make_baegwan_hwpx, make_jegwan_pdf, make_bigye_hwpx):
+    for fn in (make_chukro_xlsx, make_gigye_pdf, make_baegwan_hwpx, make_jegwan_pdf, make_bigye_hwpx, make_yangjung_pdf, make_gigyeE_docx, make_chukroL_hwpx):
         path, answer = fn()
         (ANSWERS / (path.stem + ".json")).write_text(json.dumps(answer, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         made.append(path)
