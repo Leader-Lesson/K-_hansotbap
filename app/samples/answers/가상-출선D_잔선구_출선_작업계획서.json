@@ -1,0 +1,49 @@
+{
+  "file": "가상-출선D_잔선구_출선_작업계획서.hwpx",
+  "contractor": "가상-출선D",
+  "format": "hwpx",
+  "tasks": [
+    {
+      "wbs_id": "P07",
+      "name": "잔선구 출선(salamander tapping, 산소 랜싱)",
+      "zone_id": "HEARTH",
+      "start": "2026-11-13",
+      "end": "2026-11-14",
+      "shift": null,
+      "headcount": 10,
+      "equipment": [
+        "산소 랜스·호스 세트 4조",
+        "가스 용기 랙(산소) 6조",
+        "휠로더 1대",
+        "조명탑 2대"
+      ],
+      "location_detail": {
+        "text": "노저 잔선구 남측 (출선 방향)",
+        "dirs": [
+          "S"
+        ],
+        "level": null
+      },
+      "system": "NONE",
+      "hazards": [
+        "gas",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P04"
+      ]
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S5",
+      "type": "same_time_zone",
+      "rule_ids": [
+        "R12"
+      ],
+      "with": "가상-기계E P09 노정 장입설비(벨리스 탑·호퍼) 해체 (TOP, 2026-11-14~11-26)",
+      "note": "기계E 계획서가 올라와 있을 때만. 출선 24시간 통제 중 노정 해체 착수(기준 11-15 → 11-14 앞당김) — 금지"
+    }
+  ],
+  "note": "기준 일정 그대로(P07 2026-11-13~11-14, 24시간 연속이라 주야 구분 없음). HWPX 양식 예시(통제 구역 표 포함). 작업명의 '산소'로 작업 유형에 가스가 함께 잡힌다. 작업별 표준서 SOP-P07 핵심 단계(3·6)가 절차에 다 적혀 있어 결함 없음"
+}

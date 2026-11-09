@@ -1,0 +1,80 @@
+{
+  "file": "가상-주상K_출선장개조_수재설비_작업계획서.hwpx",
+  "contractor": "가상-주상K",
+  "format": "hwpx",
+  "tasks": [
+    {
+      "wbs_id": "P24",
+      "name": "출선장 개조: 탕도·집진 후드·개공기·머드건",
+      "zone_id": "CASTHOUSE",
+      "start": "2026-11-22",
+      "end": "2027-03-07",
+      "shift": "day",
+      "headcount": 16,
+      "equipment": [
+        "이동식 크레인 100t 1대",
+        "용접기 6대",
+        "지게차 5t 2대",
+        "가스 용기 랙 4조"
+      ],
+      "location_detail": {
+        "text": "출선장 남동측 (1번 출선구 탕도)",
+        "dirs": [
+          "S",
+          "E"
+        ],
+        "level": null
+      },
+      "system": "NONE",
+      "hazards": [
+        "heavy_lift",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P06",
+        "P07"
+      ]
+    },
+    {
+      "wbs_id": "P28",
+      "name": "슬래그 수재설비 보수",
+      "zone_id": "SLAG",
+      "start": "2026-11-22",
+      "end": "2027-02-20",
+      "shift": "day",
+      "headcount": 10,
+      "equipment": [
+        "이동식 크레인 50t 1대",
+        "용접기 4대",
+        "덤프트럭 2대"
+      ],
+      "location_detail": {
+        "text": "슬래그 수재설비 서측 (수재조·탈수조)",
+        "dirs": [
+          "W"
+        ],
+        "level": null
+      },
+      "system": "NONE",
+      "hazards": [
+        "heavy_lift",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P06"
+      ]
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S3",
+      "type": "same_time_zone",
+      "rule_ids": [
+        "R18"
+      ],
+      "with": "가상-양중C P17 신 철피 링블록 반입·설치(대형 인양) (SHELL, 2026-12-27~2027-01-03)",
+      "note": "양중C 계획서가 올라와 있을 때만. 링블록 인양 경로 아래 출선장 작업 — 인양 시간대 분리·출입통제 (기준 일정 그대로여도 걸린다)"
+    }
+  ],
+  "note": "기준 일정 그대로(P24·P28). HWPX 양식 예시. 작업별 표준서(SOP-P24·P28) 핵심 단계가 절차에 다 적혀 있어 결함 없음"
+}
