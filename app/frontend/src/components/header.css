@@ -1,0 +1,38 @@
+/* 화면 위 머리(AppHeader): 시안(public/prototype/assets/css/styles.css)의 header 규칙을 .hs-top 아래로 옮긴 것.
+   색 토큰(--blue·--line·--ink …)은 src/index.css 에 시안과 같은 값으로 있다 */
+.hs-top{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line);font-size:14px;line-height:1.55}
+.hs-top button,.hs-top select,.hs-top input{font:inherit;color:inherit}
+.hs-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:10px 16px;max-width:1480px;margin:0 auto}
+@media (min-width:1280px){.hs-bar{padding-inline:24px}}
+.hs-brand{display:flex;align-items:center;gap:10px;margin-right:6px}
+.hs-brand .n{font-weight:700;font-size:15px;line-height:1.2}
+.hs-brand .s{font-size:11.5px;color:var(--ink-3)}
+/* 시계: 한솥밥 글자와 같은 높이 가운데 */
+.hs-clock{display:flex;align-items:center;gap:12px;padding-left:16px;border-left:1px solid var(--line);align-self:stretch}
+.hs-clock .big{font-size:30px;line-height:1;color:var(--blue);font-variant-numeric:tabular-nums}
+.hs-clock .big small{font-size:11px;margin-left:4px;color:var(--ink-3)}
+.hs-clock .when{display:flex;flex-direction:column;gap:3px}
+.hs-clock .sub{font-size:12px;color:var(--ink-3)}
+.hs-clock .sub b{color:var(--ink-2)}
+/* ‹ 날짜 › 한 덩어리 (테두리 공유) */
+.hs-daynav{display:inline-flex;align-items:stretch;align-self:flex-start;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}
+.hs-daynav button{appearance:none;border:0;background:var(--surface);width:26px;display:grid;place-items:center;color:var(--ink-2);cursor:pointer;font-size:15px}
+.hs-daynav button:hover{background:var(--line-2)}
+.hs-daynav input{border:0;border-inline:1px solid var(--line);border-radius:0;height:28px;box-sizing:border-box;font-size:13px;padding:2px 6px;font-variant-numeric:tabular-nums;background:var(--surface)}
+/* 탭: 남는 폭을 채우고 오른쪽에 붙는다 (두 줄이 되면 윗줄 탭·아랫줄 오른쪽 묶음이 오른쪽 끝을 맞춤) */
+.hs-tabs{display:flex;gap:2px;flex:1 1 auto;overflow-x:auto;scrollbar-width:none}
+.hs-tabs>.hs-tab:first-child{margin-left:auto}
+.hs-tab{appearance:none;border:1px solid transparent;background:none;border-radius:6px;padding:6px 12px;color:var(--ink-2);white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.hs-tab:hover{color:var(--ink)}
+.hs-tab[aria-selected="true"]{background:var(--blue-soft);color:var(--blue);font-weight:500}
+.hs-badge{min-width:18px;height:18px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:700;display:inline-grid;place-items:center;padding:0 5px}
+.hs-right{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;min-width:0;margin-left:auto}
+.hs-role select{font-size:13px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+.hs-up{display:inline-flex;align-items:center;gap:6px;appearance:none;border:1px solid var(--blue);background:var(--blue);color:#fff !important;border-radius:6px;padding:5px 12px;white-space:nowrap;cursor:pointer;font-weight:500}
+.hs-up:hover{background:var(--blue-hover);border-color:var(--blue-hover)}
+.hs-up svg{width:16px;height:16px}
+.hs-synth{font-size:11px;color:var(--amber);border:1px solid currentColor;border-radius:3px;padding:0 5px;white-space:nowrap}
+.hs-api{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.hs-api.off{background:var(--red)}
+.hs-link{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.hs-link:hover{color:var(--blue);text-decoration:underline}
