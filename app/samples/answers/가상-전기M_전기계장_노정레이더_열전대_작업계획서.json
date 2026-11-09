@@ -1,0 +1,95 @@
+{
+  "file": "가상-전기M_전기계장_노정레이더_열전대_작업계획서.docx",
+  "contractor": "가상-전기M",
+  "format": "docx",
+  "tasks": [
+    {
+      "wbs_id": "P29",
+      "name": "전기·계장(노정 레이더) 교체",
+      "zone_id": "TOP",
+      "start": "2027-01-11",
+      "end": "2027-02-10",
+      "shift": "day",
+      "headcount": 3,
+      "equipment": [
+        "고소작업대 1대",
+        "케이블 릴 2대",
+        "방사선 측정기 1대"
+      ],
+      "location_detail": {
+        "text": "노정 플랫폼 북측 (레이더 노즐)",
+        "dirs": [
+          "N"
+        ],
+        "level": null
+      },
+      "system": "ELEC",
+      "hazards": [
+        "height"
+      ],
+      "predecessors": [
+        "P19",
+        "P23"
+      ]
+    },
+    {
+      "wbs_id": "P29",
+      "name": "전기·계장(열전대) 설치·배선",
+      "zone_id": "TUYERE",
+      "start": "2027-02-01",
+      "end": "2027-03-05",
+      "shift": "day",
+      "headcount": 3,
+      "equipment": [
+        "케이블 릴 4대",
+        "고소작업대 1대"
+      ],
+      "location_detail": {
+        "text": "풍구 레벨 플랫폼 전 둘레 (풍구 냉각수 열전대)",
+        "dirs": [
+          "N",
+          "E",
+          "S",
+          "W"
+        ],
+        "level": null
+      },
+      "system": "ELEC",
+      "hazards": [
+        "height"
+      ],
+      "predecessors": [
+        "P19",
+        "P21"
+      ]
+    },
+    {
+      "wbs_id": "P29",
+      "name": "전기·계장(제어계) 복구·시운전",
+      "zone_id": "STOVE",
+      "start": "2027-02-20",
+      "end": "2027-03-12",
+      "shift": "day",
+      "headcount": 2,
+      "equipment": [
+        "케이블 릴 2대",
+        "절연 측정기 1대"
+      ],
+      "location_detail": {
+        "text": "열풍로 제어반 (2·3호 측)",
+        "dirs": null,
+        "level": "열풍로 2·3호"
+      },
+      "system": "ELEC",
+      "hazards": [
+        "height"
+      ],
+      "predecessors": [
+        "P19",
+        "P26"
+      ]
+    }
+  ],
+  "expected_conflicts": [],
+  "note": "기준 P29(전기·계장, 전 구역 2027-01-11~03-12)를 구역별 3행(노정 TOP·풍구 레벨 TUYERE·열풍로 STOVE)으로 쪼개 제출 — 세 행 모두 기준 P29, 기간은 기준 안쪽. 선행 작업에는 기준 선행 P19 가 항상 붙고 행마다 적은 P23·P21·P26 이 더해진다. Word 양식 예시. 작업별 표준서 SOP-P29 핵심 단계(2·3·6)가 절차에 다 적혀 있어 결함 없음. 단독으로는 충돌 없음"
+}
