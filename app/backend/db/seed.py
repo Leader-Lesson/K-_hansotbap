@@ -94,8 +94,10 @@ def field_records(today: date | None = None) -> list[FieldRecord]:
 def seed_demo() -> list[PlanRecord]:
     """비우고 시연용 제출 이력과 지난 6일치 현장 기록을 넣는다. 먼저 비우기 때문에 여러 번 돌려도 결과가 같다."""
     reset_db()
+    from .approval import decide_plan  # 순환 import 를 피해 여기서
+
     for contractor, filename, task_ids, submitted_by in DEMO:
-        submit_plan(
+        result = submit_plan(
             PlanSubmission(
                 contractor=contractor,
                 file=filename,
@@ -103,6 +105,8 @@ def seed_demo() -> list[PlanRecord]:
                 submitted_by=submitted_by,
             )
         )
+        # 시연 시작 상태: 이미 원청이 점검하고 승인한 계획서 (기준 일정과 같아 금지 판정이 없다)
+        decide_plan(result.plan.id, approve=True, decided_by="원청 안전환경팀", note="시드: 시스템 도입 전 승인분(기준 일정과 같음)", force=True)
     add_field_records(field_records())
     return list_plans()
 

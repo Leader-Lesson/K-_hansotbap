@@ -641,7 +641,14 @@ $('detailToggle').addEventListener('click', () => {
 // 모듈 하나가 없거나 오류가 나도 기본 화면은 그대로 동작하게 따로 불러옴
 const extras = {};
 async function loadExtras() {
-  const tryImport = async (p) => { try { return await import(p); } catch (e) { console.warn('[scene3d] 모듈 불러오기 실패', p, e); return null; } };
+  // 경로를 변수로 넘기면 Vite가 파일을 알아보지 못해 빌드 결과물에서 빠진다 → 경로마다 고정 문자열로 불러온다
+  const MODULES = {
+    './details.js': () => import('./details.js'), './equipment.js': () => import('./equipment.js'), './workers.js': () => import('./workers.js'),
+    './effects.js': () => import('./effects.js'), './piping.js': () => import('./piping.js'), './look.js': () => import('./look.js'),
+    './shell.js': () => import('./shell.js'), './siteprops.js': () => import('./siteprops.js'), './top.js': () => import('./top.js'),
+    './barriers.js': () => import('./barriers.js'), './safezones.js': () => import('./safezones.js'), './banners.js': () => import('./banners.js'),
+  };
+  const tryImport = async (p) => { try { return await MODULES[p](); } catch (e) { console.warn('[scene3d] 모듈 불러오기 실패', p, e); return null; } };
   const tryBuild = (name, fn) => { try { extras[name] = fn(); } catch (e) { console.warn('[scene3d] 생성 실패', name, e); } };
   const [d, eq, wk, fx, pp, lk, sh, sp, tp] = await Promise.all(['./details.js', './equipment.js', './workers.js', './effects.js', './piping.js',
     './look.js', './shell.js', './siteprops.js', './top.js'].map(tryImport));

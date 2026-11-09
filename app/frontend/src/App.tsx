@@ -44,6 +44,8 @@ function AppInner() {
   const [error, setError] = useState<string | null>(null);
   const [role, setRole] = useState<ViewerRole>(loadRole);
   const [notice, setNotice] = useState<string | null>(() => sessionStorage.getItem(NOTICE_KEY));
+  const [retry, setRetry] = useState(0); // API 연결 실패 뒤 다시 부르기
+  // AI 챗봇의 '오늘'은 ChatDock 이 헤더 공통 날짜(useShell)로 넘긴다
 
   const contractor = role.kind === "contractor" ? role.contractor : undefined;
 
@@ -67,17 +69,19 @@ function AppInner() {
       setError(null);
     } catch (e) {
       setError((e as Error).message);
+      // npm run dev 는 웹(Vite)이 API(uvicorn)보다 먼저 뜬다 → 첫 요청이 실패해도 몇 초 뒤 다시 부른다 [팀 설정값: 3초]
+      window.setTimeout(() => setRetry((n) => n + 1), 3000);
     }
   }, [contractor]);
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, retry]);
 
   // 역할 선택 목록은 협력사 목록(작업 분해표 업체 + 제출 업체)에서 — 일정이 비어 있어도(USE_BASELINE=false) 고를 수 있게
   useEffect(() => {
     api.contractors().then(setAllContractors).catch(() => {});
-  }, []);
+  }, [retry]); // API가 늦게 뜨면 다시 받는다
 
   useEffect(() => {
     if (notice) sessionStorage.removeItem(NOTICE_KEY);

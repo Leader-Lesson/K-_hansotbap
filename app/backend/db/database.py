@@ -18,7 +18,11 @@ CREATE TABLE IF NOT EXISTS plans (
     submitted_at TEXT NOT NULL,          -- 제출 시점에 판정한다. 동시 제출은 먼저 들어온 계획 기준
     version INTEGER NOT NULL DEFAULT 1,  -- 같은 협력사의 몇 번째 제출인지 (수정 계획서 재제출 시 +1)
     submitted_by TEXT,                   -- 확인·제출한 사람
-    draft_id TEXT                        -- F1 추출 결과(PlanExtraction.draft_id)
+    draft_id TEXT,                       -- F1 추출 결과(PlanExtraction.draft_id)
+    status TEXT NOT NULL DEFAULT 'pending', -- pending | approved | rejected (원청 승인)
+    decided_at TEXT,
+    decided_by TEXT,
+    decision_note TEXT
 );
 CREATE TABLE IF NOT EXISTS tasks (
     id TEXT NOT NULL,
@@ -100,7 +104,10 @@ CREATE TABLE IF NOT EXISTS history_records (
 
 # 예전 스키마로 만든 DB 파일에 나중에 생긴 칸을 붙인다 (ALTER 로 붙이므로 NOT NULL 은 기본값을 둔다)
 _ADDED_COLUMNS = {
-    "plans": {"submitted_by": "TEXT", "draft_id": "TEXT"},
+    "plans": {
+        "submitted_by": "TEXT", "draft_id": "TEXT",
+        "status": "TEXT NOT NULL DEFAULT 'pending'", "decided_at": "TEXT", "decided_by": "TEXT", "decision_note": "TEXT",
+    },
     "conflicts": {"plan_id": "INTEGER", "judged_at": "TEXT NOT NULL DEFAULT ''", "resolved_at": "TEXT"},
 }
 

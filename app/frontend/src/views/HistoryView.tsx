@@ -7,6 +7,7 @@ import { mdhm, partyColor } from "@/lib/partyColor";
 import { usePerson } from "@/lib/person";
 import { useShell } from "@/lib/shell";
 import type { AdjustmentRecord, AdjustmentResult, ConflictRecord, HistoryEvent, HistoryEventKind, PlanRecord, SharedItem, Task, ViewerRole } from "@/types";
+import { PlanStatusChip } from "@/views/ApprovalPanel";
 import "./s6.css";
 
 interface Props {
@@ -21,6 +22,8 @@ const ADJ_STATUS: Record<AdjustmentRecord["status"], string> = { active: "적용
 // 서버 기록 종류 → 화면 구분 이름. 현장 기록(field_record)의 구분(교대 인계·착수 승인 …)과 같은 이름은 칩 하나로 묶이게 시안 이름을 쓴다
 const KIND_LABEL: Record<HistoryEventKind, string> = {
   plan_submitted: "계획서 제출",
+  plan_approved: "원청 승인",
+  plan_rejected: "원청 반려",
   conflict_judged: "충돌 판정",
   conflict_shared: "공유",
   adjustment_replaced: "조정 대체",
@@ -315,7 +318,9 @@ export function HistoryView({ plans, tasks, contractor, onAdjusted, onViewAs }: 
                   <span className="sub">{ps[0].file}</span>
                   {ps.map((p) => (
                     <span key={p.id} className="sub">
-                      v{p.version} · {mdhm(p.submitted_at)} · {p.submitted_by ?? "제출자 미기재"} · 작업 {p.task_count}건
+                      v{p.version} · {mdhm(p.submitted_at)} · {p.submitted_by ?? "제출자 미기재"} · 작업 {p.task_count}건 <PlanStatusChip status={p.status} />
+                      {p.decided_by && ` ${p.decided_by}`}
+                      {p.decision_note && ` · ${p.decision_note}`}
                     </span>
                   ))}
                 </div>

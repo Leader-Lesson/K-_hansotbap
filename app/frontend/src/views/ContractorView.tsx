@@ -8,6 +8,7 @@ import { GRADE_RANK, HAZARD_LABEL, fmtRange } from "@/lib/format";
 import { groupByZone, restrictionsForContractor, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
 import { useShell, useShellRegister } from "@/lib/shell";
 import type { ConflictRecord, PlanRecord, SopInfo, SopMatch, Task, Zone } from "@/types";
+import { PLAN_STATUS_LABEL, PlanStatusChip } from "@/views/ApprovalPanel";
 import { HistoryView } from "@/views/HistoryView";
 import { RestrictionPanel } from "@/views/RestrictionPanel";
 import { Scene3DTab } from "@/views/Scene3DTab";
@@ -57,8 +58,25 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
   // 공유·조정이 바뀌면 "원청 공유·공지"를 다시 부른다 (App 이 다시 불러온 충돌 목록이 바뀐 것으로 안다)
   const conflictsKey = conflicts.map((r) => `${r.conflict.id}:${r.status}:${r.shared_at ?? ""}`).join("|");
 
+  // 내 최근 제출 계획서의 승인 상태 — 승인 대기면 3D·현황에 아직 "확정"으로 들어가지 않는다
+  const latestPlan = [...plans].sort((a, b) => b.id - a.id)[0] ?? null;
+
   return (
     <div className="grid gap-4">
+      {/* F5 원청 승인: 내 최근 제출의 승인 상태 (승인 대기면 3D·현황에 아직 확정으로 들어가지 않는다) */}
+      {latestPlan && (
+        <div className={`flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm ${latestPlan.status === "rejected" ? "border-red-300 bg-red-50" : latestPlan.status === "approved" ? "border-green-300 bg-green-50" : "border-amber-300 bg-amber-50"}`}>
+          <PlanStatusChip status={latestPlan.status} />
+          <span>
+            최근 제출 <b>{latestPlan.file}</b> v{latestPlan.version} — {PLAN_STATUS_LABEL[latestPlan.status]}
+            {latestPlan.status === "pending" && ": 원청이 겹침·출입 금지 구역을 확인한 뒤 승인하면 3D·현황에 확정으로 들어갑니다"}
+            {latestPlan.status === "approved" && `: ${latestPlan.decided_by ?? "원청"} 승인 (${latestPlan.decided_at ?? ""})`}
+            {latestPlan.status === "rejected" && `: ${latestPlan.decided_by ?? "원청"} 반려 — 사유를 반영해 수정 계획서를 다시 올려 주세요`}
+          </span>
+          {latestPlan.decision_note && <span className="w-full text-xs text-stone-600">사유·메모: {latestPlan.decision_note}</span>}
+        </div>
+      )}
+
       {/* min-w-0: grid 칸이 시간표 최소 폭(860px)만큼 늘어나 좁은 화면 전체가 넓어지지 않게 (시간표는 자기 칸 안에서 가로 스크롤) */}
       <Tabs value={tab} onValueChange={setTab} className="min-w-0">
 

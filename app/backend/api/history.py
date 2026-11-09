@@ -16,6 +16,8 @@ _CONTRACTOR_Q = Query(default=None, description="협력사로 보면 자기 제�
 _HEADERS = ["시각", "구분", "대상", "관련 업체", "책임자", "내용", "규칙", "근거 조문"]
 _LABELS = {
     Kind.PLAN_SUBMITTED: "계획서 제출",
+    Kind.PLAN_APPROVED: "원청 승인",
+    Kind.PLAN_REJECTED: "원청 반려",
     Kind.CONFLICT_JUDGED: "충돌 판정",
     Kind.CONFLICT_SHARED: "협력사 공유",
     Kind.ADJUSTMENT_REPLACED: "조정 대체",
