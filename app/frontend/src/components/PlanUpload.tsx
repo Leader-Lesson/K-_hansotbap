@@ -77,7 +77,7 @@ export function PlanUpload({ contractor, zones, onSubmitted }: Props) {
           type="button"
           onClick={upload}
           disabled={!file || busy !== null}
-          className="rounded bg-sky-700 px-3 py-1.5 font-medium text-white disabled:opacity-40"
+          className="rounded bg-brand px-3 py-1.5 font-medium text-white disabled:opacity-40"
         >
           {busy === "upload" ? "읽는 중…" : "구조화 (F1)"}
         </button>
@@ -172,7 +172,7 @@ export function PlanUpload({ contractor, zones, onSubmitted }: Props) {
               type="button"
               onClick={submit}
               disabled={busy !== null}
-              className="rounded bg-emerald-700 px-3 py-1.5 font-medium text-white disabled:opacity-40"
+              className="rounded bg-ok px-3 py-1.5 font-medium text-white disabled:opacity-40"
             >
               {busy === "submit" ? "판정 중…" : "제출 → 충돌 판정 (F2)"}
             </button>

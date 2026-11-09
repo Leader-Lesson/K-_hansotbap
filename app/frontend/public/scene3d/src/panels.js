@@ -1,8 +1,10 @@
 /* 한솥밥 3D · 왼쪽 작업 목록 + 오른쪽 상세 패널 (v2)
    HTML 문자열만 돌려줌. 클릭 속성은 app.js와 같음: data-zone / data-conflict / data-task / data-alt / data-back
-   글자 단계: 20 / 17 / 15 / 13px. 빨강은 위험 표시에만. 클래스는 모두 p2- 로 시작 (style.css "panels v2" 구역) */
+   글자 단계: 20 / 17 / 15 / 13px (카드 본문은 14px 이상). 빨강은 위험 표시에만. 클래스는 모두 p2- 로 시작 (style.css "panels v2" 구역)
+   걸린 위험: 등급별 묶음(금지 → 조건부 → 결함) + 카드는 한 줄 요약(<summary>) → 펼치면 업체·구역·이유·조정 방향·자세히
+   왼쪽 목록: 구역마다 첫 줄(구역명 · 작업 n건 · 등급 점 · 출입 금지)만, 작업 줄은 선택한 구역만 펼침 */
 
-import { SEV, SEV_ORDER, TYPE_NAME, WORK_TYPE_NAME, LEVEL_NAME, fmtTime, fmtDateTime } from './theme.js';
+import { SEV, SEV_ORDER, TYPE_NAME, WORK_TYPE_NAME, LEVEL_NAME, fmtTime, fmtDateTime, barrierText } from './theme.js';
 import { contactFor, HQ_CONTACTS } from './contacts.js';
 
 // ---------- 공통 도구 ----------
@@ -41,6 +43,12 @@ if (typeof document !== 'undefined') {
   document.addEventListener('toggle', (e) => {
     const k = e.target?.dataset?.p2key;
     if (k) openMemo.set(k, e.target.open);
+  }, true);
+  // <summary> 클릭 → app.js가 곧바로 다시 그리면(data-conflict 선택) 원래 요소의 toggle 이벤트가 사라지므로,
+  // 다시 그리기 전에(캡처 단계) 바뀔 열림 상태를 먼저 적어 둔다
+  document.addEventListener('click', (e) => {
+    const d = e.target?.closest?.('summary')?.parentElement;
+    if (d && d.tagName === 'DETAILS' && d.dataset.p2key) openMemo.set(d.dataset.p2key, !d.open);
   }, true);
 }
 const openAttr = (key, dflt) => ((openMemo.has(key) ? openMemo.get(key) : dflt) ? ' open' : '');
@@ -136,32 +144,69 @@ function altSection(c, alternatives, role) {
 }
 
 // ---------- 판정 카드 ----------
+/* 한 줄 요약에 쓰는 짧은 유형 이름 */
+const TYPE_SHORT = { SAME_ZONE_TIME: '같은 시간·구역', VERTICAL: '위아래', HOT_GAS: '화기×가스', SEQUENCE: '순서 위반', STANDARD: '표준서 누락' };
+const SEV_GROUP_MAX = 5;   // [팀 설정값] 한 등급 묶음이 이보다 많으면 묶음 머리를 <summary>로 만들어 통째로 접을 수 있게
+
+/* 요약 줄의 작업 제목 둘: "질소 라인 연결 × 노흉 축조". 권한 밖이라 작업을 못 찾으면 판정 제목으로 */
+function sumNames(c, tasks) {
+  const ts = tasksOf(c, tasks);
+  const need = Math.min(2, (c.task_ids || []).length);
+  if (!ts.length || ts.length < need) return shortTitle(c.title);
+  return ts.slice(0, 2).map((k) => shortTitle(k.title)).join(' × ') + (ts.length > 2 ? ` 외 ${ts.length - 2}건` : '');
+}
+
+/* 카드 하나: <summary>(한 줄 요약, data-conflict) → 펼치면 업체·구역·이유·조정 방향·자세히.
+   금지는 기본 펼침, 조건부·결함은 기본 접힘(openMemo 'cf:<id>'로 기억). 선택된 판정은 항상 펼침 */
 function conflictCard(c, ctx) {
-  const { tasks, zm, alternatives, role, t, selectedConflictId } = ctx;
+  const { zm, alternatives, role, t, selectedConflictId } = ctx;
+  const tasks = ctx.allTasks || ctx.tasks;
   const s = sevOf(c.severity);
   const pro = c.severity === 'PROHIBITED';
-  const detKey = `why:${c.id}`;
+  const sel = c.id === selectedConflictId;
+  const key = `cf:${c.id}`, detKey = `why:${c.id}`;
+  const type = TYPE_SHORT[c.type] || TYPE_NAME[c.type] || c.type || '';
+  const names = sumNames(c, tasks);
+  const when = `${tm(c.start, t)}–${tm(c.end, t)}`;
   const pend = c.pending ? '<span class="p2-pend">승인 시 생길 위험</span>' : '';
-  return `<article class="p2-card${c.id === selectedConflictId ? ' p2-on' : ''}" style="--sev:${s.color}">
-    <div class="p2-click" data-conflict="${esc(c.id)}">
-      <div class="p2-strip">${s.mark} ${esc(s.label)} · ${esc(TYPE_NAME[c.type] || c.type || '')} · ${esc(tm(c.start, t))}–${esc(tm(c.end, t))}</div>
-      <div class="p2-card-in">
-        <div class="p2-title">${esc(c.title)}</div>
-        <div class="p2-chips">${(c.company_ids || []).map(coChip).join('')}${pend}</div>
-        <div class="p2-key">${keyLine(c, tasks, zm)}</div>
-      </div>
-    </div>
-    <div class="p2-card-in p2-card-more">
-      ${pro ? '' : `<div class="p2-line"><b>알림 · 작업 계속</b>${c.suggestion?.text ? ` — 조치: ${esc(c.suggestion.text)}` : ''}</div>`}
+  return `<details class="p2-card${sel ? ' p2-on' : ''}" data-p2key="${esc(key)}"${sel ? ' open' : openAttr(key, pro)} style="--sev:${s.color}">
+    <summary class="p2-sum" data-conflict="${esc(c.id)}" title="${esc(`${s.label} · ${type} · ${names} · ${when}`)}"><span class="p2-sum-row">
+      <span class="p2-sum-mark" style="color:${s.color}">${s.mark}</span>
+      <span class="p2-sum-txt"><b>${esc(type)}</b> · ${esc(names)}${c.pending ? ' <span class="p2-pend">승인 시</span>' : ''}</span>
+      <span class="p2-time p2-sum-time">${esc(when)}</span>
+      <span class="p2-caret" aria-hidden="true"></span>
+    </span></summary>
+    <div class="p2-card-in">
+      <div class="p2-title">${esc(c.title)}</div>
+      <div class="p2-chips">${(c.company_ids || []).map(coChip).join('')}${pend}</div>
+      <div class="p2-key">${keyLine(c, tasks, zm)}</div>
+      ${c.reason ? `<p class="p2-reason">${esc(c.reason)}</p>` : ''}
+      ${pro ? altSection(c, alternatives, role) : `<div class="p2-line"><b>알림 · 작업 계속</b>${c.suggestion?.text ? ` — 조치: ${esc(c.suggestion.text)}` : ''}</div>`}
       ${peopleBlock(c, tasks, role)}
       ${evidenceFold(c, tasks, detKey)}
-      ${pro ? altSection(c, alternatives, role) : ''}
     </div>
-  </article>`;
+  </details>`;
 }
 
 const sortConf = (list) => [...(list || [])].sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || String(a.start).localeCompare(String(b.start)));
-const conflictList = (list, ctx, empty) => (list.length ? list.map((c) => conflictCard(c, ctx)).join('') : `<div class="p2-empty">${esc(empty)}</div>`);
+
+/* 등급별 묶음: 머리 "◆ 금지 3건" (등급 색·개수). SEV_GROUP_MAX건을 넘으면 머리가 <summary>가 되어 묶음째 접힘
+   (금지 묶음 기본 펼침, 조건부·결함 기본 접힘 — openMemo 'grp:<범위>:<등급>', 선택된 판정이 들어 있으면 펼침) */
+function conflictList(list, ctx, empty) {
+  if (!list.length) return `<div class="p2-empty">${esc(empty)}</div>`;
+  const sevs = [...SEV_ORDER, ...new Set(list.map((c) => c.severity).filter((x) => !SEV_ORDER.includes(x)))];
+  return sevs.map((sev) => {
+    const items = list.filter((c) => c.severity === sev);
+    if (!items.length) return '';
+    const s = sevOf(sev);
+    const head = `<span class="p2-sevhead-in" style="color:${s.color}">${s.mark} ${esc(s.label)} <b>${items.length}</b>건</span>`;
+    const cards = items.map((c) => conflictCard(c, ctx)).join('');
+    if (items.length <= SEV_GROUP_MAX) return `<section class="p2-sevgrp"><div class="p2-sevhead">${head}</div>${cards}</section>`;
+    const key = `grp:${ctx.scope || 'all'}:${sev}`;
+    const hasSel = items.some((c) => c.id === ctx.selectedConflictId);
+    return `<details class="p2-sevgrp p2-sevfold" data-p2key="${esc(key)}"${hasSel ? ' open' : openAttr(key, sev === 'PROHIBITED')}><summary class="p2-sevsum"><span class="p2-sevhead">${head}<span class="p2-sevhint" aria-hidden="true"></span></span></summary>${cards}</details>`;
+  }).join('');
+}
 
 // ---------- 작업 카드 / 안전 안내 ----------
 function taskCard(tk, t, selectedTaskId, conflicts) {
@@ -192,14 +237,18 @@ function guidanceBlock(guidance, t, zoneLabel) {
 }
 
 // ---------- 왼쪽: 위치별 작업 목록 ----------
-export function renderLeft({ zones, tasks, conflicts, selectedZoneId, selectedTaskId, t }) {
+/* barriers: app.js barrierList(t) — 그 시각 출입 제한 구역. 권한과 무관하게 모두에게 보임(협력사 포함) */
+export function renderLeft({ zones, tasks, conflicts, selectedZoneId, selectedTaskId, t, barriers }) {
   const zm = zoneMap(zones);
   const list = (tasks || []).filter((x) => x.status !== 'rejected');
+  const bars = new Map((barriers || []).map((b) => [b.zoneId, b]));
   const groups = new Map();
   for (const tk of list) {
     const ids = (tk.zone_ids || []).length ? tk.zone_ids : [''];
     for (const z of ids) { if (!groups.has(z)) groups.set(z, []); groups.get(z).push(tk); }
   }
+  // 출입 제한 구역은 보이는 작업이 없어도(협력사 권한) 줄을 만든다 — 출입 금지는 모두가 알아야 함
+  for (const zid of bars.keys()) if (zm.has(zid) && !groups.has(zid)) groups.set(zid, []);
   const order = [...groups.keys()].sort((a, b) => {
     const A = zm.get(a), B = zm.get(b);
     if (!A || !B) return A ? -1 : B ? 1 : 0;
@@ -216,12 +265,16 @@ export function renderLeft({ zones, tasks, conflicts, selectedZoneId, selectedTa
     const z = zm.get(zid);
     const items = groups.get(zid).sort((a, b) => String(a.start).localeCompare(String(b.start)));
     const w = zid ? worstIn(zid) : null;
-    const head = `<button type="button" class="p2-grp-head${zid && zid === selectedZoneId ? ' p2-on' : ''}" ${zid ? `data-zone="${esc(zid)}"` : 'disabled'}>
-      <i class="p2-dot" style="background:${w ? sevOf(w).color : '#b9c1c8'}"></i>
-      <span class="p2-grp-name">${esc(z ? z.name : '지상·기타')}${z ? `<small>${esc(LEVEL_NAME[z.level] ?? '')}</small>` : ''}</span>
-      <span class="p2-count">${items.length}</span>
-    </button>`;
-    const body = items.map((tk) => {
+    const bar = zid ? bars.get(zid) : null;
+    const sel = !!zid && zid === selectedZoneId;
+    // 작업 줄은 선택한 구역(또는 선택한 작업이 든 구역)만 펼침. 구역이 없는 '지상·기타'는 <details>로 직접 펼침
+    const open = sel || items.some((k) => k.id === selectedTaskId);
+    const lvName = z ? (LEVEL_NAME[z.level] ?? '') : '';
+    const headIn = `<i class="p2-dot" style="background:${w ? sevOf(w).color : '#b9c1c8'}"></i>
+      <span class="p2-grp-name">${esc(z ? z.name : '지상·기타')}${open && lvName ? `<small>${esc(lvName)}</small>` : ''}${bar ? `<span class="p2-ban"><i></i>${esc(barrierText(bar))}</span>` : ''}</span>
+      <span class="p2-count">${items.length}건</span>`;
+    const tip = esc([z ? z.name : '지상·기타', lvName, `작업 ${items.length}건`, w ? sevOf(w).label : '', bar ? barrierText(bar) : ''].filter(Boolean).join(' · '));
+    const body = !open && zid ? '' : items.length ? items.map((tk) => {
       const lim = tk.acc === 'limited';
       const ended = t && tk.end <= t;
       const ts = taskWorst(tk.id);
@@ -232,8 +285,12 @@ export function renderLeft({ zones, tasks, conflicts, selectedZoneId, selectedTa
           <span class="p2-row-sub">${range(tk.start, tk.end, t)}${lim ? '<span class="p2-limtxt">다른 업체 작업 (영향)</span>' : ` <b>${esc(tk.crew ?? '-')}</b>명`}${tk.status === 'pending' ? '<span class="p2-pend">승인 대기</span>' : ''}</span>
         </span>
       </button>`;
-    }).join('');
-    return `<section class="p2-grp">${head}${body}</section>`;
+    }).join('') : '<div class="p2-row-empty">보이는 작업이 없습니다</div>';
+    if (!zid) {
+      const key = 'left:etc';
+      return `<details class="p2-grp" data-p2key="${key}"${open ? ' open' : openAttr(key, false)}><summary class="p2-grp-sum" title="${tip}"><span class="p2-grp-head">${headIn}</span></summary>${body}</details>`;
+    }
+    return `<section class="p2-grp${bar ? ' p2-grp-ban' : ''}"><button type="button" class="p2-grp-head${sel ? ' p2-on' : ''}" data-zone="${esc(zid)}" title="${tip}" aria-expanded="${open}">${headIn}</button>${body}</section>`;
   }).join('');
 
   return `<div class="p2-left">
@@ -307,10 +364,10 @@ function violCard(v, role, t) {
     <div class="db-people"><div class="db-lbl">담당자</div><ul>${p && !p.masked ? `<li><span class="db-co">${coChip(v.company)}</span><span>${esc(p.lead.name)} ${telA(p.lead)}</span><span>${esc(p.part.name)} ${telA(p.part)}</span></li>` : ''}<li class="db-hq"><span class="db-co">원청</span><span>${esc(hq.team)} ${esc(hq.name)} ${telA(hq)}</span></li></ul></div>
   </article>`;
 }
-export function renderRightIntro({ title, t, conflicts, tasks, alternatives, zones, role, selectedConflictId, violations = [], pending = 0 }) {
+export function renderRightIntro({ title, t, conflicts, tasks, allTasks, alternatives, zones, role, selectedConflictId, violations = [], pending = 0 }) {
   const zm = zoneMap(zones);
   const list = sortConf(conflicts).filter((c) => !t || !c.end || c.end > t);
-  const ctx = { tasks, zm, alternatives, role, t, selectedConflictId };
+  const ctx = { tasks, allTasks, zm, alternatives, role, t, selectedConflictId, scope: 'all' };
   const n = (k) => list.filter((c) => c.severity === k).length;
   const live = (c) => !t || (c.start <= t && t < c.end);
   // 지금 해결할 문제: 고른 것 → 금지 → 지금 걸린 조건부 (최대 3개)
@@ -339,15 +396,15 @@ export function renderRightIntro({ title, t, conflicts, tasks, alternatives, zon
 }
 
 // ---------- 오른쪽: 구역 ----------
-export function renderRightZone({ zone, zones, t, tasks, conflicts, alternatives, guidance, selectedTaskId, role, selectedConflictId }) {
-  if (!zone) return renderRightIntro({ title: '전체', t, conflicts, tasks, alternatives, zones, role });
+export function renderRightZone({ zone, zones, t, tasks, allTasks, conflicts, alternatives, guidance, selectedTaskId, role, selectedConflictId }) {
+  if (!zone) return renderRightIntro({ title: '전체', t, conflicts, tasks, allTasks, alternatives, zones, role });
   const zm = zoneMap(zones);
   const zt = (tasks || []).filter((x) => (x.zone_ids || []).includes(zone.id) && x.status !== 'rejected');
   const now = zt.filter((x) => isNow(x, t));
   const later = zt.filter((x) => !isNow(x, t) && (!t || x.end > t));
   const zc = sortConf((conflicts || []).filter((c) => (c.zone_ids || []).includes(zone.id)));
   const crew = now.filter((x) => x.acc !== 'limited').reduce((s, x) => s + (x.crew || 0), 0);
-  const ctx = { tasks, zm, alternatives, role, t, selectedConflictId };
+  const ctx = { tasks, allTasks, zm, alternatives, role, t, selectedConflictId, scope: `z:${zone.id}` };
   const g = guidance && (!guidance.zoneId || guidance.zoneId === zone.id) ? guidance : null;
   return `<div class="p2">
     <button type="button" class="p2-back" data-back="1">‹ 전체로</button>
@@ -383,7 +440,7 @@ export function renderRightTask({ task, zones, t, conflicts, guidance, alternati
     const o = allTasks.find((x) => x.id === id);
     others.set(id, { o, sev: c.severity });
   }
-  const ctx = { tasks: allTasks, zm, alternatives, role, t, selectedConflictId };
+  const ctx = { tasks: allTasks, zm, alternatives, role, t, selectedConflictId, scope: `t:${task.id}` };
   const g = guidance && (!guidance.zoneId || (task.zone_ids || []).includes(guidance.zoneId)) ? guidance : null;
   const firstZone = task.zone_ids?.[0];
   return `<div class="p2">

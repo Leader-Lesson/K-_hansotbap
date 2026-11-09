@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "@/api/client";
 import { GradeBadge, TypeBadge } from "@/components/ConflictBadge";
-import { fmtDateTime, fmtRange } from "@/lib/format";
+import { GRADE_RANK, fmtDateTime, fmtRange, worstGrade } from "@/lib/format";
 import { usePerson } from "@/lib/person";
 import type { AdjustmentCandidate, AdjustmentResult, ConflictRecord, Task, ViewerRole } from "@/types";
 
@@ -15,13 +15,53 @@ interface Props {
   onAdjusted?: (result: AdjustmentResult) => void; // 적용·되돌리기 뒤 (refresh 가 true 면 화면을 새로고침한다)
   onShared?: () => void; // 협력사 공유 뒤 다시 불러오기
   emptyText?: string;
+  groupByRule?: boolean; // 규칙별로 묶어 접는다 (R16 26건을 한 줄로). 가장 높은 등급·건수 순
 }
 
-export function ConflictList({ records, tasks, role, onShow3D, onAdjusted, onShared, emptyText = "판정된 충돌이 없습니다." }: Props) {
+const GROUP_OPEN_MAX = 3; // 이 건수 이하인 묶음은 펼쳐 둔다 [팀 설정값]
+
+export function ConflictList({ records, tasks, role, onShow3D, onAdjusted, onShared, emptyText = "판정된 충돌이 없습니다.", groupByRule = false }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const taskOf = (id: string) => tasks.find((t) => t.id === id);
 
   if (records.length === 0) return <p className="text-sm text-stone-500">{emptyText}</p>;
+
+  if (groupByRule) {
+    const groups = new Map<string, ConflictRecord[]>();
+    for (const r of records) (groups.get(r.conflict.rule_id) ?? groups.set(r.conflict.rule_id, []).get(r.conflict.rule_id)!).push(r);
+    const ordered = [...groups.entries()].sort(([, a], [, b]) => {
+      const ga = GRADE_RANK[worstGrade(a.map((r) => r.conflict.grade))!];
+      const gb = GRADE_RANK[worstGrade(b.map((r) => r.conflict.grade))!];
+      return gb - ga || b.length - a.length;
+    });
+    return (
+      <div className="grid gap-2 text-sm">
+        {ordered.map(([rule, rs]) => {
+          const worst = worstGrade(rs.map((r) => r.conflict.grade))!;
+          const basis = rs[0].conflict.legal_basis;
+          const types = [...new Set(rs.map((r) => r.conflict.type))];
+          return (
+            <details key={rule} open={rs.length <= GROUP_OPEN_MAX} className="rounded border border-line bg-white">
+              <summary className="flex cursor-pointer flex-wrap items-center gap-2 px-3 py-2 select-none">
+                <GradeBadge grade={worst} />
+                <b>{rule}</b>
+                {types.map((t) => (
+                  <TypeBadge key={t} type={t} />
+                ))}
+                <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs">{rs.length}건</span>
+                <span className="truncate text-xs text-stone-500" title={basis}>
+                  {basis}
+                </span>
+              </summary>
+              <div className="border-t border-line-2 px-3">
+                <ConflictList records={rs} tasks={tasks} role={role} onShow3D={onShow3D} onAdjusted={onAdjusted} onShared={onShared} />
+              </div>
+            </details>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <ul className="divide-y divide-stone-200 text-sm">
@@ -42,9 +82,9 @@ export function ConflictList({ records, tasks, role, onShow3D, onAdjusted, onSha
               </span>
               <span className="text-xs text-stone-500">{fmtRange(c.window_start, c.window_end)}</span>
               <span className="text-xs text-stone-500">{c.rule_id}</span>
-              {r.status === "adjusted" && <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-800">조정 적용됨</span>}
+              {r.status === "adjusted" && <span className="rounded bg-ok-soft px-1.5 py-0.5 text-xs text-ok">조정 적용됨</span>}
               {r.status === "resolved" && <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">해소</span>}
-              {role.kind === "prime" && r.shared_at && <span className="rounded bg-sky-100 px-1.5 py-0.5 text-xs text-sky-800">협력사 공유됨</span>}
+              {role.kind === "prime" && r.shared_at && <span className="rounded bg-brand-soft px-1.5 py-0.5 text-xs text-brand">협력사 공유됨</span>}
               <span className="ml-auto text-xs text-stone-400">{isOpen ? "접기 ▲" : "상세 ▼"}</span>
             </button>
             {isOpen && (
@@ -81,7 +121,7 @@ function ConflictDetail({ record: r, tasks, role, onShow3D, onAdjusted, onShared
               <span key={id} className="rounded bg-white px-2 py-0.5 ring-1 ring-stone-200">
                 <b>{id}</b> {t ? `${t.contractor} · ${t.name} · ${fmtRange(t.start, t.end)}` : "(현재 일정에 없음)"}
                 {onShow3D && t && (
-                  <button type="button" onClick={() => onShow3D(id, r)} className="ml-2 text-sky-700 underline">
+                  <button type="button" onClick={() => onShow3D(id, r)} className="ml-2 text-brand underline">
                     3D로 보기
                   </button>
                 )}
@@ -132,7 +172,7 @@ function SharePanel({ record: r, onShared }: { record: ConflictRecord; onShared?
   if (r.shared_at) {
     return (
       <div className="border-t border-stone-200 pt-2 text-stone-600">
-        <b className="text-sky-800">협력사 공유됨</b> · {fmtDateTime(r.shared_at)} — 관련 협력사 화면의 "원청 공유·공지"와 TBM 전달 항목에 나옵니다.
+        <b className="text-brand">협력사 공유됨</b> · {fmtDateTime(r.shared_at)} — 관련 협력사 화면의 "원청 공유·공지"와 TBM 전달 항목에 나옵니다.
       </div>
     );
   }
@@ -159,7 +199,7 @@ function SharePanel({ record: r, onShared }: { record: ConflictRecord; onShared?
       <div className="flex flex-wrap items-center gap-2">
         <b>협력사 공유 (F5)</b>
         <input value={person} onChange={(e) => setPerson(e.target.value)} placeholder="확인한 책임자 (필수)" className="rounded border border-stone-300 px-2 py-1" />
-        <button type="button" onClick={share} disabled={busy} className="rounded bg-sky-700 px-2 py-1 font-medium text-white disabled:opacity-40">
+        <button type="button" onClick={share} disabled={busy} className="rounded bg-brand px-2 py-1 font-medium text-white disabled:opacity-40">
           {busy ? "공유 중…" : "협력사에 공유"}
         </button>
         <span className="text-stone-500">관련 협력사에게 자기 작업과 겹친 내용·위험 요소·인계 조건만 내려갑니다. 조정을 적용하면 함께 공유됩니다.</span>
@@ -215,7 +255,7 @@ function AdjustmentPanel({ record: r, tasks, onAdjusted }: { record: ConflictRec
   if (result) {
     const d = result.diff;
     return (
-      <div className="rounded border border-emerald-300 bg-emerald-50 p-2">
+      <div className="rounded border border-ok bg-ok-soft p-2">
         <b>조정 적용 완료</b> · 재판정 {Math.round(result.recheck_ms)}ms · {result.record.adjustment.decided_by}
         <div className="mt-1">사라진 충돌 {d.resolved.length}건{d.resolved.length ? `: ${d.resolved.map((x) => x.id).join(", ")}` : ""}</div>
         <div>새로 생긴 충돌 {d.introduced.length}건{d.introduced.length ? `: ${d.introduced.map((x) => `${x.id} (${x.grade})`).join(", ")}` : ""}</div>
@@ -236,7 +276,7 @@ function AdjustmentPanel({ record: r, tasks, onAdjusted }: { record: ConflictRec
       <div className="flex flex-wrap items-center gap-2">
         <b>조정안 (F4)</b>
         {candidates === null && (
-          <button type="button" onClick={load} disabled={loading} className="rounded bg-sky-700 px-2 py-1 font-medium text-white disabled:opacity-40">
+          <button type="button" onClick={load} disabled={loading} className="rounded bg-brand px-2 py-1 font-medium text-white disabled:opacity-40">
             {loading ? "계산 중…" : "조정안 보기"}
           </button>
         )}
@@ -255,9 +295,9 @@ function AdjustmentPanel({ record: r, tasks, onAdjusted }: { record: ConflictRec
           {candidates.map((cand) => {
             const t = taskOf(cand.task_id);
             return (
-              <li key={cand.id} className={`rounded border bg-white p-2 ${cand.recommended ? "border-emerald-400 ring-1 ring-emerald-200" : "border-stone-200"}`}>
+              <li key={cand.id} className={`rounded border bg-white p-2 ${cand.recommended ? "border-ok ring-1 ring-ok-soft" : "border-stone-200"}`}>
                 <div className="flex flex-wrap items-center gap-2">
-                  {cand.recommended && <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-semibold text-emerald-800">추천</span>}
+                  {cand.recommended && <span className="rounded bg-ok-soft px-1.5 py-0.5 font-semibold text-ok">추천</span>}
                   <b>
                     {cand.task_id} {t?.name ?? ""}
                   </b>
@@ -276,7 +316,7 @@ function AdjustmentPanel({ record: r, tasks, onAdjusted }: { record: ConflictRec
                   type="button"
                   onClick={() => apply(cand)}
                   disabled={applying !== null}
-                  className="mt-2 rounded bg-emerald-700 px-2 py-1 font-medium text-white disabled:opacity-40"
+                  className="mt-2 rounded bg-ok px-2 py-1 font-medium text-white disabled:opacity-40"
                 >
                   {applying === cand.id ? "재판정 중…" : "조정 적용"}
                 </button>

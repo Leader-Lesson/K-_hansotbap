@@ -15,9 +15,9 @@ interface Props {
 
 const KIND_LABEL: Record<TbmItemKind, string> = { adjustment: "조정", risk_window: "위험 시간대", notice: "원청 공지" };
 const KIND_CLASS: Record<TbmItemKind, string> = {
-  adjustment: "bg-emerald-100 text-emerald-800",
+  adjustment: "bg-ok-soft text-ok",
   risk_window: "bg-orange-100 text-orange-800",
-  notice: "bg-sky-100 text-sky-800",
+  notice: "bg-brand-soft text-brand",
 };
 const AUDIO_ACCEPT = ".wav,.m4a,.mp3,.webm,.ogg";
 
@@ -153,9 +153,9 @@ export function TbmView({ role, contractors, defaultContractor, defaultDate }: P
               const r = result?.results.find((x) => x.item.id === it.id);
               const miss = missing.has(it.id);
               return (
-                <li key={it.id} className={`rounded border p-2 ${miss ? "border-red-300 bg-red-50" : r ? "border-emerald-300 bg-emerald-50" : "border-stone-200"}`}>
+                <li key={it.id} className={`rounded border p-2 ${miss ? "border-red-300 bg-red-50" : r ? "border-ok bg-ok-soft" : "border-stone-200"}`}>
                   <div className="flex flex-wrap items-center gap-2">
-                    {r && <b className={miss ? "text-red-700" : "text-emerald-700"}>{miss ? "✗ 빠짐" : "✓ 전달"}</b>}
+                    {r && <b className={miss ? "text-red-700" : "text-ok"}>{miss ? "✗ 빠짐" : "✓ 전달"}</b>}
                     <span className={`rounded px-1.5 py-0.5 text-xs ${KIND_CLASS[it.kind]}`}>{KIND_LABEL[it.kind]}</span>
                     <span>{it.text}</span>
                     {it.rule_ids.length > 0 && <span className="text-xs text-stone-500">{it.rule_ids.join(", ")}</span>}
@@ -176,7 +176,7 @@ export function TbmView({ role, contractors, defaultContractor, defaultDate }: P
               placeholder="예: 축조 완료·인원 철수 확인 후 질소 라인 연결"
               className="min-w-[280px] flex-1 rounded border border-stone-300 px-2 py-1"
             />
-            <button type="button" onClick={addNotice} className="rounded bg-sky-700 px-2 py-1 font-medium text-white">
+            <button type="button" onClick={addNotice} className="rounded bg-brand px-2 py-1 font-medium text-white">
               공지 추가
             </button>
           </div>
@@ -221,13 +221,13 @@ export function TbmView({ role, contractors, defaultContractor, defaultDate }: P
             type="button"
             onClick={check}
             disabled={!transcript.trim() || items.length === 0 || checking}
-            className="rounded bg-emerald-700 px-3 py-1 font-medium text-white disabled:opacity-40"
+            className="rounded bg-ok px-3 py-1 font-medium text-white disabled:opacity-40"
           >
             {checking ? "확인 중…" : "전달 확인"}
           </button>
           {result && (
             <span>
-              전달 항목 {result.results.length}건 중 <b className="text-emerald-700">{result.results.length - result.missing_ids.length}건 전달</b>
+              전달 항목 {result.results.length}건 중 <b className="text-ok">{result.results.length - result.missing_ids.length}건 전달</b>
               {result.missing_ids.length > 0 && (
                 <>
                   , <b className="text-red-700">{result.missing_ids.length}건 빠짐</b> — 보충 전달 후 다시 확인하세요

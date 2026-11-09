@@ -5,8 +5,14 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+  font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   color-scheme: light;
+  /* 시연판(public/prototype/assets/css/styles.css)과 같은 색 토큰 — 두 화면이 한 제품처럼 보이게 */
+  --bg: #F2F4F6; --surface: #FFFFFF; --surface-2: #F6F8F9; --line: #DCE1E6; --line-2: #E9EDF0;
+  --ink: #192027; --ink-2: #4C5762; --ink-3: #7D8893;
+  --blue: #2462C8; --blue-soft: #E3ECFA; --blue-hover: #17479C;
+  --red: #CF2F29; --red-soft: #FBE3E1; --amber: #B56B00; --amber-soft: #F8EBD3;
+  --violet: #6A4DB2; --violet-soft: #ECE7F8; --ok: #2B7B4D; --ok-soft: #DDF0E4;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -43,13 +49,24 @@
 
 body {
   margin: 0;
-  background: #f6f5f2;
-  color: #1f2328;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
 }
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+  --font-sans: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  /* 유틸리티로 쓰는 토큰 이름: bg-brand · text-danger · bg-warn-soft · text-defect · bg-ok … */
+  --color-brand: var(--blue); --color-brand-soft: var(--blue-soft); --color-brand-hover: var(--blue-hover);
+  --color-danger: var(--red); --color-danger-soft: var(--red-soft);
+  --color-warn: var(--amber); --color-warn-soft: var(--amber-soft);
+  --color-defect: var(--violet); --color-defect-soft: var(--violet-soft);
+  --color-ok: var(--ok); --color-ok-soft: var(--ok-soft);
+  --color-ink: var(--ink); --color-ink-2: var(--ink-2); --color-ink-3: var(--ink-3);
+  --color-line: var(--line); --color-line-2: var(--line-2); --color-surface: var(--surface); --color-surface-2: var(--surface-2);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -139,10 +156,11 @@ body {
   }
 }
 /* 시간표형 간트: 충돌이 걸린 작업 막대 색 (금지 빨강 · 조건부 주황 · 결함 보라) */
-.vis-item.cf-prohibited { background-color: #fde2e1; border-color: #d9534f; color: #7a1f1b; }
-.vis-item.cf-conditional { background-color: #fdebd3; border-color: #f0a04b; color: #7a4a0f; }
-.vis-item.cf-defect { background-color: #e9e1f3; border-color: #8a6fb3; color: #4a2f73; }
+.vis-item.cf-prohibited { background-color: var(--red-soft); border-color: var(--red); color: var(--red); }
+.vis-item.cf-conditional { background-color: var(--amber-soft); border-color: var(--amber); color: var(--amber); }
+.vis-item.cf-defect { background-color: var(--violet-soft); border-color: var(--violet); color: var(--violet); }
+.vis-timeline, .vis-item { font-family: inherit; font-size: 12px; }
 /* F9 위험 시간대 띠: 그 구역 줄의 배경 (가장 높은 등급 색을 옅게) */
-.vis-item.vis-background.rw-prohibited { background-color: rgba(217, 83, 79, 0.16); }
-.vis-item.vis-background.rw-conditional { background-color: rgba(240, 160, 75, 0.18); }
-.vis-item.vis-background.rw-defect { background-color: rgba(138, 111, 179, 0.15); }
+.vis-item.vis-background.rw-prohibited { background-color: color-mix(in srgb, var(--red) 14%, transparent); }
+.vis-item.vis-background.rw-conditional { background-color: color-mix(in srgb, var(--amber) 16%, transparent); }
+.vis-item.vis-background.rw-defect { background-color: color-mix(in srgb, var(--violet) 13%, transparent); }

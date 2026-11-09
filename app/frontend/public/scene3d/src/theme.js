@@ -40,3 +40,15 @@ export const WORK_TYPE_NAME = { HOT: '화기', CONFINED: '밀폐', HEIGHT: '고�
 export const fmtTime = iso => (iso || '').slice(11, 16);
 /* '2027-01-21T22:00' → '1/21 22:00' */
 export const fmtDateTime = iso => `${+iso.slice(5, 7)}/${+iso.slice(8, 10)} ${iso.slice(11, 16)}`;
+
+/* 출입 제한 한 줄 (구역 배너·왼쪽 목록·3D 라벨 공용) — app.js barrierList(t) 한 항목을 받음
+   4방위 전부 → "전 구역 출입 금지", 일부 → "북·동 출입 금지", 중앙부만 → "중앙부 출입 금지" (+ " · HH:MM까지") */
+export const DIR_SHORT = { N: '북', E: '동', S: '남', W: '서' };
+export function barrierText(b) {
+  if (!b) return '';
+  const dirs = ['N', 'E', 'S', 'W'].filter((k) => (b.blocked || []).includes(k));
+  const parts = dirs.length === 4 ? ['전 구역'] : dirs.map((k) => DIR_SHORT[k]);
+  if (dirs.length < 4 && b.center) parts.push('중앙부');
+  const where = parts.length ? parts.join('·') : '중앙부';
+  return `${where} 출입 금지${b.until ? ` · ${b.until}까지` : ''}`;
+}

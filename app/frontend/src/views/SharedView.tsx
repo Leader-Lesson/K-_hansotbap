@@ -50,7 +50,7 @@ export function SharedView({ contractor, zones, tasks, conflictsKey }: Props) {
                   <TypeBadge type={i.type} />
                   <b>{i.my_task_ids.map((id) => `${id} ${taskName(id)}`).join(", ")}</b>
                   <span className="text-stone-500">{fmtRange(i.window_start, i.window_end)}</span>
-                  {i.status === "adjusted" && <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-800">조정 적용됨</span>}
+                  {i.status === "adjusted" && <span className="rounded bg-ok-soft px-1.5 py-0.5 text-ok">조정 적용됨</span>}
                   {i.status === "resolved" && <span className="rounded bg-stone-100 px-1.5 py-0.5 text-stone-600">해소</span>}
                   <span className="ml-auto text-stone-400">
                     {i.shared_by} · {fmtDateTime(i.shared_at)}
@@ -62,7 +62,7 @@ export function SharedView({ contractor, zones, tasks, conflictsKey }: Props) {
                   {i.handover && (
                     <>
                       <span className="text-stone-500">작업 인계 조건</span>
-                      <b className="text-sky-900">{i.handover}</b>
+                      <b className="text-brand">{i.handover}</b>
                     </>
                   )}
                   {i.adjustment && (

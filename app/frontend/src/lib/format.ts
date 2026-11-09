@@ -1,13 +1,14 @@
 // 화면 표시용 공통 포맷·색. 판정 색은 시각화 규칙(기술스택 4.2)을 따른다: 금지 빨강 · 조건부 주황 · 결함 보라
 import type { ConflictType, Grade, Hazard } from "@/types";
 
+// 색은 시연판 토큰(index.css :root)과 같다: --red · --amber · --violet
 export const GRADE_CLASS: Record<Grade, string> = {
-  금지: "bg-red-100 text-red-800 border-red-300",
-  조건부: "bg-orange-100 text-orange-800 border-orange-300",
-  결함: "bg-purple-100 text-purple-800 border-purple-300",
+  금지: "bg-danger-soft text-danger border-danger/40",
+  조건부: "bg-warn-soft text-warn border-warn/40",
+  결함: "bg-defect-soft text-defect border-defect/40",
 };
 
-export const GRADE_COLOR: Record<Grade, string> = { 금지: "#d9534f", 조건부: "#f0a04b", 결함: "#8a6fb3" };
+export const GRADE_COLOR: Record<Grade, string> = { 금지: "#CF2F29", 조건부: "#B56B00", 결함: "#6A4DB2" };
 
 export const CONFLICT_TYPE_LABEL: Record<ConflictType, string> = {
   same_time_zone: "같은 시간·구역",
