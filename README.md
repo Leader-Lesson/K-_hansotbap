@@ -67,7 +67,7 @@ npm run chat:check                         # CHAT_PROVIDER → LLM_PROVIDER 로 
 ```
 
 - API: `POST /api/chat?contractor=가상-배관O` 본문 `{"question": "내 작업과 겹치는 작업은?", "today": "2027-02-19"}`, 연결 확인 `GET /api/chat/status`
-- `.env` 의 `CHAT_PROVIDER` 로 챗봇만 다른 모델을 쓴다(비우면 `LLM_PROVIDER`)
+- `.env` 의 `CHAT_PROVIDER`·`CHAT_MODEL`·`CHAT_EFFORT` 로 챗봇만 다른 제공자·모델·생각 깊이를 쓴다(비우면 `LLM_PROVIDER`·기본 모델). 모델 비교: `npm run chat:check -- --provider claude --model claude-haiku-5-5`
 - 응답이 늦으면: 질문 해석 `CHAT_PLAN_TIMEOUT`(20초)·답 `CHAT_ANSWER_TIMEOUT`(30초)·전체 `CHAT_TOTAL_TIMEOUT`(45초)을 넘는 순간 LLM 을 기다리지 않고 규칙으로 해석·답한다. 응답의 `plan_by`·`answer_by`·`notice` 로 화면에 알린다. 화면(fetch)은 60초에서 끊는다
 - LLM 답에 조회 결과 밖의 작업 번호·업체가 나오면 규칙 답으로 바꾼다 (협력사에게 다른 업체 정보가 새지 않게)
 

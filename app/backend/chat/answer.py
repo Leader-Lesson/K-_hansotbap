@@ -50,6 +50,25 @@ def _lines(r: ToolResult) -> list[str]:
     return out
 
 
+def key_terms(results: list[ToolResult]) -> set[str]:
+    """답에 하나는 나와야 할 구체 항목: 작업 번호·규칙 번호. 구역명은 요약 문장에도 나오므로 세지 않는다."""
+    out = set()
+    for r in results:
+        for i in r.items:
+            d = i.data
+            if r.call.tool == ChatTool.FIND_TASKS:
+                out.add(d["id"])
+            else:
+                out |= {d["rule_id"]} if d.get("rule_id") else set(d.get("rule_ids", []))
+                out |= {t["id"] for t in d.get("tasks", []) + d.get("adjacent_tasks", [])}
+    return out
+
+
+def template_lines(results: list[ToolResult]) -> str:
+    """결과 목록 줄만 (LLM 답이 요약 한 줄뿐일 때 붙인다)."""
+    return "\n".join(line for r in results for line in _lines(r))
+
+
 def template_answer(results: list[ToolResult]) -> str:
     parts = []
     for r in results:

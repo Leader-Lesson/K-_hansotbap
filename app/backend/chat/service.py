@@ -21,7 +21,7 @@ from config import settings
 from llm import chat as llm_chat
 from schemas import ChatRequest, ChatResponse, ChatStepBy, ChatTool, ChatToolCall, Role
 
-from .answer import HELP, template_answer
+from .answer import HELP, key_terms, template_answer, template_lines
 from .parse import ParsedQuestion, default_range, parse_question
 from .tools import ToolResult, known_contractors, run_tool, zone_names
 
@@ -111,6 +111,9 @@ def sanitize(plan: llm_chat.ChatPlan, p: ParsedQuestion, today: date, contractor
             f, t = _date(pc.date_from), _date(pc.date_to)
             # 엉뚱한 해(작은 모델이 연도를 틀린다)는 버리고 도구별 기본값으로
             if f and d0 and abs((f - d0).days) > 400:
+                f = t = None
+            # 날짜를 말하지 않았는데 '오늘 하루'로 좁히면(작은 모델의 버릇) 도구별 기본값으로. "오늘"이라 했으면 규칙이 이미 읽었다
+            if f == today and t in (None, today):
                 f = t = None
             if f is None and t is None:
                 f, t = default_range(tool, p, today)
@@ -245,6 +248,10 @@ def ask(req: ChatRequest, contractor: str | None) -> ChatResponse:
                     log.warning("chat answer 에 %s", why)
                     notices.append(f"AI 답에 {why}가 있어 규칙 답으로 바꿨습니다")
                 else:
+                    terms = key_terms(results)
+                    if terms and not any(k in text for k in terms):
+                        # 요약 한 줄만 쓰고 목록을 빼먹었으면(작은 모델) 규칙 목록을 붙인다
+                        text = f"{text}\n{template_lines(results)}"
                     return done(text, ChatStepBy.LLM, results, draft.refs)
             except Exception as e:
                 timings["answer"] = round((perf_counter() - s) * 1000, 1)

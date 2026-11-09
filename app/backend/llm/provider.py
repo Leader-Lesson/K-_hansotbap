@@ -50,6 +50,7 @@ class ClaudeProvider:
             raise RuntimeError("ANTHROPIC_API_KEY 가 .env 에 없습니다")
         self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         self.model = settings.claude_model
+        self.effort = settings.llm_effort  # 기능별로 바꿀 수 있다 (F6 챗봇은 CHAT_EFFORT)
 
     def _with(self, timeout: float | None):
         """timeout 을 주면 그 호출만 시간 제한·재시도 없음으로 보낸다."""
@@ -75,7 +76,7 @@ class ClaudeProvider:
             system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user}],
             output_format=schema,
-            output_config={"effort": settings.llm_effort},
+            output_config={"effort": self.effort},
         )
         if settings.llm_fallbacks:
             res = client.beta.messages.parse(

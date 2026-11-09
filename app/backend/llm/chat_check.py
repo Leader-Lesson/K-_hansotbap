@@ -32,6 +32,7 @@ class Row:
     by: str
     detail: str
     answer: str = ""
+    timings: dict | None = None  # 단계별 ms: plan · tools · answer
 
 
 def main() -> int:
@@ -39,9 +40,15 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description="F6 챗봇 실제 LLM 점검 (합성 데이터)")
     ap.add_argument("--provider", choices=["claude", "unsloth", "lmstudio"], help="이번 점검만 이 제공자로 (기본: CHAT_PROVIDER → LLM_PROVIDER)")
+    ap.add_argument("--model", help="이번 점검만 이 모델로 (예: claude-haiku-5-5). 기본: CHAT_MODEL → 제공자 기본 모델")
+    ap.add_argument("--effort", choices=["low", "medium", "high", "xhigh", "max"], help="이번 점검만 Claude 생각 깊이 (기본: CHAT_EFFORT)")
     args = ap.parse_args()
     if args.provider:
         settings.chat_provider = args.provider
+    if args.model:
+        settings.chat_model = args.model
+    if args.effort:
+        settings.chat_effort = args.effort
     settings.db_path = Path(tempfile.mkdtemp()) / "chat_check.db"
 
     from chat.service import ask, status
@@ -54,7 +61,7 @@ def main() -> int:
     share_conflicts([SHARED], "원청 안전관리자")
 
     st = status()
-    print(f"\n챗봇 LLM: {st.provider} / {st.model or '(모델 이름 없음)'}")
+    print(f"\n챗봇 LLM: {st.provider} / {st.model or '(모델 이름 없음)'}" + (f" · 생각 깊이 {settings.chat_effort}" if st.provider == "claude" else ""))
     print(f"시간 한도: 해석 {st.plan_timeout:g}초 · 답 {st.answer_timeout:g}초 · 전체 {st.total_timeout:g}초")
     print(f"연결 확인: {'정상' if st.ok else '실패'}" + (f" ({st.latency_ms:.0f}ms)" if st.ok else f" — {st.error}"))
     rows: list[Row] = [Row("연결 확인 (짧은 질문)", st.ok, st.latency_ms or 0, st.provider, st.error or "")]
@@ -69,11 +76,14 @@ def main() -> int:
         llm_used = r.plan_by.value == "llm" and r.answer_by.value == "llm"
         if not llm_used:
             problems.append(f"LLM 대신 규칙 사용 (해석 {r.plan_by.value} · 답 {r.answer_by.value}: {r.notice})")
-        rows.append(Row(name, not problems, r.elapsed_ms, f"{r.plan_by.value}/{r.answer_by.value}", "; ".join(problems) or "정상", r.answer))
+        rows.append(Row(name, not problems, r.elapsed_ms, f"{r.plan_by.value}/{r.answer_by.value}", "; ".join(problems) or "정상", r.answer, r.timings))
         return r
 
     def tool_is(r, tool):
-        return [] if r.tools and r.tools[0].tool.value == tool else [f"도구 {tool} 아님 ({[t.tool.value for t in r.tools]})"]
+        return [] if any(t.tool.value == tool for t in r.tools) else [f"도구 {tool} 안 씀 ({[t.tool.value for t in r.tools]})"]
+
+    def call(r, tool):
+        return next((t for t in r.tools if t.tool.value == tool), None)
 
     def refs_have(r, ref):
         return [] if any(e.ref == ref for e in r.evidence) else [f"근거에 {ref} 없음 ({[e.ref for e in r.evidence][:5]})"]
@@ -82,7 +92,7 @@ def main() -> int:
         "작업 조회: 내일 노정 누가 무슨 작업",
         "내일 노정에서 누가 무슨 작업?",
         expect=lambda r: tool_is(r, "find_tasks")
-        + ([] if r.tools and r.tools[0].zone_ids == ["TOP"] and r.tools[0].date_from == date(2027, 2, 20) else [f"조건 틀림 {r.tools[0].model_dump(include={'zone_ids', 'date_from'}) if r.tools else ''}"])
+        + ([] if (c := call(r, "find_tasks")) and c.zone_ids == ["TOP"] and c.date_from == date(2027, 2, 20) else [f"조건 틀림 {[t.model_dump(include={'zone_ids', 'date_from'}) for t in r.tools]}"])
         + ([] if "P23" in r.answer or "기계J" in r.answer else ["답에 P23(가상-기계J) 없음"])
         + refs_have(r, "task:P23"),
     )
@@ -101,7 +111,7 @@ def main() -> int:
         "내 작업과 겹치는 작업은?",
         contractor=PIPE,
         expect=lambda r: tool_is(r, "find_conflicts")
-        + ([] if r.tools and r.tools[0].count == 1 else [f"공유된 1건이 아님 ({r.tools[0].count if r.tools else '-'})"])
+        + ([] if (c := call(r, "find_conflicts")) and c.count == 1 else [f"공유된 1건이 아님 ({c.count if c else '-'})"])
         + ([] if {e.target_id for e in r.evidence} <= {SHARED} else ["공유 안 된 충돌이 근거에 있음"]),
     )
     run(
@@ -133,6 +143,9 @@ def main() -> int:
     llm_ms = [r.ms for r in rows[1:] if r.by == "llm/llm"]
     if llm_ms:
         print(f"\nLLM 질문 응답 시간: 중앙값 {median(llm_ms) / 1000:.1f}초 · 최대 {max(llm_ms) / 1000:.1f}초 (전체 한도 {settings.chat_total_timeout:g}초)")
+        steps = [r.timings for r in rows[1:] if r.by == "llm/llm" and r.timings]
+        if steps:
+            print(f"  단계별 중앙값: 질문 해석 {median(t.get('plan', 0) for t in steps) / 1000:.1f}초 · 조회 {median(t.get('tools', 0) for t in steps) / 1000:.2f}초 · 답 쓰기 {median(t.get('answer', 0) for t in steps) / 1000:.1f}초")
         if max(llm_ms) / 1000 > settings.chat_total_timeout * 0.8:
             print("  → 한도에 가깝습니다. .env 의 CHAT_PLAN_TIMEOUT·CHAT_ANSWER_TIMEOUT·CHAT_TOTAL_TIMEOUT 을 늘리는 것을 검토하세요.")
     print(f"\n결과 파일: {REPORT}")

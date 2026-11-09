@@ -236,3 +236,34 @@ def test_status_reports_slow(monkeypatch):
     use(monkeypatch, FakeProvider(delay=2.0))
     st = service.status()
     assert not st.ok and "초 안에 답이 없습니다" in st.error
+
+
+def test_chat_model_and_effort_override(monkeypatch):
+    """CHAT_MODEL·CHAT_EFFORT 는 챗봇에만 적용된다 (F1 추출은 CLAUDE_MODEL·LLM_EFFORT 그대로)."""
+    import llm.provider
+
+    class P:
+        name, model, effort = "claude", "claude-opus-5-5", "medium"
+
+    monkeypatch.setattr(llm.chat, "get_provider", lambda *a, **k: P())
+    monkeypatch.setattr(settings, "chat_model", "claude-haiku-5-5")
+    monkeypatch.setattr(settings, "chat_effort", "low")
+    p = llm.chat.chat_provider()
+    assert (p.model, p.effort) == ("claude-haiku-5-5", "low")
+    assert llm.provider.settings.llm_effort == settings.llm_effort
+
+
+def test_thin_llm_answer_gets_list(demo, monkeypatch):
+    """요약 한 줄만 쓴 답(작은 모델)에는 규칙 목록을 붙인다."""
+    plan = ChatPlan(off_topic=False, calls=[pc("find_tasks", zone_ids=["TOP"])])
+    use(monkeypatch, FakeProvider(plan=plan, draft=ChatDraft(answer="노정에는 작업 3건이 있습니다.", refs=[])))
+    r = service.ask(ChatRequest(question="내일 노정 작업?", today=TODAY), None)
+    assert r.answer_by == ChatStepBy.LLM and r.answer.startswith("노정에는 작업 3건") and "P23" in r.answer
+
+
+def test_llm_today_only_without_date_word_uses_default(demo, monkeypatch):
+    """날짜를 말하지 않았는데 LLM 이 오늘 하루로 좁히면, 겹침은 오늘부터 앞으로 본다."""
+    plan = ChatPlan(off_topic=False, calls=[pc("find_conflicts", date_from="2027-02-19", date_to="2027-02-19")])
+    use(monkeypatch, FakeProvider(plan=plan, draft=ChatDraft(answer="R07 금지 겹침 1건입니다.", refs=[])))
+    r = service.ask(ChatRequest(question="내 작업과 겹치는 작업은?", today=TODAY), PIPE)
+    assert r.tools[0].date_from == TODAY and r.tools[0].date_to is None and r.tools[0].count == 1
