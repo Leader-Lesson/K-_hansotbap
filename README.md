@@ -49,6 +49,8 @@ npm run whisper           # 처음 한 번은 설치·모델 다운로드(약 55
 3. 모델이 없으면 `~/models/`(Windows: `C:\Users\<이름>\models`)에 받는다. `.env` 의 `WHISPER_MODEL`: `large-v3-turbo`(기본, 빠름) / `large-v3`(정확, 약 1GB)
 4. `.env` 의 `WHISPER_BASE_URL` 포트(기본 `http://127.0.0.1:8090/v1`)로 서버를 켜고 1초 무음을 보내 확인한다. 백엔드 API가 8000을 쓰므로 8090에 둔다
 
+NVIDIA GPU가 없으면 CPU판으로 돈다. 노트북 CPU(i5-10210U, 스레드를 늘려도 같음) 기준 녹음 길이의 약 2.5배가 걸린다(7초 → 51초, 90초 → 3분 39초). 백엔드는 `.env` 의 `WHISPER_TIMEOUT`(기본 1800초)까지 기다린다.
+
 `npm run whisper -- --check` 는 설치·다운로드만 하고 서버는 켜지 않는다. Windows에서 CUDA판이 켜지지 않으면 `.tools` 폴더를 지우고 `npm run whisper -- --cpu` 로 CPU판을 받는다. PowerShell·cmd·Git Bash 모두 된다. winget 으로 ffmpeg 를 처음 깔았으면 터미널을 새로 열어야 잡힌다. `.env` 의 `WHISPER_API_KEY` 는 비워 둔다(키를 검사하는 원격 음성 서버를 쓸 때만).
 
 ## 실행
