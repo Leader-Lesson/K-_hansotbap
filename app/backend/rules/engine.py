@@ -15,6 +15,7 @@
 기계가 못 읽으므로, 규칙 ID마다 이 파일에 조건 함수를 둔다.
 """
 
+from rules.data_loader import load_rules
 from rules.overlap import FURNACE_COLUMN
 from schemas import Conflict, ConflictType, Grade, Hazard, Rule, SourceRef, Task, Zone
 
@@ -47,13 +48,17 @@ def _is_line_connection(t: Task) -> bool:
     return Hazard.GAS in t.hazards and any(k in t.name for k in LINE_CONNECT_KEYWORDS)
 
 
-def detect_sequence_violations(tasks: list[Task], rules: list[Rule]) -> list[Conflict]:
+def detect_sequence_violations(tasks: list[Task], rules: list[Rule] | None = None) -> list[Conflict]:
     """R08: 노 내부 작업(A)이 끝나기 전에 가스 라인 연결(B)이 시작하면 순서 위반.
+
+    rules를 생략하면 data/conflict_rules.csv 의 규칙을 쓴다. 제출 판정(db/plans.py judge)이
+    detect_sequence_violations(tasks) 로 부르기 때문이다.
 
     A는 B가 계획서에 적은 선행 작업(predecessors) 중에서만 본다. 데이터의 '선행 작업' 열은 느슨한 의존이라
     기본 일정에서도 선행보다 먼저 시작하는 쌍이 여럿(예: P01→P02) 있다. 규칙에 해당하는 쌍만 판정한다.
     끝과 시작이 같은 시각이면 위반이 아니고, A가 끝나는 날 B가 시작하면(07시 < 19시) 위반이다.
     """
+    rules = load_rules() if rules is None else rules
     rule = next((r for r in rules if r.id == "R08"), None)
     if rule is None:
         return []

@@ -56,6 +56,13 @@ def test_detect_conflicts_includes_sequence_violations():
     assert [c.id for c in got] == ["R08:P21>P34", "R08:P22>P34"]
 
 
+def test_detect_sequence_violations_works_without_rules_argument():
+    # 제출 판정(db/plans.py judge)이 규칙 인자 없이 detect_sequence_violations(tasks) 로 부른다
+    tasks = _with_p34(start=D105)
+    assert detect_sequence_violations(tasks) == detect_sequence_violations(tasks, load_rules())
+    assert [c.id for c in detect_sequence_violations(tasks)] == ["R08:P21>P34", "R08:P22>P34"]
+
+
 def test_grade_of_maps_csv_judgement_to_three_levels():
     by_id = {r.id: r for r in load_rules()}
     assert grade_of(by_id["R08"]) == Grade.PROHIBITED  # "금지 (순서 위반)"
