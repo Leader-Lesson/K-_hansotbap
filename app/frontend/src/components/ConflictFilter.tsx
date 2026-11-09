@@ -1,4 +1,4 @@
-// 충돌 목록 거르기: 등급 · 유형 · 업체 · 선택한 날짜만 · 검색. 표시용 필터일 뿐 권한은 서버가 거른다
+// 충돌 목록 거르기: 등급 · 유형 · 업체 · 선택한 날짜만 · 최근 제출이 만든 것만 · 검색. 표시용 필터일 뿐 권한은 서버가 거른다
 import { useMemo, useState } from "react";
 import { CONFLICT_TYPE_LABEL } from "@/lib/format";
 import type { ConflictRecord, ConflictType, Grade, Task } from "@/types";
@@ -8,13 +8,16 @@ export interface ConflictFilterState {
   type: ConflictType | "";
   contractor: string;
   onlyDate: boolean;
+  latestPlan: "auto" | boolean; // auto: 최근 제출이 충돌을 만들었으면 켬 (기준 일정끼리의 충돌 100여 건에 묻히지 않게)
   text: string;
 }
 
 const ALL_GRADES: Grade[] = ["금지", "조건부", "결함"];
 
-export function useConflictFilter(records: ConflictRecord[], tasks: Task[], date: string) {
-  const [state, setState] = useState<ConflictFilterState>({ grades: new Set(ALL_GRADES), type: "", contractor: "", onlyDate: false, text: "" });
+export function useConflictFilter(records: ConflictRecord[], tasks: Task[], date: string, latestPlanId: number | null = null) {
+  const [state, setState] = useState<ConflictFilterState>({ grades: new Set(ALL_GRADES), type: "", contractor: "", onlyDate: false, latestPlan: "auto", text: "" });
+  const latestHas = useMemo(() => latestPlanId != null && records.some((r) => r.plan_id === latestPlanId), [records, latestPlanId]);
+  const latestOn = state.latestPlan === "auto" ? latestHas : state.latestPlan;
   const filtered = useMemo(() => {
     const dayStart = new Date(`${date}T00:00:00`);
     const dayEnd = new Date(`${date}T23:59:59`);
@@ -26,14 +29,15 @@ export function useConflictFilter(records: ConflictRecord[], tasks: Task[], date
       const ts = c.task_ids.map((id) => tasks.find((t) => t.id === id)).filter(Boolean) as Task[];
       if (state.contractor && !ts.some((t) => t.contractor === state.contractor)) return false;
       if (state.onlyDate && (new Date(c.window_start) > dayEnd || new Date(c.window_end) < dayStart)) return false;
+      if (latestOn && latestPlanId != null && r.plan_id !== latestPlanId) return false;
       if (q) {
         const hay = [c.id, c.rule_id, c.reason, c.legal_basis, ...ts.map((t) => `${t.id} ${t.name} ${t.contractor}`)].join(" ").toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [records, tasks, date, state]);
-  return { state, setState, filtered };
+  }, [records, tasks, date, state, latestOn, latestPlanId]);
+  return { state, setState, filtered, latestOn };
 }
 
 interface Props {
@@ -43,9 +47,11 @@ interface Props {
   date: string;
   total: number;
   shown: number;
+  latestOn?: boolean;
+  latestPlanLabel?: string | null; // "제출 #7 가상-배관O" — 없으면 체크박스를 숨긴다
 }
 
-export function ConflictFilter({ state, onChange, contractors, date, total, shown }: Props) {
+export function ConflictFilter({ state, onChange, contractors, date, total, shown, latestOn = false, latestPlanLabel = null }: Props) {
   const toggleGrade = (g: Grade) => {
     const grades = new Set(state.grades);
     if (grades.has(g)) grades.delete(g);
@@ -80,6 +86,11 @@ export function ConflictFilter({ state, onChange, contractors, date, total, show
       <label className="flex items-center gap-1">
         <input type="checkbox" checked={state.onlyDate} onChange={(e) => onChange({ ...state, onlyDate: e.target.checked })} /> {date} 에 걸린 것만
       </label>
+      {latestPlanLabel && (
+        <label className="flex items-center gap-1" title="기준 일정끼리의 충돌은 숨기고, 가장 최근 제출이 드러낸 충돌만 봅니다">
+          <input type="checkbox" checked={latestOn} onChange={(e) => onChange({ ...state, latestPlan: e.target.checked })} /> 최근 제출({latestPlanLabel})이 만든 것만
+        </label>
+      )}
       <input
         value={state.text}
         onChange={(e) => onChange({ ...state, text: e.target.value })}

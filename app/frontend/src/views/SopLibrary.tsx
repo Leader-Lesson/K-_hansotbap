@@ -75,7 +75,7 @@ export function SopLibrary({ sops, tasks, contractor, initialSopId = null }: Pro
             const active = s.id === openId;
             return (
               <li key={s.id}>
-                <button type="button" onClick={() => setOpenId(s.id)} className={`w-full px-3 py-2 text-left hover:bg-stone-50 ${active ? "bg-sky-50" : ""}`}>
+                <button type="button" onClick={() => setOpenId(s.id)} className={`w-full px-3 py-2 text-left hover:bg-stone-50 ${active ? "bg-brand-soft" : ""}`}>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs text-stone-500">{s.id}</span>
                     {isPerTask(s) ? (
@@ -83,7 +83,7 @@ export function SopLibrary({ sops, tasks, contractor, initialSopId = null }: Pro
                     ) : (
                       <span className="rounded bg-amber-100 px-1.5 text-[10px] text-amber-800">공통</span>
                     )}
-                    {contractor && isMine(s) && <span className="rounded bg-sky-100 px-1.5 text-[10px] text-sky-800">내 작업</span>}
+                    {contractor && isMine(s) && <span className="rounded bg-brand-soft px-1.5 text-[10px] text-brand-hover">내 작업</span>}
                   </div>
                   <div className="font-medium">{s.title}</div>
                   <div className="text-xs text-stone-500">

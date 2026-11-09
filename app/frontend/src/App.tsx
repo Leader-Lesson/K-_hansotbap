@@ -121,7 +121,7 @@ export default function App() {
   const dday = (iso: string) => Math.round((new Date(`${iso.slice(0, 10)}T00:00:00`).getTime() - new Date(`${PROJECT_D0}T00:00:00`).getTime()) / 86400000);
 
   return (
-    <div className="min-h-screen bg-[#f2f4f6] text-[#192027]">
+    <div className="min-h-screen text-ink">
       <header className="sticky top-0 z-20 border-b border-stone-200 bg-white">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2 xl:px-6">
           <div className="flex items-center gap-2.5">
@@ -142,7 +142,7 @@ export default function App() {
             <span>작업 {tasks.length}건 · 업체 {new Set(tasks.map((t) => t.contractor)).size}곳 · 표준서 {sops.length}건</span>
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <span className={`h-2 w-2 rounded-full ${error ? "bg-red-500" : "bg-emerald-500"}`} title={error ? "API 연결 실패" : "API 연결됨"} />
+            <span className={`h-2 w-2 rounded-full ${error ? "bg-red-500" : "bg-ok"}`} title={error ? "API 연결 실패" : "API 연결됨"} />
             <span className="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">합성 데이터</span>
             <label className="flex items-center gap-1 text-xs text-stone-500">
               보는 사람
@@ -173,9 +173,9 @@ export default function App() {
           </p>
         )}
         {notice && (
-          <div className="mb-4 flex items-start gap-3 rounded border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">
+          <div className="mb-4 flex items-start gap-3 rounded border border-ok bg-ok-soft p-3 text-sm text-ok">
             <span className="flex-1">{notice}</span>
-            <button type="button" onClick={() => setNotice(null)} className="text-xs text-emerald-700 underline">
+            <button type="button" onClick={() => setNotice(null)} className="text-xs text-ok underline">
               닫기
             </button>
           </div>

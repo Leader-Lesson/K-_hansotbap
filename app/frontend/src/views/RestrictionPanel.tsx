@@ -59,7 +59,7 @@ export function RestrictionPanel({ restrictions, tasks, zones, date, contractor,
                           <span key={id} className="mr-1 inline-block rounded bg-white px-1.5 py-0.5 ring-1 ring-stone-200">
                             {id} {t ? `${t.contractor} · ${t.name}` : ""}
                             {onShow3D && t && (
-                              <button type="button" onClick={() => onShow3D(id)} className="ml-1 text-sky-700 underline">
+                              <button type="button" onClick={() => onShow3D(id)} className="ml-1 text-brand underline">
                                 3D
                               </button>
                             )}
@@ -70,7 +70,7 @@ export function RestrictionPanel({ restrictions, tasks, zones, date, contractor,
                     <div className="mt-1 text-stone-500">
                       <b className="text-stone-700">{r.rule_id}</b> · {r.legal_basis}
                     </div>
-                    {r.suggestion && <div className="mt-1 text-emerald-800">대신: {r.suggestion}</div>}
+                    {r.suggestion && <div className="mt-1 text-ok">대신: {r.suggestion}</div>}
                   </li>
                 );
               })}
