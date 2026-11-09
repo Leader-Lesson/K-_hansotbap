@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
 
     # LLM — LLMProvider 하나로 감싸고 설정으로 전환한다
-    llm_provider: Literal["claude", "unsloth"] = "claude"
+    llm_provider: Literal["claude", "unsloth", "lmstudio"] = "claude"
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-5-5"
     # 추출 품질·속도 조절. 시연 응답 시간을 보고 정한다 [팀 설정값]
@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     unsloth_api_key: str = ""
     unsloth_chat_model: str = ""
     unsloth_embedding_model: str = ""
+    # 각자 PC의 LM Studio 로컬 서버 (OpenAI 호환 API, 기본 포트 1234)
+    lmstudio_base_url: str = "http://localhost:1234/v1"
+    lmstudio_api_key: str = ""  # LM Studio에서 인증을 켰을 때만
+    lmstudio_chat_model: str = ""
+    lmstudio_embedding_model: str = ""
+    # F8 임베딩을 받을 로컬 서버. LLM_PROVIDER 와 따로 고른다 (Claude API에는 임베딩이 없다)
+    embedding_provider: Literal["unsloth", "lmstudio"] = "unsloth"
 
     # F7 음성인식: large-v3-turbo(속도) / large-v3(정확도)
     whisper_model: Literal["large-v3-turbo", "large-v3"] = "large-v3-turbo"

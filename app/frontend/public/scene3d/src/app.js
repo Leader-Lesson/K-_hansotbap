@@ -67,6 +67,8 @@ const state = {
   role: { id: 'PRIME', level: 'manager', name: '원청 · 직영 관리자' },
   taskId: null,
   view: { tasks: [], conflicts: [] },   // 권한을 적용한 전체(시간 무관) 데이터
+  externalConflicts: false,   // 부모(시안·서버)가 판정을 넘기면 그것만 씀 — 규칙 엔진이 경고를 더 만들지 않게
+  restrictions: null,         // 부모가 넘긴 방위별 출입 제한 (없으면 위험 영역에서 계산)
 };
 
 // ---------- 시간별 활성 데이터 ----------
@@ -78,7 +80,10 @@ const liveTasks = () => TASKS.filter((k) => (k.status || 'active') === 'active')
 /* 전체 판정(규칙 + 시연 고정값) → 보는 사람 권한으로 거름 */
 function computeView() {
   const live = liveTasks();
-  const conflicts = detectConflicts(live, ZONES, { seed: CONFLICTS });
+  const ids = new Set(live.map((k) => k.id));
+  const conflicts = state.externalConflicts
+    ? CONFLICTS.filter((c) => c.task_ids.every((id) => ids.has(id)))
+    : detectConflicts(live, ZONES, { seed: CONFLICTS });
   return filterForRole({ tasks: live, conflicts, zones: ZONES }, state.role, { now: state.t });
 }
 function computeActive(t) {
@@ -496,6 +501,8 @@ async function loadExtras() {
   if (eq) tryBuild('equipment', () => eq.buildEquipment(furnace, { tasks: TASKS }));
   if (wk) tryBuild('workers', () => wk.buildWorkers(furnace, { companies: COMPANIES, spots: extras.equipment?.spots || [] }));
   if (fx) tryBuild('effects', () => fx.buildEffects(furnace, { showBadges: false }));
+  const br = await tryImport('./barriers.js');
+  if (br) { tryBuild('barriers', () => br.buildBarriers(furnace)); tryBuild('compass', () => br.buildCompass(furnace)); }
   const sz = await tryImport('./safezones.js');
   if (sz) tryBuild('safezones', () => sz.buildSafeZones(furnace));
   const bn = await tryImport('./banners.js');
@@ -534,6 +541,7 @@ function syncExtras() {
     x.setFocus(state.focus ? { zoneId: state.focus.zoneId, relatedIds: state.focus.ids.filter((id) => id !== state.focus.zoneId) } : null);
     x.setEnabled(state.mode === '3d');
   });
+  call('barriers', (x) => { x.set(barrierList(t)); x.setNight?.(extras.look?.nightLevel?.() ?? 0); });
   call('safezones', (x) => {
     const zid = state.taskId ? (TASKS.find((k) => k.id === state.taskId)?.zone_ids || [])[0] : state.zoneId;
     if (!zid || state.mode !== '3d' || !zoneById.has(zid)) { x.clear(); return; }
@@ -547,6 +555,48 @@ function syncExtras() {
         safe: slot.safe.length ? `안전 · ${slot.safe.map(describeArea).join('·')} 작업 가능` : '' } });
   });
   for (const name of Object.keys(extras)) call(name, (x) => x.refresh?.());
+}
+
+/* ---------- 방위별 출입 제한 → 안전띠·러버콘 ----------
+   부모가 넘긴 제한(시안 zoneMap)이 있으면 그대로, 없으면 규칙 엔진의 위험 영역을 동서남북 4방위로 바꿔 씀.
+   방위: 남 φ=0(+z) · 동 π/2(+x) · 북 π(−z) · 서 3π/2(−x), 각 방위는 ±45° */
+const DIRS = ['N', 'E', 'S', 'W'], DIR_PHI = { S: 0, E: Math.PI / 2, N: Math.PI, W: 1.5 * Math.PI }, DIR_KO = { N: '북쪽', E: '동쪽', S: '남쪽', W: '서쪽' };
+const TAU2 = Math.PI * 2, angDiff = (a, b) => { const d = ((a - b) % TAU2 + TAU2) % TAU2; return d > Math.PI ? TAU2 - d : d; };
+function quadrantsOf(area) {
+  if (!area || area.shape === 'all') return { dirs: DIRS.slice() };
+  if (area.shape === 'disc') return { dirs: [], center: (area.r1 ?? 0.45) };
+  if (area.shape === 'sector') {   // 방위 중심이 부채꼴 안(±여유 15°)에 들면 그 방위는 위험
+    const half = (area.width ?? 1) / 2 + Math.PI / 12;
+    return { dirs: DIRS.filter((k) => angDiff(DIR_PHI[k], area.phi ?? 0) <= half) };
+  }
+  return { dirs: [] };   // ring(벽 쪽 띠)은 방위 제한 대신 안내 문구로
+}
+function barrierList(t) {
+  const byZone = new Map();
+  const add = (zid, dirs, center, until, reason) => {
+    if (!zoneById.has(zid) || (!dirs.length && !center)) return;
+    const z = byZone.get(zid) || { zoneId: zid, blocked: new Set(), center: null, until, reason };
+    dirs.forEach((k) => z.blocked.add(k));
+    if (center) z.center = { r: Math.max(z.center?.r || 0, center) };
+    if (until && (!z.until || until < z.until)) z.until = until;
+    byZone.set(zid, z);
+  };
+  if (state.restrictions) {
+    for (const r of state.restrictions) if (r.start <= t && t < r.end) r.zone_ids.forEach((zid) => add(zid, r.blocked, null, r.end, r.reason));
+  } else {
+    const live = liveTasks();
+    for (const z of ZONES) for (const h of hazardsFor(z.id, live, ZONES, t)) {
+      if (h.severity !== 'PROHIBITED' && h.kind !== 'DROP') continue;   // 출입 제한은 치명·낙하 위험에만
+      const q = quadrantsOf(h.area);
+      add(z.id, q.dirs, q.center, h.end, h.text);
+    }
+  }
+  return [...byZone.values()].map((z) => {
+    const blocked = DIRS.filter((k) => z.blocked.has(k));
+    const where = blocked.length === 4 ? '전 구역' : blocked.map((k) => DIR_KO[k]).join('·');
+    return { zoneId: z.zoneId, blocked, center: z.center, until: hhmm(z.until || ''),
+      label: `${where || '중앙부'} · ${hhmm(z.until || '')}까지`, reason: z.reason };
+  });
 }
 
 /* 집중 보기: 고른 구역 + 그 구역과 지금 충돌로 엮인 구역만 남기고 나머지는 투명하게 */
@@ -886,7 +936,9 @@ loadExtras();
 
 // 통합/테스트용
 /* 프론트 웹페이지 연동: 작업 데이터를 넘기면 위치별 목록·판정·3D가 다시 그려짐 */
-function setData({ companies, tasks, conflicts } = {}) {
+function setData({ companies, tasks, conflicts, restrictions } = {}) {
+  if (Array.isArray(conflicts)) state.externalConflicts = true;
+  if (restrictions !== undefined) state.restrictions = Array.isArray(restrictions) ? restrictions : null;
   if (companies) { COMPANIES.splice(0, COMPANIES.length, ...companies); companyById.clear(); COMPANIES.forEach((c) => companyById.set(c.id, c)); }
   if (tasks) TASKS.splice(0, TASKS.length, ...tasks.map((k) => ({ ...k })));
   if (tasks || conflicts) CONFLICTS.splice(0, CONFLICTS.length, ...(conflicts || []));
@@ -917,4 +969,4 @@ window.addEventListener('message', (e) => {
 const dataUrl = new URLSearchParams(location.search).get('data');
 if (dataUrl) fetch(dataUrl).then((r) => r.json()).then(setData).catch((e) => console.warn('[scene3d] 데이터 불러오기 실패', e));
 post({ type: 'ready', version: 2 });
-window.scene3d = { fromHansotbap, setData, setRole, pushChange, session, selectTask, applyAlt, undoAlt, selectZone, selectLevel, setTime, setMode, selectConflict, state, furnace, extras, camera, controls };
+window.scene3d = { barrierList, fromHansotbap, setData, setRole, pushChange, session, selectTask, applyAlt, undoAlt, selectZone, selectLevel, setTime, setMode, selectConflict, state, furnace, extras, camera, controls };
