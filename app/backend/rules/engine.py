@@ -29,7 +29,7 @@ from itertools import permutations
 from typing import Literal
 
 from rules import activities as act
-from rules.data_loader import load_rules
+from rules.data_loader import load_rules, wbs_parent
 from rules.overlap import ALL_ZONE, FURNACE_COLUMN, work_overlap, work_periods
 from rules.relations import SYSTEMS, Rel, relate, zone_name
 from schemas import Conflict, ConflictType, Grade, Hazard, Rule, SopMatch, SourceRef, Task, Zone
@@ -451,7 +451,9 @@ def detect_sequence_violations(tasks: list[Task], rules: list[Rule] | None = Non
         if not _is_line_connection(b):
             continue
         for a_id in b.predecessors:
-            a = by_id.get(a_id)
+            # 선행 작업을 세부 작업(P22-1 …)으로 나눠 냈으면 그중 가장 늦게 끝나는 것을 본다
+            parts = [t for t in tasks if wbs_parent(t.id) == a_id and t.id != b.id]
+            a = by_id.get(a_id) or (max(parts, key=lambda t: t.end) if parts else None)
             if a is None or not _is_furnace_inside_work(a) or b.start >= a.end:
                 continue
             out.append(

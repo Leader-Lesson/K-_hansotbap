@@ -70,8 +70,8 @@ def test_critical_steps_are_read_from_sop_documents():
 def test_every_wbs_task_has_its_own_sop():
     """기준 일정 작업 37개마다 작업별 표준서 SOP-P<작업ID>가 하나씩 있고, 그 작업 하나에만 적용된다."""
     sops = {s.id: s for s in load_sops()}
-    wbs = load_wbs_tasks()
-    assert len(wbs) == 37
+    wbs = [t for t in load_wbs_tasks() if "-" not in t.id]  # 세부 작업(P13-1~3)은 기준 작업 P13 의 표준서를 쓴다
+    assert len(wbs) == 36
     for t in wbs:
         s = sops[f"SOP-{t.id}"]
         assert s.wbs_examples == {t.id}
@@ -84,7 +84,7 @@ def test_every_wbs_task_has_its_own_sop():
 def test_wbs_task_matches_its_own_sop_as_primary(wbs_task):
     """기준 일정 작업을 그대로 넣으면 자기 작업별 표준서가 주 표준서로 1위에 온다 (원문 없이도)."""
     m = match_plan([wbs_task], [], "x", use_default_embedder=False)
-    assert m and (m[0].sop_id, m[0].primary) == (f"SOP-{wbs_task.id}", True)
+    assert m and (m[0].sop_id, m[0].primary) == (f"SOP-{wbs_task.id.split('-')[0]}", True)  # 세부 작업은 기준 작업 표준서
     assert "wbs_example" in m[0].basis
     # 원문이 없으니 핵심 단계가 모두 빠진 것으로 보인다 — 제출 때는 draft 원문으로 다시 계산한다
     assert len(m[0].missing_steps) == len([s for s in m[0].steps if s.critical])
@@ -235,8 +235,8 @@ def test_upload_submit_stores_sop_defect():
 
 def test_applying_f4_adjustment_keeps_sop_defect_open():
     """조정안(F4)을 적용해 순서 위반을 풀어도, 계획서에 빠진 표준서 단계는 그대로 결함으로 남아야 한다."""
-    name = "가상-배관O_가스라인_복구_작업계획서.hwpx"
-    ext = client.post("/api/plans", files={"file": (name, (SAMPLES / name).read_bytes(), HWPX)}).json()
+    name = "S1_가상-배관O_가스라인_앞당김_작업계획서.hwpx"  # 겹치는 파일(P34 앞당김)
+    ext = client.post("/api/plans", files={"file": (name, (SAMPLES / "겹침" / name).read_bytes(), HWPX)}).json()
     client.post(
         "/api/plans/submit",
         json={"contractor": "가상-배관O", "file": name, "tasks": [t["task"] for t in ext["tasks"]], "draft_id": ext["draft_id"]},

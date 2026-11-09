@@ -1,0 +1,60 @@
+{
+  "file": "S6_가상-축로L_열풍로보수_연장_월간계획.hwpx",
+  "contractor": "가상-축로L",
+  "format": "hwpx",
+  "tasks": [
+    {
+      "wbs_id": "P26",
+      "name": "열풍로 돔·축열 연와·버너 보수",
+      "zone_id": "STOVE",
+      "start": "2027-02-20",
+      "end": "2027-03-12",
+      "shift": "day",
+      "headcount": 16,
+      "equipment": [
+        "돔 내부 달비계 2조",
+        "연와 호이스트 1t",
+        "용접기 2대",
+        "환기팬"
+      ],
+      "hazards": [
+        "confined",
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P06"
+      ]
+    },
+    {
+      "wbs_id": "P27",
+      "name": "열풍 본관·환상관 내화물",
+      "zone_id": "TUYERE",
+      "start": "2026-12-02",
+      "end": "2026-12-17",
+      "shift": "day",
+      "headcount": 12,
+      "equipment": [
+        "환상관 이동 발판",
+        "환기팬 2대",
+        "벽돌 운반 대차"
+      ],
+      "hazards": [
+        "confined",
+        "height"
+      ],
+      "predecessors": [
+        "P11"
+      ]
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S6",
+      "rule_ids": [],
+      "note": "열풍로 보수(P26, 매일 07~12시) 완료를 03-07에서 03-12로 연장 → 원청 열풍로 승온·기밀시험(P35, 03-08~, 07~18시)이 보수 완료 전에 시작(R07·R08 금지)"
+    }
+  ],
+  "note": "열풍로 보수(P26, 매일 07~12시) 완료를 03-07에서 03-12로 연장 → 원청 열풍로 승온·기밀시험(P35, 03-08~, 07~18시)이 보수 완료 전에 시작(R07·R08 금지)",
+  "scenario": "S6"
+}

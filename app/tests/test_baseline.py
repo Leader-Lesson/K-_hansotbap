@@ -12,7 +12,9 @@ client = TestClient(app)
 def test_data_counts():
     assert len(load_zones()) == 14
     assert len(load_rules()) == 30
-    assert len(load_wbs_tasks()) == 37
+    # 작업 37개, 그중 P13 노저 잔선 처리는 천공·발파·반출 세부 작업 3건(P13-1~3) → 39행
+    assert len(load_wbs_tasks()) == 39
+    assert len({t.id.split('-')[0] for t in load_wbs_tasks()}) == 37
 
 
 def test_time_overlap_touching_is_not_overlap():
@@ -62,10 +64,11 @@ def test_work_periods_one_per_day():
 
 
 def test_overlap_candidates_include_vertical_pair():
-    # S2: 노정 장입설비 설치(P23, TOP) ↔ 노저 축조(P20, HEARTH) — 업체가 다른 위아래 겹침
+    # S2: 노정 장입설비 설치(P23, TOP) 완료가 02-20 으로 늦어지면 노저 축조(P20, HEARTH)와 위아래로 겹친다
+    tasks = [t.model_copy(update={"end": datetime(2027, 2, 20, 19)}) if t.id == "P23" else t for t in load_wbs_tasks()]
     pairs = {
         (c.task_a, c.task_b, c.relation)
-        for c in find_overlap_candidates(load_wbs_tasks(), load_zones())
+        for c in find_overlap_candidates(tasks, load_zones())
     }
     assert ("P20", "P23", "vertical") in pairs
 
@@ -73,4 +76,4 @@ def test_overlap_candidates_include_vertical_pair():
 def test_api_health_and_baseline():
     assert client.get("/api/health").json()["status"] == "ok"
     assert len(client.get("/api/zones").json()) == 14
-    assert len(client.get("/api/tasks").json()) == 37
+    assert len(client.get("/api/tasks").json()) == 39

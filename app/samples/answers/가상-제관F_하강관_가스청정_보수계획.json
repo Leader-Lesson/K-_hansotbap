@@ -7,8 +7,8 @@
       "wbs_id": "P10",
       "name": "상승관·하강관 가스 배관 절단·보수",
       "zone_id": "DOWNCOMER",
-      "start": "2026-11-15",
-      "end": "2027-01-11",
+      "start": "2026-11-28",
+      "end": "2026-12-13",
       "shift": "day",
       "headcount": 10,
       "hazards": [
@@ -24,9 +24,9 @@
       "wbs_id": "P25",
       "name": "제진기·가스청정설비 보수·교체",
       "zone_id": "GCP",
-      "start": "2026-11-22",
-      "end": "2027-02-20",
-      "shift": null,
+      "start": "2026-12-02",
+      "end": "2026-12-17",
+      "shift": "day",
       "headcount": 14,
       "hazards": [
         "confined",
@@ -42,8 +42,8 @@
       "wbs_id": null,
       "name": "보수 자재 가공(야드)",
       "zone_id": "YARD",
-      "start": "2026-11-12",
-      "end": "2026-12-31",
+      "start": "2026-11-28",
+      "end": "2026-12-13",
       "shift": "day",
       "headcount": 5,
       "hazards": [
@@ -52,16 +52,6 @@
       "predecessors": []
     }
   ],
-  "expected_conflicts": [
-    {
-      "scenario": "S4",
-      "type": "hot_gas",
-      "rule_ids": [
-        "R04"
-      ],
-      "with": "원청-정비 P05 가스 계통 차단·블리더 방산·질소 퍼지 (DOWNCOMER, 2026-11-13~11-15)",
-      "note": "하강관 절단을 기준(11-17)보다 이틀 앞당겨 퍼지 중 화기 — 금지"
-    }
-  ],
-  "note": "P10 시작일을 2026-11-15로 앞당겨 제출(기준 11-17). 절차에 '작업 전 가스 측정'이 들어 있다(표준서 누락 없음)"
+  "expected_conflicts": [],
+  "note": "기준 일정 그대로(P10 2026-11-28~12-13 13~18시, P25 12-02~12-17 07~12시, 야드 가공은 P10 기간·시간 안). 안 겹치는 파일"
 }

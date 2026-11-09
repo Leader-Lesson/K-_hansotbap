@@ -51,7 +51,7 @@ from .provider import LLMProvider, get_provider
 log = logging.getLogger(__name__)
 
 # 결과 캐시 키에 들어간다. 프롬프트·규칙·출력 모양을 바꾸면 올린다
-EXTRACTOR_VERSION = "f1-v2"  # v2: 투입 인원(crew) 추가 — 예전 캐시는 쓰지 않는다
+EXTRACTOR_VERSION = "f1-v4"  # v4: 근무 칸 시각 · v3: 기준 작업 칸·세부 작업(P13-1) · v2: 투입 인원(crew) — 예전 캐시는 쓰지 않는다
 
 Mode = Literal["auto", "llm", "rules"]
 
@@ -177,6 +177,7 @@ class Candidate:
     crew_text: str | None = None  # 표의 인원 칸 원문
     hazard_text: str | None = None
     precondition_text: str | None = None
+    wbs_ref_text: str | None = None  # '기준 작업' 칸 원문 (예: P13)
     evidence_locs: list[str] = field(default_factory=list)
     llm: LLMTask | None = None  # LLM 해석 (규칙 결과와 대조한다)
 
@@ -232,6 +233,7 @@ def candidates_from_tables(doc: ParsedDocument) -> list[Candidate]:
                     crew_text=text("headcount"),
                     hazard_text=text("hazards"),
                     precondition_text=text("precondition"),
+                    wbs_ref_text=text("wbs_ref"),
                     evidence_locs=[rr.row.loc],
                 )
             )
@@ -312,7 +314,7 @@ def finalize(
         flag("date_mismatch", f"기간 해석이 다릅니다 (규칙 {sd}~{ed or sd}, LLM {llm_sd}~{llm_ed or llm_sd}) — 규칙 값을 썼습니다")
 
     # 시간·주야간
-    times = parse_times(c.time_text)
+    times = parse_times(c.time_text) or parse_times(c.shift_text)  # 근무 칸에 "주간 07:00~12:00" 처럼 시각을 적어도 읽는다
     st = as_time(c.start_time_value) or (times[0] if times else None)
     et = as_time(c.end_time_value) or (times[1] if len(times) > 1 else None)
     if (st is None or et is None) and llm and llm.start_time and llm.end_time:
@@ -357,6 +359,10 @@ def finalize(
     # 원청 기준 일정 연결: LLM 선택이 그럴듯하면 쓰고, 아니면 규칙 매칭
     det_id, _ = match_wbs(c.name, contractor, zone, wbs)
     wbs_id: str | None = det_id
+    # 문서의 '기준 작업' 칸에 기준 ID를 적었으면 그것이 우선 (세부 작업 행을 기준 작업에 묶는다)
+    ref = re.search(r"P\d{2}(?:-\d+)?", c.wbs_ref_text or "")  # 세부 작업(P13-2)도 그대로
+    if ref and ref.group(0) in wbs_by_id:
+        wbs_id = det_id = ref.group(0)
     if llm and llm.wbs_id:
         w = wbs_by_id[llm.wbs_id]
         if same_contractor(contractor, w.contractor) or name_similarity(c.name, w.name) >= 0.15:
@@ -431,7 +437,19 @@ def finalize(
 
 def _finalize_all(cands: list[Candidate], doc: ParsedDocument, plan_contractor: str | None) -> list[ExtractedTask]:
     used: set[str] = set()
-    return [finalize(c, doc, plan_contractor, used) for c in cands if c.name.strip()]
+    out = [finalize(c, doc, plan_contractor, used) for c in cands if c.name.strip()]
+    # 같은 기준 작업에 묶인 행이 여럿이면 세부 작업 ID(P13-1, P13-2 …)를 준다. 제출하면 기준 P13 대신 이 행들로 판정한다
+    by_wbs: dict[str, list[ExtractedTask]] = {}
+    for t in out:
+        if t.wbs_id:
+            by_wbs.setdefault(t.wbs_id, []).append(t)
+    for wbs_id, group in by_wbs.items():
+        if len(group) < 2:
+            continue
+        for n, t in enumerate(group, start=1):
+            preds = [p for p in t.task.predecessors if p != wbs_id]
+            t.task = t.task.model_copy(update={"id": f"{wbs_id}-{n}", "predecessors": preds})
+    return out
 
 
 def extract_plan(

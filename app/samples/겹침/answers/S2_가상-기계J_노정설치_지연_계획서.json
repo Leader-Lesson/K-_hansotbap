@@ -1,0 +1,57 @@
+{
+  "file": "S2_가상-기계J_노정설치_지연_계획서.pdf",
+  "contractor": "가상-기계J",
+  "format": "pdf",
+  "tasks": [
+    {
+      "wbs_id": null,
+      "name": "벨리스 탑 부품 야드 반입·검수",
+      "zone_id": "YARD",
+      "start": "2027-01-07",
+      "end": "2027-01-08",
+      "shift": "day",
+      "headcount": 6,
+      "hazards": [
+        "heavy_lift"
+      ],
+      "predecessors": []
+    },
+    {
+      "wbs_id": "P23",
+      "name": "노정 장입설비(벨리스 탑) 설치",
+      "zone_id": "TOP",
+      "start": "2027-01-09",
+      "end": "2027-01-30",
+      "shift": "day",
+      "headcount": 12,
+      "hazards": [
+        "heavy_lift",
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P17"
+      ]
+    },
+    {
+      "wbs_id": null,
+      "name": "장입 구동부 시운전",
+      "zone_id": "TOP",
+      "start": "2027-01-29",
+      "end": "2027-01-30",
+      "shift": "day",
+      "headcount": 4,
+      "hazards": [],
+      "predecessors": []
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S2",
+      "rule_ids": [],
+      "note": "노정 장입설비 설치(P23, 매일 13~18시) 완료를 01-24에서 01-30으로 연장 → 같은 오후 시간대 그 아래 노저 축조(P20, 01-25~)와 위아래로 겹침(R16·R03)"
+    }
+  ],
+  "note": "노정 장입설비 설치(P23, 매일 13~18시) 완료를 01-24에서 01-30으로 연장 → 같은 오후 시간대 그 아래 노저 축조(P20, 01-25~)와 위아래로 겹침(R16·R03)",
+  "scenario": "S2"
+}

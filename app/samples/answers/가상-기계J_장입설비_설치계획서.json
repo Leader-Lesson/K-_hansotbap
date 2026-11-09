@@ -7,8 +7,8 @@
       "wbs_id": null,
       "name": "벨리스 탑 부품 야드 반입·검수",
       "zone_id": "YARD",
-      "start": "2026-12-20",
-      "end": "2027-01-05",
+      "start": "2027-01-07",
+      "end": "2027-01-08",
       "shift": "day",
       "headcount": 6,
       "hazards": [
@@ -20,8 +20,8 @@
       "wbs_id": "P23",
       "name": "노정 장입설비(벨리스 탑) 설치",
       "zone_id": "TOP",
-      "start": "2027-01-06",
-      "end": "2027-02-20",
+      "start": "2027-01-09",
+      "end": "2027-01-24",
       "shift": "day",
       "headcount": 12,
       "hazards": [
@@ -37,25 +37,14 @@
       "wbs_id": null,
       "name": "장입 구동부 시운전",
       "zone_id": "TOP",
-      "start": "2027-02-18",
-      "end": "2027-02-20",
+      "start": "2027-01-23",
+      "end": "2027-01-24",
       "shift": "day",
       "headcount": 4,
       "hazards": [],
       "predecessors": []
     }
   ],
-  "expected_conflicts": [
-    {
-      "scenario": "S2",
-      "type": "vertical",
-      "rule_ids": [
-        "R16",
-        "R18"
-      ],
-      "with": "가상-축로I P20 (HEARTH, 2027-01-21~02-15)",
-      "note": "노정 고소·인양 바로 아래 노저 축조 — 방호선반·하부 출입금지 기재 없으면 금지"
-    }
-  ],
-  "note": "기준 일정 그대로. 시드가 넣는 파일과 같은 이름"
+  "expected_conflicts": [],
+  "note": "기준 일정 그대로(P23 2027-01-09~01-24 13~18시, 야드 반입 01-07~01-08, 시운전 01-23~01-24 13~17시). 시드가 넣는 파일과 같은 이름"
 }

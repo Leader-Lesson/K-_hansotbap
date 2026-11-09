@@ -55,11 +55,11 @@ def test_seed_clears_rehearsal_records():
 
 
 def test_seeded_tasks_overwrite_baseline_not_append():
-    """시드 제출은 기준 일정 작업을 같은 ID로 덮어쓴다 → 작업 수는 그대로 37개."""
+    """시드 제출은 기준 일정 작업을 같은 ID로 덮어쓴다 → 작업 수는 그대로 39개(P13 세부 작업 3건 포함)."""
     reset_db()
-    assert len(current_schedule()) == 37
+    assert len(current_schedule()) == 39
     seed_demo()
-    assert len(current_schedule()) == 37
+    assert len(current_schedule()) == 39
 
 
 def test_seed_does_not_include_s1_piping_plan():
@@ -109,4 +109,4 @@ def test_export_shows_field_record_label():
 def test_baseline_tasks_have_crew():
     """기준 일정 37건 모두 투입 인원(합성 가정값)이 있다 — 상황판 숫자 띠·구역 칸·막대에 쓴다."""
     tasks = load_wbs_tasks()
-    assert len(tasks) == 37 and all(t.crew and t.crew > 0 for t in tasks)
+    assert len(tasks) == 39 and all(t.crew and t.crew > 0 for t in tasks)

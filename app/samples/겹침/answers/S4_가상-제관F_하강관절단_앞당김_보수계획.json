@@ -1,0 +1,64 @@
+{
+  "file": "S4_가상-제관F_하강관절단_앞당김_보수계획.pdf",
+  "contractor": "가상-제관F",
+  "format": "pdf",
+  "tasks": [
+    {
+      "wbs_id": "P10",
+      "name": "상승관·하강관 가스 배관 절단·보수",
+      "zone_id": "DOWNCOMER",
+      "start": "2026-11-15",
+      "end": "2026-11-30",
+      "shift": "day",
+      "headcount": 10,
+      "hazards": [
+        "gas",
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P05"
+      ]
+    },
+    {
+      "wbs_id": "P25",
+      "name": "제진기·가스청정설비 보수·교체",
+      "zone_id": "GCP",
+      "start": "2026-12-02",
+      "end": "2026-12-17",
+      "shift": "day",
+      "headcount": 14,
+      "hazards": [
+        "confined",
+        "gas",
+        "heavy_lift",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P05"
+      ]
+    },
+    {
+      "wbs_id": null,
+      "name": "보수 자재 가공(야드)",
+      "zone_id": "YARD",
+      "start": "2026-11-15",
+      "end": "2026-11-30",
+      "shift": "day",
+      "headcount": 5,
+      "hazards": [
+        "hot_work"
+      ],
+      "predecessors": []
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S4",
+      "rule_ids": [],
+      "note": "하강관 절단(P10, 매일 13~18시)을 기준 11-28에서 11-15로 앞당김 → 원청 가스 퍼지(P05, ~11-15 07~18시) 중 화기(R04 금지)"
+    }
+  ],
+  "note": "하강관 절단(P10, 매일 13~18시)을 기준 11-28에서 11-15로 앞당김 → 원청 가스 퍼지(P05, ~11-15 07~18시) 중 화기(R04 금지)",
+  "scenario": "S4"
+}

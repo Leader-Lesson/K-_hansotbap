@@ -21,6 +21,21 @@ DEFAULT_DAY_START = time(7, 0)
 DEFAULT_DAY_END = time(19, 0)
 
 
+def wbs_parent(task_id: str) -> str:
+    """세부 작업 ID(P13-2)의 기준 작업 ID(P13). 기준 작업·새 작업 ID는 그대로 돌려준다."""
+    head, sep, tail = task_id.rpartition("-")
+    return head if sep and tail.isdigit() and head.startswith("P") else task_id
+
+
+def _hours(text: str) -> tuple[time, time]:
+    """작업 분해표 '작업시간' 칸("07:00-12:00") → (시작, 끝). 비었거나 못 읽으면 주간 기본값."""
+    try:
+        a, b = (time.fromisoformat(x.strip()) for x in text.split("-"))
+        return a, b
+    except ValueError:
+        return DEFAULT_DAY_START, DEFAULT_DAY_END
+
+
 def _rows(name: str) -> list[dict[str, str]]:
     path: Path = DATA_DIR / name
     with path.open(encoding="utf-8-sig", newline="") as f:
@@ -66,8 +81,10 @@ def load_rules() -> list[Rule]:
 def load_wbs_tasks() -> list[Task]:
     tasks: list[Task] = []
     for r in _rows("gy2bf_wbs.csv"):
-        start = datetime.combine(datetime.fromisoformat(r["시작일"]).date(), DEFAULT_DAY_START)
-        end = datetime.combine(datetime.fromisoformat(r["종료일"]).date(), DEFAULT_DAY_END)
+        # 작업시간 칸(07:00-12:00)이 있으면 매일 그 시간대에만 일한다. 없으면 주간 기본값
+        day_start, day_end = _hours(r.get("작업시간", ""))
+        start = datetime.combine(datetime.fromisoformat(r["시작일"]).date(), day_start)
+        end = datetime.combine(datetime.fromisoformat(r["종료일"]).date(), day_end)
         tasks.append(
             Task(
                 id=r["작업ID"],

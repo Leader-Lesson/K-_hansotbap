@@ -1,7 +1,7 @@
 """F6 챗봇: 규칙 해석, 조회 권한, LLM 단계, 응답 지연·실패 대비 (실제 LLM 은 부르지 않는다. 합성 데이터)."""
 
 import time
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,20 +11,26 @@ from chat import service
 from chat.parse import parse_question
 from config import settings
 from db import seed
+from db.plans import submit_plan
 from db.shares import share_conflicts
 from llm.chat import ChatDraft, ChatPlan, PlanCall
 from main import app
-from schemas import ChatRequest, ChatStepBy, ChatTool
+from rules.data_loader import load_wbs_tasks
+from schemas import ChatRequest, ChatStepBy, ChatTool, PlanSubmission
 
-TODAY = date(2027, 2, 19)  # 금요일. 다음 날(2/20) 노정에서 P23(가상-기계J)이 끝난다
+TODAY = date(2027, 1, 23)  # 토요일. 다음 날(1/24) 노정에서 P23(가상-기계J)이 끝난다
 PIPE = "가상-배관O"
-SHARED = "R07:P36>P34"  # 배관O 의 P34 가 걸린 충돌
+SHARED = "R07:P22>P34"  # 배관O 가 P34 를 앞당겨 노흉 축조(P22)와 걸린 충돌 (S1)
 
 
 @pytest.fixture
 def demo():
     seed.reset_db()
     seed.seed_demo()
+    # 기준 일정은 충돌 0건 → S1 처럼 배관O 가 P34 를 02-26 으로 앞당겨 낸 상태를 만든다
+    base = {t.id: t for t in load_wbs_tasks()}
+    p34 = base["P34"].model_copy(update={"start": datetime(2027, 2, 26, 7), "end": datetime(2027, 3, 3, 12)})
+    submit_plan(PlanSubmission(contractor=PIPE, file="S1_가상-배관O_가스라인_앞당김_작업계획서.hwpx", tasks=[p34, base["P33"]]))
     share_conflicts([SHARED], "원청 안전관리자")
 
 
@@ -63,13 +69,13 @@ def pc(tool, **kw):
 @pytest.mark.parametrize(
     "q, want",
     [
-        ("내일 노정에서 누가 무슨 작업?", (date(2027, 2, 20), date(2027, 2, 20))),
-        ("모레 풍구 작업", (date(2027, 2, 21), date(2027, 2, 21))),
+        ("내일 노정에서 누가 무슨 작업?", (date(2027, 1, 24), date(2027, 1, 24))),
+        ("모레 풍구 작업", (date(2027, 1, 25), date(2027, 1, 25))),
         ("3월 4일 작업은?", (date(2027, 3, 4), date(2027, 3, 4))),
         ("3/4~3/6 일정", (date(2027, 3, 4), date(2027, 3, 6))),
         ("2027-03-04 일정", (date(2027, 3, 4), date(2027, 3, 4))),
-        ("이번 주 위험 시간대", (date(2027, 2, 19), date(2027, 2, 21))),
-        ("다음 주 겹치는 작업", (date(2027, 2, 22), date(2027, 2, 28))),
+        ("이번 주 위험 시간대", (date(2027, 1, 23), date(2027, 1, 24))),
+        ("다음 주 겹치는 작업", (date(2027, 1, 25), date(2027, 1, 31))),
     ],
 )
 def test_parse_dates(q, want):
@@ -118,7 +124,7 @@ def test_llm_path_uses_refs_and_fixes_dates(demo, monkeypatch):
     r = service.ask(ChatRequest(question="내일 노정에서 누가 무슨 작업?", today=TODAY), None)
     assert fake.calls == ["ChatPlan", "ChatDraft"]
     assert r.plan_by == ChatStepBy.LLM and r.answer_by == ChatStepBy.LLM and not r.degraded
-    assert r.tools[0].date_from == date(2027, 2, 20) and r.tools[0].zone_ids == ["TOP"]
+    assert r.tools[0].date_from == date(2027, 1, 24) and r.tools[0].zone_ids == ["TOP"]
     assert [e.ref for e in r.evidence] == ["task:P23"]  # 결과에 없는 ref(P99)는 버린다
     assert r.provider == "fake" and set(r.timings) == {"plan", "tools", "answer"}
 
@@ -185,18 +191,18 @@ def test_contractor_sees_only_own_and_shared(demo, monkeypatch):
     r = service.ask(ChatRequest(question="다른 업체 작업 전부 보여줘", today=TODAY), PIPE)
     assert r.role.value == "contractor" and r.tools[0].contractor is None
     ids = {e.target_id for e in r.evidence}
-    assert ids <= {"P33", "P34", "P36"}, ids  # 자기 작업 + 공유된 충돌의 상대 작업(P36)만
+    assert ids <= {"P33", "P34", "P22"}, ids  # 자기 작업 + 공유된 충돌의 상대 작업(P22)만
     for e in r.evidence:
-        if e.target_id == "P36":
+        if e.target_id == "P22":
             assert e.source is None  # 다른 업체 원문은 주지 않는다
 
 
 def test_contractor_answer_leak_is_blocked(demo, monkeypatch):
     plan = ChatPlan(off_topic=False, calls=[pc("find_conflicts")])
-    draft = ChatDraft(answer="가상-축로I 의 축조와도 겹칩니다.", refs=[])
+    draft = ChatDraft(answer="가상-기계J 의 노정 설치와도 겹칩니다.", refs=[])  # 공유받지 않은 업체
     use(monkeypatch, FakeProvider(plan=plan, draft=draft))
     r = service.ask(ChatRequest(question="내 작업과 겹치는 작업은?", today=TODAY), PIPE)
-    assert r.answer_by == ChatStepBy.RULES and "가상-축로I" not in r.answer
+    assert r.answer_by == ChatStepBy.RULES and "가상-기계J" not in r.answer
     assert r.tools[0].count == 1 and "R07" in r.answer
 
 
@@ -221,7 +227,7 @@ def test_api(demo, monkeypatch):
     use(monkeypatch, FakeProvider(plan=ChatPlan(off_topic=False, calls=[pc("find_conflicts")]),
                                   draft=ChatDraft(answer="R07 금지 겹침 1건입니다.", refs=[f"conflict:{SHARED}"])))
     c = TestClient(app)
-    res = c.post("/api/chat", params={"contractor": PIPE}, json={"question": "내 작업과 겹치는 작업은?", "today": "2027-02-19"})
+    res = c.post("/api/chat", params={"contractor": PIPE}, json={"question": "내 작업과 겹치는 작업은?", "today": "2027-01-23"})
     assert res.status_code == 200, res.text
     body = res.json()
     assert body["role"] == "contractor" and body["answer_by"] == "llm"
@@ -358,17 +364,17 @@ def test_chat_model_only_for_matching_provider(monkeypatch, name, model, chat_mo
 def test_summary_with_task_ids_but_no_list_gets_list(demo, monkeypatch):
     """요약 문장에 작업 번호만 있고 목록이 없는 답에도 규칙 목록을 붙인다 (Qwen 이 이어지는 질문에 이렇게 답했다)."""
     plan = ChatPlan(off_topic=False, calls=[pc("find_tasks", zone_ids=["TOP"])])
-    draft = ChatDraft(answer="P23·P30·P29 작업의 종료 시점은 각각 다음과 같습니다.", refs=[])
+    draft = ChatDraft(answer="P23 작업의 종료 시점은 다음과 같습니다.", refs=[])
     use(monkeypatch, FakeProvider(plan=plan, draft=draft))
     r = service.ask(ChatRequest(question="그 작업은 언제 끝나?", today=TODAY), None)
-    assert r.answer_by == ChatStepBy.LLM and r.answer.startswith("P23·P30·P29 작업의 종료 시점")
-    assert any(line.startswith("- ") and "P23" in line and "2/20" in line for line in r.answer.splitlines())
+    assert r.answer_by == ChatStepBy.LLM and r.answer.startswith("P23 작업의 종료 시점")
+    assert any(line.startswith("- ") and "P23" in line and "1/24" in line for line in r.answer.splitlines())
 
 
 def test_llm_answer_with_list_is_kept(demo, monkeypatch):
     """목록을 제대로 쓴 답에는 규칙 목록을 덧붙이지 않는다."""
     plan = ChatPlan(off_topic=False, calls=[pc("find_tasks", zone_ids=["TOP"])])
-    text = "노정 작업 1건입니다.\n- 2/20(토) 19:00 끝 · 가상-기계J 장입설비 설치 (P23)"
+    text = "노정 작업 1건입니다.\n- 1/24(일) 18:00 끝 · 가상-기계J 장입설비 설치 (P23)"
     use(monkeypatch, FakeProvider(plan=plan, draft=ChatDraft(answer=text, refs=["task:P23"])))
     r = service.ask(ChatRequest(question="내일 노정 작업?", today=TODAY), None)
     assert r.answer == text
@@ -401,7 +407,7 @@ def test_thin_llm_answer_gets_list(demo, monkeypatch):
 
 def test_llm_today_only_without_date_word_uses_default(demo, monkeypatch):
     """날짜를 말하지 않았는데 LLM 이 오늘 하루로 좁히면, 겹침은 오늘부터 앞으로 본다."""
-    plan = ChatPlan(off_topic=False, calls=[pc("find_conflicts", date_from="2027-02-19", date_to="2027-02-19")])
+    plan = ChatPlan(off_topic=False, calls=[pc("find_conflicts", date_from="2027-01-23", date_to="2027-01-23")])
     use(monkeypatch, FakeProvider(plan=plan, draft=ChatDraft(answer="R07 금지 겹침 1건입니다.", refs=[])))
     r = service.ask(ChatRequest(question="내 작업과 겹치는 작업은?", today=TODAY), PIPE)
     assert r.tools[0].date_from == TODAY and r.tools[0].date_to is None and r.tools[0].count == 1
@@ -428,7 +434,7 @@ def test_risk_windows_by_task(demo):
 
     r = run_tool(ChatToolCall(tool=ChatTool.RISK_WINDOWS, date_from=TODAY, task_ids=["P34"]), None)
     assert r.items and all(i.evidence.target_id == "TUYERE" for i in r.items)
-    assert all(i.data["window"].startswith("3/") for i in r.items)  # P34 기간(3/4~3/12)에 걸친 것만
+    assert all(i.data["window"].startswith(("2/", "3/1")) for i in r.items)  # 앞당긴 P34 기간(2/26~3/1)에 걸친 것만
 
 
 def test_thin_answer_check_ignores_ids_from_question(demo, monkeypatch):
@@ -436,7 +442,7 @@ def test_thin_answer_check_ignores_ids_from_question(demo, monkeypatch):
     plan = ChatPlan(off_topic=False, calls=[pc("find_conflicts", task_ids=["P34"])])
     use(monkeypatch, FakeProvider(plan=plan, draft=ChatDraft(answer="P34와 겹치는 작업은 2건입니다.", refs=[])))
     r = service.ask(ChatRequest(question="P34랑 겹치는 거 있어?", today=TODAY), None)
-    assert "R07" in r.answer and "P36" in r.answer
+    assert "R07" in r.answer and "P22" in r.answer
 
 
 def test_template_lists_all_rules():

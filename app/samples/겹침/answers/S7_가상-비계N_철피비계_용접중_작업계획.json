@@ -1,0 +1,45 @@
+{
+  "file": "S7_가상-비계N_철피비계_용접중_작업계획.hwpx",
+  "contractor": "가상-비계N",
+  "format": "hwpx",
+  "tasks": [
+    {
+      "wbs_id": "P30",
+      "name": "노체 철피 외부 비계 설치",
+      "zone_id": "SHELL",
+      "start": "2026-12-28",
+      "end": "2027-01-02",
+      "shift": "day",
+      "headcount": 12,
+      "hazards": [
+        "height"
+      ],
+      "predecessors": [
+        "P06"
+      ]
+    },
+    {
+      "wbs_id": "P30",
+      "name": "노흉 내부 작업 비계 해체",
+      "zone_id": "STACK",
+      "start": "2026-11-25",
+      "end": "2026-11-27",
+      "shift": "day",
+      "headcount": 8,
+      "hazards": [
+        "confined",
+        "height"
+      ],
+      "predecessors": []
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S7",
+      "rule_ids": [],
+      "note": "철피 외부 비계 설치(매일 13~18시)를 11월에서 12-28~01-02로 옮김 → 같은 오후 같은 철피 외부 절단 화기(P15, ~01-02 13~18시)와 겹침(R17·R03)"
+    }
+  ],
+  "note": "철피 외부 비계 설치(매일 13~18시)를 11월에서 12-28~01-02로 옮김 → 같은 오후 같은 철피 외부 절단 화기(P15, ~01-02 13~18시)와 겹침(R17·R03)",
+  "scenario": "S7"
+}
