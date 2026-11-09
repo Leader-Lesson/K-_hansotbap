@@ -1,6 +1,6 @@
 # F5 협력사 공유와 이행 기록
 
-- 상태: 미반영
+- 상태: 반영됨
 - 브랜치: `feat/F5-share-history`
 - 바뀐 곳: `app/backend/schemas.py`에 `ShareRequest`, `SharedTask`, `SharedItem`, `HistoryEventKind`, `HistoryEvent`를 더했고, `ConflictRecord`에 `shared_at`을 더했습니다. `Adjustment` 타입(`20261109-F4-adjustment-models.md`)이 먼저 필요합니다.
 - 쓰는 곳 / 까닭: 원청 충돌 목록의 [협력사에 공유], 협력사 화면의 "나와 겹친 충돌"과 공지, 협력사 화면의 일정, 이력 화면과 [내보내기].
