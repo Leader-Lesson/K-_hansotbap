@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/api/client";
 import { restrictionsFrom } from "@/lib/restrictions";
+import { ChatBot } from "@/components/ChatBot";
 import type { AdjustmentResult, ConflictRecord, OverlapCandidate, PlanRecord, PlanSubmitResult, SopInfo, SopMatch, Task, ViewerRole, Zone } from "@/types";
 import { ContractorView } from "@/views/ContractorView";
 import { DATE_KEY, PrimeView } from "@/views/PrimeView";
@@ -33,6 +34,7 @@ export default function App() {
   const [role, setRole] = useState<ViewerRole>(loadRole);
   const [notice, setNotice] = useState<string | null>(() => sessionStorage.getItem(NOTICE_KEY));
   const [retry, setRetry] = useState(0); // API 연결 실패 뒤 다시 부르기
+  const [viewDate, setViewDate] = useState<string | null>(null); // 원청·협력사 화면이 지금 보는 날짜 → AI 챗봇의 '오늘'
 
   const contractor = role.kind === "contractor" ? role.contractor : undefined;
 
@@ -204,6 +206,7 @@ export default function App() {
             restrictions={restrictions}
             onAdjusted={onAdjusted}
             onReload={() => void load()}
+            onDateChange={setViewDate}
           />
         ) : (
           <ContractorView
@@ -216,9 +219,13 @@ export default function App() {
             plans={plans}
             restrictions={restrictions}
             onSubmitted={onSubmitted}
+            onDateChange={setViewDate}
           />
         )}
       </main>
+
+      {/* F6 AI 챗봇: 보는 사람이 바뀌면 key 로 새로 만들어 앞 역할의 대화가 남지 않게 한다. '오늘'은 화면에서 보는 날짜 */}
+      <ChatBot key={roleValue} contractor={contractor} today={viewDate} />
     </div>
   );
 }
