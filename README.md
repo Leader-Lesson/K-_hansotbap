@@ -13,7 +13,7 @@ app/
   backend/            FastAPI (Python)
     api/              라우터 (/api/health, /zones, /rules, /tasks, /overlaps, /conflicts, /plans, /adjustments)
     parsers/          pdf, xlsx, hwpx → 텍스트 (위치 표식 포함)
-    llm/              LLMProvider: Claude | Unsloth Studio
+    llm/              LLMProvider: Claude | Unsloth Studio | LM Studio
     rules/            F2 판정, F8 누락 판정, F9 점수 (pytest 대상)
     search/           F8 작업표준서 임베딩 인덱스
     stt/              F7 Whisper large-v3-turbo / large-v3
@@ -34,6 +34,8 @@ docs/                 기획서, 기술 스택, 작업 분해 (docs/private/ 는
 - Node.js 24 (`.nvmrc`, npm 11 포함). 24보다 낮으면 `npm run setup` 이 `EBADENGINE` 오류로 멈춘다 (`.npmrc` 의 `engine-strict`). nvm-windows: `nvm install 24 && nvm use 24`
 - [uv](https://docs.astral.sh/uv/) (`pip install uv` 또는 `winget install astral-sh.uv`). Python은 `app/backend/.python-version` 에 3.12로 고정돼 있고, 없으면 uv가 자동으로 받는다
 - Unsloth Studio(채팅·임베딩)는 팀의 로컬 LLM 전용 노트북에서 API로 받는다. 각자 PC에 설치하지 않는다. `.env` 의 `UNSLOTH_BASE_URL`(노트북 주소)과 `UNSLOTH_API_KEY` 는 팀 채널에서 받아 넣는다(공개 저장소라 적지 않는다)
+- LM Studio(선택)는 각자 PC에서 로컬로 돌릴 때 쓴다. LM Studio > Developer 에서 서버를 켜고(기본 `http://localhost:1234/v1`) `.env` 에 `LLM_PROVIDER=lmstudio`, `LMSTUDIO_CHAT_MODEL`(`lms ls` 로 나오는 이름)을 넣는다. Claude로 추출하면서 F8 임베딩만 LM Studio에서 받으려면 `EMBEDDING_PROVIDER=lmstudio` 와 `LMSTUDIO_EMBEDDING_MODEL` 을 넣는다
+- 모델은 `npm run models` 로 고른다. Claude·Unsloth Studio·LM Studio에서 모델 목록을 조회해(로컬은 로드 여부도 표시) 번호로 고르면 `.env` 의 `LLM_PROVIDER`·`EMBEDDING_PROVIDER`·`*_MODEL` 줄만 바꾼다. `npm run models -- --list` 는 조회만 한다
 - Whisper(F7 음성인식)는 각자 PC에서 띄운다. 아래 "음성인식 준비"
 
 ## 음성인식 준비 (F7, 각자 PC)
