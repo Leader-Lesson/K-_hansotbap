@@ -403,8 +403,8 @@ export interface PlanRecord {
 
 export interface PlanSubmitResult {
   plan: PlanRecord;
-  conflicts: Conflict[];
+  conflicts: Conflict[]; // 제출한 협력사에게 공유된 현재 충돌 (원청 확인 전이면 보통 빈 목록)
   refresh: boolean; // 판정 후 화면을 한 번 강제 새로고침
-  diff: ConflictDiff | null; // 이 제출로 사라지거나 새로 생긴 충돌 (새 충돌 알림)
+  diff: ConflictDiff | null; // 이 제출로 달라진 충돌 중 제출한 협력사에게 공유된 것. 원청은 GET /api/conflicts 의 plan_id 로 이 제출이 드러낸 충돌을 본다
   recheck_ms: number | null;
 }
