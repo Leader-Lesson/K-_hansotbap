@@ -13,7 +13,7 @@ import { groupByZone, restrictionsOn, type ZoneRestriction } from "@/lib/restric
 import { useShell, useShellRegister } from "@/lib/shell";
 import { useDefaultBoardDate } from "@/lib/siteDate";
 import type { AdjustmentResult, ConflictRecord, PlanRecord, RiskWindow, SopInfo, SopMatch, Task, ViewerRole, Zone } from "@/types";
-import { ApprovalPanel } from "@/views/ApprovalPanel";
+import { ApprovalPanel, PlanStatusChip } from "@/views/ApprovalPanel";
 import { HistoryView } from "@/views/HistoryView";
 import { RestrictionPanel } from "@/views/RestrictionPanel";
 import { Scene3DTab } from "@/views/Scene3DTab";
@@ -51,6 +51,21 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
   // F5 원청 승인: 승인 대기 계획서 수(탭 배지). 3D·현황의 "확정" 작업은 승인된 계획서(와 기준 일정)의 것만 — 승인 대기 작업은 3D에 넣지 않는다
   const pendingPlans = useMemo(() => plans.filter((p) => p.status === "pending"), [plans]);
   const approvedTasks = useMemo(() => tasks.filter((t) => t.plan_status !== "pending"), [tasks]);
+  // 승인 대기 계획서 미리 보기: 승인 대기 작업의 [3D]를 누르면 그 협력사의 승인 대기 작업을 확정 작업과 함께 3D에 그린다.
+  // 충돌이 있으면 승인할 수 없고, 승인 전에는 3D에 안 들어가서 "어디서 문제가 나는지"를 볼 수 없었다. 확정이 아니므로 이름 앞에 [승인 대기]를 붙인다
+  const [previewOf, setPreviewOf] = useState<string | null>(null); // 미리 볼 협력사
+  const previewTasks = useMemo(
+    () => (previewOf ? tasks.filter((t) => t.plan_status === "pending" && t.contractor === previewOf) : []),
+    [tasks, previewOf],
+  );
+  const scene3dTasks = useMemo(
+    () => [...approvedTasks, ...previewTasks.map((t) => ({ ...t, name: `[승인 대기] ${t.name}` }))],
+    [approvedTasks, previewTasks],
+  );
+  // 승인·반려되어 승인 대기 작업이 없어지면 미리 보기를 끈다
+  useEffect(() => {
+    if (previewOf && previewTasks.length === 0) setPreviewOf(null);
+  }, [previewOf, previewTasks.length]);
   const filter = useConflictFilter(conflicts, tasks, date, latestPlan?.id ?? null);
   const [groupRules, setGroupRules] = useState(true);
   const allContractors = useMemo(() => [...new Set(tasks.map((t) => t.contractor))].sort(), [tasks]);
@@ -118,12 +133,15 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
   ]);
 
   // 충돌 상세의 [3D로 보기]: 충돌이 걸린 날짜로 옮기고 3D 탭에서 그 작업을 고른다
-  const show3D = (taskId: string, r: ConflictRecord) => {
-    const day = r.conflict.window_start.slice(0, 10);
-    if (day !== date) setDate(day);
+  const show3D = (taskId: string, r: ConflictRecord) => open3D(taskId, r.conflict.window_start.slice(0, 10));
+  // 3D 탭으로 옮겨 그 작업을 고른다. 승인 대기 작업이면 그 협력사의 승인 대기 계획서를 미리 보기로 함께 그린다
+  function open3D(taskId: string, day?: string) {
+    const t = tasks.find((x) => x.id === taskId);
+    setPreviewOf(t?.plan_status === "pending" ? t.contractor : null);
+    if (day && day !== date) setDate(day);
     setSelectedTask(taskId);
     setTab("scene3d");
-  };
+  }
 
   return (
     <div className="grid gap-4">
@@ -166,17 +184,26 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
               tasks={tasks}
               zones={zones}
               date={date}
-              onShow3D={(taskId) => {
-                setSelectedTask(taskId);
-                setTab("scene3d");
-              }}
+              onShow3D={(taskId) => open3D(taskId)}
             />
           </section>
         </TabsContent>
 
         {/* scene3d(/scene3d/index.html, three.js)를 iframe으로 — 전체 작업과 서버 판정을 넘기면 위치별 목록·3D·조치 카드가 그려짐 */}
         <TabsContent value="scene3d">
-          <Scene3DTab date={date} tasks={approvedTasks} conflicts={open} restrictions={restrictions} role={{ kind: "prime" }} selectTaskId={selectedTask} />
+          {previewTasks.length > 0 && (
+            <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm">
+              <PlanStatusChip status="pending" />
+              <span>
+                <b>{previewOf}</b> 승인 대기 계획서 미리 보기 — 작업 {previewTasks.length}건을 확정 작업과 함께 그려 충돌이 어디서 나는지 보여 줍니다. 아직
+                승인되지 않아 현장 일정에는 들어가지 않았습니다
+              </span>
+              <button type="button" onClick={() => setPreviewOf(null)} className="ml-auto rounded border border-amber-400 bg-white px-2 py-1 text-xs hover:bg-amber-100">
+                미리 보기 끄기
+              </button>
+            </div>
+          )}
+          <Scene3DTab date={date} tasks={scene3dTasks} conflicts={open} restrictions={restrictions} role={{ kind: "prime" }} selectTaskId={selectedTask} />
         </TabsContent>
 
         <TabsContent value="approval">
@@ -185,11 +212,7 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
             tasks={tasks}
             zones={zones}
             onDecided={onReload}
-            onShow3D={(taskId, day) => {
-              if (day !== date) setDate(day);
-              setSelectedTask(taskId);
-              setTab("scene3d");
-            }}
+            onShow3D={(taskId, day) => open3D(taskId, day)}
             onShowConflict={() => setTab("conflicts")}
           />
         </TabsContent>
@@ -200,10 +223,7 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
             tasks={tasks}
             zones={zones}
             date={date}
-            onShow3D={(taskId) => {
-              setSelectedTask(taskId);
-              setTab("scene3d");
-            }}
+            onShow3D={(taskId) => open3D(taskId)}
           />
         </TabsContent>
 
