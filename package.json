@@ -3,12 +3,15 @@
   "private": true,
   "description": "한솥밥 — 고로 개수 협력사 동시작업 간섭 감지·예보 (모노레포 실행 스크립트)",
   "scripts": {
-    "setup": "git config core.hooksPath .githooks && npm install && npm --prefix app/frontend install && cd app/backend && uv sync",
+    "setup": "git config core.hooksPath .githooks && npm ci && npm --prefix app/frontend ci && cd app/backend && uv sync --locked",
     "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "cd app/backend && uv run uvicorn main:app --reload --port 8000",
     "dev:web": "npm --prefix app/frontend run dev",
     "test": "cd app/backend && uv run pytest",
     "build": "npm --prefix app/frontend run build"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
