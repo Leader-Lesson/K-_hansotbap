@@ -7,6 +7,7 @@
     "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "cd app/backend && uv run uvicorn main:app --reload --port 8000",
     "dev:web": "npm --prefix app/frontend run dev",
+    "whisper": "node scripts/whisper.mjs",
     "test": "cd app/backend && uv run pytest",
     "build": "npm --prefix app/frontend run build"
   },
