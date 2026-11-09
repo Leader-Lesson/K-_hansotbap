@@ -248,7 +248,7 @@ def ask(req: ChatRequest, contractor: str | None) -> ChatResponse:
                     log.warning("chat answer 에 %s", why)
                     notices.append(f"AI 답에 {why}가 있어 규칙 답으로 바꿨습니다")
                 else:
-                    terms = key_terms(results)
+                    terms = key_terms(results, req.question)
                     if terms and not any(k in text for k in terms):
                         # 요약 한 줄만 쓰고 목록을 빼먹었으면(작은 모델) 규칙 목록을 붙인다
                         text = f"{text}\n{template_lines(results)}"

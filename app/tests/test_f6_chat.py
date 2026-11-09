@@ -291,3 +291,23 @@ def test_risk_windows_by_task(demo):
     r = run_tool(ChatToolCall(tool=ChatTool.RISK_WINDOWS, date_from=TODAY, task_ids=["P34"]), None)
     assert r.items and all(i.evidence.target_id == "TUYERE" for i in r.items)
     assert all(i.data["window"].startswith("3/") for i in r.items)  # P34 기간(3/4~3/12)에 걸친 것만
+
+
+def test_thin_answer_check_ignores_ids_from_question(demo, monkeypatch):
+    """질문에 나온 P34 만 되풀이한 요약은 구체적인 답이 아니다 → 목록을 붙인다."""
+    plan = ChatPlan(off_topic=False, calls=[pc("find_conflicts", task_ids=["P34"])])
+    use(monkeypatch, FakeProvider(plan=plan, draft=ChatDraft(answer="P34와 겹치는 작업은 2건입니다.", refs=[])))
+    r = service.ask(ChatRequest(question="P34랑 겹치는 거 있어?", today=TODAY), None)
+    assert "R07" in r.answer and "P36" in r.answer
+
+
+def test_template_lists_all_rules():
+    from chat.answer import _lines
+    from chat.tools import Item, ToolResult
+    from schemas import ChatEvidence, ChatEvidenceKind, ChatToolCall
+
+    d = {"zone": "노정 플랫폼", "window": "2/20(토) 07:00~19:00", "score": 21.0, "peak_grade": "금지",
+         "rule_ids": ["R03", "R04", "R16", "R17"], "contractors": ["가", "나", "다", "라", "마", "바"], "notice": ""}
+    ev = ChatEvidence(ref="risk:x", kind=ChatEvidenceKind.RISK, target_id="TOP", label="")
+    line = _lines(ToolResult(ChatToolCall(tool=ChatTool.RISK_WINDOWS), [Item("risk:x", d, ev)]))[0]
+    assert "R03, R04, R16, R17" in line and "외 2곳" in line

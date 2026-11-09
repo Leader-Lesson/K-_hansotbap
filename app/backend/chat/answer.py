@@ -32,26 +32,33 @@ def _cut(s: str, n: int = 90) -> str:
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
-def _lines(r: ToolResult) -> list[str]:
+def _who(names: list[str], n: int = 4) -> str:
+    return ", ".join(names[:n]) + (f" 외 {len(names) - n}곳" if len(names) > n else "")
+
+
+def _lines(r: ToolResult, show: int = _SHOW) -> list[str]:
     t = r.call.tool
     out = []
-    for i in r.items[:_SHOW]:
+    for i in r.items[:show]:
         d = i.data
         if t == ChatTool.FIND_TASKS:
             out.append(f"- {d['start']}~{d['end']} {d['zone']} · {d['contractor']} {d['name']} ({d['id']})")
         elif t == ChatTool.FIND_CONFLICTS:
             out.append(f"- [{d['grade']}] {d['type']} {d['window']} · {_cut(d['reason'])} ({d['rule_id']})")
         elif t == ChatTool.RISK_WINDOWS:
-            who = f" · {', '.join(d['contractors'][:3])}" if d["contractors"] else ""
-            out.append(f"- {d['zone']} {d['window']} · 위험 점수 {d['score']:g} (최고 {d['peak_grade']}) · 규칙 {', '.join(d['rule_ids'][:3])}{who}")
+            who = f" · {_who(d['contractors'])}" if d["contractors"] else ""
+            out.append(f"- {d['zone']} {d['window']} · 위험 점수 {d['score']:g} (최고 {d['peak_grade']}) · 규칙 {', '.join(d['rule_ids'])}{who}")
         else:
             hand = f" · 인계 조건: {_cut(d['handover'], 50)}" if d["handover"] else ""
             out.append(f"- [{d['grade']}] {d['window']} · {_cut(d['reason'], 70)}{hand}")
     return out
 
 
-def key_terms(results: list[ToolResult]) -> set[str]:
-    """답에 하나는 나와야 할 구체 항목: 작업 번호·규칙 번호. 구역명은 요약 문장에도 나오므로 세지 않는다."""
+def key_terms(results: list[ToolResult], question: str = "") -> set[str]:
+    """답에 하나는 나와야 할 구체 항목: 작업 번호·규칙 번호. 구역명은 요약 문장에도 나오므로 세지 않는다.
+
+    질문에 이미 나온 번호(예: "P34랑 겹치는 거")는 답에 있어도 구체적이라 할 수 없으므로 뺀다.
+    """
     out = set()
     for r in results:
         for i in r.items:
@@ -61,12 +68,12 @@ def key_terms(results: list[ToolResult]) -> set[str]:
             else:
                 out |= {d["rule_id"]} if d.get("rule_id") else set(d.get("rule_ids", []))
                 out |= {t["id"] for t in d.get("tasks", []) + d.get("adjacent_tasks", [])}
-    return out
+    return {k for k in out if k not in question}
 
 
 def template_lines(results: list[ToolResult]) -> str:
-    """결과 목록 줄만 (LLM 답이 요약 한 줄뿐일 때 붙인다)."""
-    return "\n".join(line for r in results for line in _lines(r))
+    """결과 목록 줄만 (LLM 답이 요약 한 줄뿐일 때 붙인다). LLM 이 'N건 표시'라고 썼을 수 있으니 받은 건 모두 보인다."""
+    return "\n".join(line for r in results for line in _lines(r, len(r.items)))
 
 
 def template_answer(results: list[ToolResult]) -> str:
