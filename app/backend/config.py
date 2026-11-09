@@ -45,6 +45,20 @@ class Settings(BaseSettings):
     # (i5-10210U: 90초 녹음 → 219초). 10분 TBM 녹음까지 받도록 30분 [팀 설정값]
     whisper_timeout: int = 1800
 
+    # F6 챗봇. 비우면 LLM_PROVIDER 를 따른다 (Qwen=unsloth 로 먼저 확인하고 claude 로 바꾼다)
+    chat_provider: Literal["", "claude", "unsloth", "lmstudio"] = ""
+    # 챗봇만 다른 모델 (예: claude-haiku-5-5 — 빠르다). 비우면 제공자 기본(CLAUDE_MODEL·UNSLOTH_CHAT_MODEL·LMSTUDIO_CHAT_MODEL).
+    # 고른 제공자의 모델이 아니면(Claude 에 unsloth/… , Unsloth 에 claude-…) 무시한다
+    chat_model: str = ""
+    # 챗봇의 Claude 생각 깊이. 조회 결과 정리라 낮게 둬서 빠르게 [팀 설정값]
+    chat_effort: Literal["low", "medium", "high", "xhigh", "max"] = "low"
+    # 챗봇 응답 대기(초). 넘으면 LLM 을 더 기다리지 않고 규칙으로 해석·답하고 화면에 알린다 [팀 설정값]
+    chat_plan_timeout: float = 20.0  # 질문 해석(조회 도구 고르기)
+    chat_answer_timeout: float = 30.0  # 조회 결과로 답 문장 쓰기
+    chat_total_timeout: float = 45.0  # 질문 하나 전체
+    # 챗봇의 '오늘'(YYYY-MM-DD). 비우면 실제 오늘. 시연 날짜를 넣으면 '내일'·'이번 주'가 그 날짜 기준
+    chat_today: str = ""
+
     # DB·서버
     db_path: Path = BACKEND_DIR / "hansotbap.db"
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:5174"]

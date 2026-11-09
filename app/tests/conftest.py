@@ -13,6 +13,7 @@ import pymupdf
 import pytest
 from openpyxl import Workbook
 
+import llm.chat
 import llm.extract
 import llm.tbm_check
 import search.sop_match
@@ -22,12 +23,15 @@ from config import settings
 @pytest.fixture(autouse=True)
 def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "db_path", tmp_path / "test.db")
+    # 각자 .env 의 USE_BASELINE 과 상관없이 기준 일정(합성 37건)을 켠 상태로 시험한다. 끄는 시험은 그 안에서 따로 끈다
+    monkeypatch.setattr(settings, "use_baseline", True)
 
     def no_llm():
         raise RuntimeError("테스트에서는 실제 LLM을 부르지 않는다")
 
     monkeypatch.setattr(llm.extract, "get_provider", no_llm)
     monkeypatch.setattr(llm.tbm_check, "get_provider", no_llm)
+    monkeypatch.setattr(llm.chat, "get_provider", lambda *a, **k: no_llm())
     # .env 에 임베딩 모델이 있어도 로컬 서버(Unsloth·LM Studio)를 부르지 않는다. 임베딩 시험은 가짜 임베딩을 넘긴다
     monkeypatch.setattr(search.sop_match, "default_embedder", lambda: None)
 
