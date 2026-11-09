@@ -5,6 +5,7 @@ import { api } from "@/api/client";
 import { AppHeader } from "@/components/AppHeader";
 import { ChatBot } from "@/components/ChatBot";
 import { UploadDialog } from "@/components/UploadDialog";
+import { clearPerson } from "@/lib/person";
 import { restrictionsFrom } from "@/lib/restrictions";
 import { DATE_KEY, ShellProvider, useShell } from "@/lib/shell";
 import { markJumpToLatestConflict } from "@/lib/siteDate";
@@ -90,6 +91,7 @@ function AppInner() {
 
   const changeRole = (r: ViewerRole) => {
     sessionStorage.setItem(ROLE_KEY, JSON.stringify(r));
+    clearPerson();
     setRole(r);
     setNotice(null); // 협력사 제출 안내가 원청 화면 위에 남지 않게
   };
@@ -159,6 +161,7 @@ function AppInner() {
 
         {role.kind === "prime" ? (
           <PrimeView
+            contractors={contractors}
             zones={zones}
             tasks={tasks}
             conflicts={conflicts}
@@ -172,6 +175,7 @@ function AppInner() {
           />
         ) : (
           <ContractorView
+            key={role.contractor}
             contractor={role.contractor}
             zones={zones}
             tasks={tasks}
