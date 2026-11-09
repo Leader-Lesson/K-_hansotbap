@@ -271,11 +271,69 @@ function renderPlan() {
       selectedZoneId: state.zoneId,
       onZoneClick: (id) => selectZone(id),
       onConflictClick: (id) => selectConflict(id),
+      now: hhmm(state.t), restrictions: planRestrictions(zones), timeline: planTimeline(zones),
+      onTimeClick: (iso) => setTime(iso),
     });
   } catch (e) {
     console.error(e);
     $('planWrap').innerHTML = `<div class="error-box">도면을 그리지 못했습니다: ${esc(e.message)}</div>`;
   }
+}
+
+/* ---------- 2D 도면: 시간대별 출입 제한 · 이유 · 일어날 수 있는 사고 ----------
+   barrierList(그 시각 막힌 방위)와 hazardsFor(위험 종류)를 합쳐, 원인 작업(다른 회사)과 사고 유형을 붙인다 */
+const ACCIDENT = {
+  DROP: { name: '낙하물', text: '위에서 인양 중인 자재·공구·볼트가 떨어지면 아래 작업자가 머리·어깨를 맞아 크게 다치거나 숨질 수 있고, 와이어·슬링이 끊어지면 인양물에 깔립니다.' },
+  HOT: { name: '불티·화재', text: '용접·용단 불티가 보온재·기름·가연물에 옮겨붙어 불이 나고 화상을 입을 수 있습니다. 노 안처럼 막힌 곳이면 연기 때문에 질식할 수 있습니다.' },
+  GAS: { name: '가스 중독·질식', text: '고로가스(CO)는 색도 냄새도 없어 모르는 사이 중독·의식 상실로 이어지고, 질소로 퍼지한 구역은 산소가 모자라 질식합니다. 산소가 새면 작은 불꽃도 큰불이 됩니다.' },
+  HEIGHT: { name: '낙하물', text: '위쪽 작업대에서 공구·자재가 떨어져 아래 작업자가 맞을 수 있습니다.' },
+  CROWD: { name: '끼임·넘어짐', text: '좁은 곳에 사람·자재·장비가 몰리면 넘어지거나 장비에 끼이고, 비상시 대피가 늦어집니다.' },
+};
+const kindOfTask = (k) => { const w = k?.work_types || []; return w.includes('LIFT') ? 'DROP' : w.includes('GAS') ? 'GAS' : w.includes('HOT') ? 'HOT' : w.includes('HEIGHT') ? 'HEIGHT' : 'CROWD'; };
+/* 3D 화면 기준 말(앞쪽·오른쪽…)을 도면 방위(북·동·남·서)로 바꿈 */
+const areaKo = (a) => { if (a?.shape !== 'sector') return describeArea(a); const TAU = Math.PI * 2, d = DIRS.reduce((m, k) => { const x = Math.abs(((DIR_PHI[k] - (a.phi ?? 0)) % TAU + TAU + Math.PI) % TAU - Math.PI); return x < m[1] ? [k, x] : m; }, ['S', 9])[0]; return DIR_KO[d]; };
+const compassWhy = (h) => (h ? h.text.split(describeArea(h.area)).join(areaKo(h.area)) : '');
+const trimWhy = (w, k) => (k && w.startsWith(k.title) ? w.slice(k.title.length).replace(/^\s*—\s*/, '') : w);
+const whoOf = (k) => (!k ? '다른 작업' : state.role.id === 'PRIME' || state.role.id === k.company_id ? `${coLabel(k.company_id)} ${k.title}` : `타사 ${(ACCIDENT[kindOfTask(k)] || {}).name || ''} 위험 작업`);
+function planRestrictions(zones) {
+  const ids = new Set(zones.map((z) => z.id)), live = liveTasks(), list = barrierList(state.t).filter((b) => ids.has(b.zoneId));
+  const out = list.map((b) => {
+    const hz = hazardsFor(b.zoneId, live, ZONES, state.t);
+    const items = (b.sources.length ? b.sources : [null]).map((sid) => {
+      const k = TASKS.find((x) => x.id === sid), h = hz.find((x) => x.fromTaskId === sid);
+      const kind = h?.kind || (k ? kindOfTask(k) : 'DROP');
+      return { level: 'ban', kind, who: whoOf(k), why: h && h.area?.shape !== 'all' ? trimWhy(compassWhy(h), k) : `${ACCIDENT[kind].name} 위험 범위: ${b.blocked.length ? b.blocked.map((d) => DIR_KO[d]).join('·') : '중앙부'}`, accident: ACCIDENT[kind] };
+    });
+    const allowed = DIRS.filter((d) => !b.blocked.includes(d)).map((d) => DIR_KO[d]);
+    return { zoneId: b.zoneId, zoneName: zname(b.zoneId), blocked: b.blocked, center: !!b.center, until: b.until,
+      advice: b.center && !b.blocked.length ? `중앙부는 비우고 가장자리(벽 쪽)에서 상부 방호 확인 후 작업 · ${b.until} 이후 전체 작업` : allowed.length && allowed.length < 4 ? `${allowed.join('·')}에서만 작업 · ${b.until} 이후 전체 작업` : `${b.until} 이후 작업`, items };
+  });
+  // 막지는 않지만 주의할 위험 (불티·가스 조건부)
+  for (const z of zones) for (const h of hazardsFor(z.id, live, ZONES, state.t)) {
+    if (out.some((o) => o.zoneId === z.id && o.items.some((i) => i.kind === h.kind))) continue;
+    if (h.severity === 'PROHIBITED' || h.kind === 'DROP') continue;
+    const k = TASKS.find((x) => x.id === h.fromTaskId);
+    let o = out.find((x) => x.zoneId === z.id);
+    if (!o) { o = { zoneId: z.id, zoneName: z.name, blocked: [], center: false, until: hhmm(h.end), advice: '감시자 배치·측정 후 작업', items: [] }; out.push(o); }
+    o.items.push({ level: 'caution', kind: h.kind, who: whoOf(k), why: trimWhy(compassWhy(h), k), accident: ACCIDENT[h.kind] });
+  }
+  return out;
+}
+function planTimeline(zones) {
+  const ids = new Set(zones.map((z) => z.id)), rows = [], open = new Map();
+  for (let i = 0; i <= STEPS; i++) {
+    const t = idxToIso(i), cur = new Map(i < STEPS ? barrierList(t).filter((b) => ids.has(b.zoneId)).map((b) => [b.zoneId, b]) : []);
+    for (const [zid, r] of open) {
+      const b = cur.get(zid);
+      if (!b || b.blocked.join() !== r.blocked.join() || b.sources.join() !== r.srcKey) { r.end = t; rows.push(r); open.delete(zid); }
+    }
+    for (const [zid, b] of cur) if (!open.has(zid)) {
+      const k = TASKS.find((x) => x.id === b.sources[0]);
+      open.set(zid, { zoneId: zid, zoneName: zname(zid), start: t, blocked: b.blocked, center: !!b.center, srcKey: b.sources.join(), who: whoOf(k), kind: k ? kindOfTask(k) : 'DROP' });
+    }
+  }
+  return rows.sort((a, b) => a.start.localeCompare(b.start)).map((r) => ({ ...r, startLabel: hhmm(r.start), endLabel: hhmm(r.end),
+    active: r.start <= state.t && state.t < r.end, accidentName: ACCIDENT[r.kind]?.name }));
 }
 
 // ---------- 상단 요약 ----------
@@ -993,6 +1051,7 @@ function setMode(mode) {
   $('planWrap').hidden = !is2d;
   $('explodeWrap').style.visibility = is2d ? 'hidden' : '';
   $('stageHint').textContent = is2d ? '도면의 구역을 누르면 자세히 보입니다' : '구역을 누르면 오른쪽에 자세히 보입니다';
+  updateViolations();
   if (is2d) renderPlan();
   else { if (plan) { plan.destroy?.(); plan = null; } onResize(); }
   updateLabels();
