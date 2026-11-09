@@ -68,7 +68,8 @@ const state = {
   taskId: null,
   view: { tasks: [], conflicts: [] },   // 권한을 적용한 전체(시간 무관) 데이터
   externalConflicts: false,   // 부모(시안·서버)가 판정을 넘기면 그것만 씀 — 규칙 엔진이 경고를 더 만들지 않게
-  restrictions: null,         // 부모가 넘긴 방위별 출입 제한 (없으면 위험 영역에서 계산)
+  restrictions: null,
+  violations: [],             // 출입 제한 구역 안 작업 (긴급 알림 대상)         // 부모가 넘긴 방위별 출입 제한 (없으면 위험 영역에서 계산)
 };
 
 // ---------- 시간별 활성 데이터 ----------
@@ -463,6 +464,7 @@ function renderDetail() {
     html = renderRightIntro({ title: state.role.id === 'PRIME' ? '전체' : `${state.role.name} 화면`, t: state.t, zones: ZONES,
       conflicts: state.active.conflicts, tasks: state.active.tasks, alternatives: ALTERNATIVES, role: state.role, selectedConflictId: state.conflictId });
   }
+  if (!state.taskId && !state.zoneId) html += placementGuideHtml();
   $('detailBody').innerHTML = html;
 }
 
@@ -516,7 +518,8 @@ function syncExtras() {
   const call = (name, fn) => { try { if (extras[name]) fn(extras[name]); } catch (e) { console.warn('[scene3d]', name, e); } };
   call('equipment', (x) => x.setActive?.({ tasks, t }));
   call('workers', (x) => {
-    x.setActive?.({ tasks, t });
+    x.setActive?.({ tasks: tasks.map((k) => ({ ...k, place_dirs: taskDirsAt(k, t) })), t });
+    x.setAlert?.(state.violations.map((v) => v.taskId));
     const only = state.taskId ? [state.taskId] : hl ? hl.task_ids : null;
     if (x.setFilter) { x.setHighlight?.(null); x.setFilter(only); } else x.setHighlight?.(only);
   });
@@ -573,30 +576,164 @@ function quadrantsOf(area) {
 }
 function barrierList(t) {
   const byZone = new Map();
-  const add = (zid, dirs, center, until, reason) => {
+  const add = (zid, dirs, center, until, reason, srcIds) => {
     if (!zoneById.has(zid) || (!dirs.length && !center)) return;
-    const z = byZone.get(zid) || { zoneId: zid, blocked: new Set(), center: null, until, reason };
+    const z = byZone.get(zid) || { zoneId: zid, blocked: new Set(), center: null, until, reason, sources: new Set() };
+    (srcIds || []).forEach((id) => z.sources.add(id));
     dirs.forEach((k) => z.blocked.add(k));
     if (center) z.center = { r: Math.max(z.center?.r || 0, center) };
     if (until && (!z.until || until < z.until)) z.until = until;
     byZone.set(zid, z);
   };
   if (state.restrictions) {
-    for (const r of state.restrictions) if (r.start <= t && t < r.end) r.zone_ids.forEach((zid) => add(zid, r.blocked, null, r.end, r.reason));
+    for (const r of state.restrictions) if (r.start <= t && t < r.end) r.zone_ids.forEach((zid) => add(zid, r.blocked, null, r.end, r.reason, r.source_ids));
   } else {
     const live = liveTasks();
     for (const z of ZONES) for (const h of hazardsFor(z.id, live, ZONES, t)) {
       if (h.severity !== 'PROHIBITED' && h.kind !== 'DROP') continue;   // 출입 제한은 치명·낙하 위험에만
       const q = quadrantsOf(h.area);
-      add(z.id, q.dirs, q.center, h.end, h.text);
+      add(z.id, q.dirs, q.center, h.end, h.text, [h.fromTaskId]);
     }
   }
   return [...byZone.values()].map((z) => {
     const blocked = DIRS.filter((k) => z.blocked.has(k));
     const where = blocked.length === 4 ? '전 구역' : blocked.map((k) => DIR_KO[k]).join('·');
     return { zoneId: z.zoneId, blocked, center: z.center, until: hhmm(z.until || ''),
-      label: `${where || '중앙부'} · ${hhmm(z.until || '')}까지`, reason: z.reason };
+      label: `${where || '중앙부'} · ${hhmm(z.until || '')}까지`, reason: z.reason, sources: [...z.sources] };
   });
+}
+
+/* ---------- 출입 제한 위반 → 긴급 알림 · 시정 명령 ----------
+   작업 방위(task.sectors 시간대별, 없으면 work_area)가 그 시각 막힌 방위와 겹치면 위반.
+   제한을 만든 원인 작업 자신은 제외. 알림은 원청 관리자와 그 협력사(책임자)에게만 보인다. */
+const sliceTimes = (a, b) => { const out = []; for (let m = isoToIdx(a); m < isoToIdx(b); m += 1) out.push(idxToIso(m)); return out; };
+function taskDirsAt(task, t) {
+  const o = task.place_override;
+  if (o && t >= o.from) return o.dirs;
+  const seg = (task.sectors || []).find((s) => s.start <= t && t < s.end);
+  if (seg) return seg.dirs.length && seg.dirs.length < 4 ? seg.dirs : null;
+  if (task.work_area) { const q = quadrantsOf(task.work_area).dirs; return q.length && q.length < 4 ? q : null; }
+  return null;   // 어디서 일하는지 모르면 판정하지 않음
+}
+/* 그 시각 그 구역에서 이 작업에게 막힌 방위 (원인 작업 자신의 제한은 뺌) */
+function blockedFor(task, zid, t, list) {
+  const b = (list || barrierList(t)).find((x) => x.zoneId === zid);
+  if (!b || (b.sources || []).includes(task.id)) return null;
+  return b;
+}
+function computeViolations(t = state.t) {
+  const list = barrierList(t), out = [];
+  for (const task of state.active.tasks) {
+    if (task.acc === 'limited') continue;   // 다른 업체 작업은 그 업체·원청이 처리
+    const dirs = taskDirsAt(task, t);
+    if (!dirs) continue;
+    for (const zid of task.zone_ids || []) {
+      const b = blockedFor(task, zid, t, list);
+      const hit = b ? dirs.filter((d) => b.blocked.includes(d)) : [];
+      if (!hit.length) continue;
+      out.push({ taskId: task.id, company: task.company_id, title: task.title, zone: zid, zoneName: zname(zid), dirs, hit,
+        where: `${zname(zid)} ${hit.map((d) => DIR_KO[d]).join('·')}`, until: b.until, cause: b.reason, best: bestDirs(task, zid, t) });
+    }
+  }
+  return out;
+}
+/* 남은 작업 시간 동안 방위별 금지 시간(분) → 금지 시간이 가장 적은 방위 추천 */
+function bestDirs(task, zid, from) {
+  const mins = { N: 0, E: 0, S: 0, W: 0 };
+  for (const tt of sliceTimes(from > task.start ? from : task.start, task.end < DEMO.windowEnd ? task.end : DEMO.windowEnd)) {
+    const b = blockedFor(task, zid, tt);
+    if (b) b.blocked.forEach((d) => { mins[d] += STEP_MIN; });
+  }
+  const order = DIRS.slice().sort((a, b) => mins[a] - mins[b]);
+  return { mins, best: order[0], bestMin: mins[order[0]] };
+}
+/* 작업 위치 가이드: 설계된 일정 기준, 계획 방위의 금지 시간 vs 금지 시간이 가장 적은 방위 */
+function placementGuide() {
+  const inDay = (k) => k.start < DEMO.windowEnd && k.end > DEMO.windowStart;
+  return state.view.tasks.filter((k) => inDay(k) && k.acc !== 'limited' && (k.zone_ids || []).length).map((k) => {
+    const zid = k.zone_ids[0], plan = taskDirsAt(k, k.start > DEMO.windowStart ? k.start : DEMO.windowStart);
+    const r = bestDirs(k, zid, DEMO.windowStart);
+    const planMin = plan ? Math.max(...plan.map((d) => r.mins[d])) : null;
+    return { taskId: k.id, title: k.title, company: k.company_id, zone: zname(zid), plan, planMin, ...r };
+  }).filter((g) => g.planMin === null ? g.bestMin < Math.max(...Object.values(g.mins)) : g.planMin > g.bestMin)
+    .sort((a, b) => (b.planMin ?? 0) - (a.planMin ?? 0));
+}
+const dirsKo = (ds) => (ds || []).map((d) => DIR_KO[d]).join('·');
+function placementGuideHtml() {
+  const g = placementGuide();
+  if (!g.length) return '';
+  return `<div class="vg-guide"><h3>작업 위치 가이드 <small>금지 시간이 가장 적은 방위</small></h3>
+    ${g.slice(0, 8).map((x) => `<button type="button" class="vg-row" data-task="${esc(x.taskId)}">
+      <span class="vg-t">${esc(coLabel(x.company))} · ${esc(x.title)} <small>${esc(x.zone)}</small></span>
+      <span class="vg-m">${x.plan ? `지금 계획 ${esc(dirsKo(x.plan))} <b class="bad">금지 ${x.planMin}분</b> → ` : ''}추천 <b class="good">${DIR_KO[x.best]}</b> <small>금지 ${x.bestMin}분</small></span>
+    </button>`).join('')}</div>`;
+}
+const coLabel = (id) => (/^[A-Z]$/.test(id) ? `${id}사` : String(id || '').replace(/^가상-/, ''));
+const canCorrect = (v) => state.role.id === 'PRIME' || (state.role.id === v.company && state.role.level !== 'worker');
+const seesViolation = (v) => state.role.id === 'PRIME' || state.role.id === v.company;
+
+/* 긴급 알림 띠 + 부모(시안)에 알림 전달 */
+const sentViolations = new Set();
+function updateViolations() {
+  state.violations = computeViolations(state.t);
+  const mine = state.violations.filter(seesViolation);
+  let bar = document.getElementById('vbar');
+  if (!bar) { bar = document.createElement('div'); bar.id = 'vbar'; bar.className = 'vbar'; $('view').appendChild(bar); }
+  bar.hidden = !mine.length || state.mode !== '3d';
+  bar.innerHTML = mine.length ? `<div class="vbar-h">⚠ 긴급 · 출입 제한 구역 안에서 작업 중 <b>${mine.length}</b>건 <small>사고 전에 바로 시정하세요</small></div>
+    ${mine.map((v, i) => `<div class="vbar-r"><span><b>${esc(coLabel(v.company))}</b> ${esc(v.title)} — <span class="kw">${esc(v.where)}</span> 금지 구역 <span class="t">${esc(v.until)}</span>까지 <small>(${esc(v.cause || '')})</small></span>
+      ${canCorrect(v) ? `<button type="button" class="vbar-btn" data-vio="${i}">시정 명령</button>` : '<span class="vbar-wait">책임자·원청 조치 대기</span>'}</div>`).join('')}` : '';
+  bar._list = mine;
+  const fresh = state.violations.filter((v) => !sentViolations.has(v.taskId + '|' + v.zone + '|' + v.until));
+  fresh.forEach((v) => sentViolations.add(v.taskId + '|' + v.zone + '|' + v.until));
+  if (fresh.length) post({ type: 'violation', items: fresh.map(({ taskId, zone, where, until, cause, company }) => ({ taskId, zone, where, until, cause, company })) });
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('#vbar [data-vio]');
+  if (b) openCorrection(document.getElementById('vbar')._list[+b.dataset.vio]);
+});
+
+/* 시정 명령 창: 위반 내용 + 방위별 금지 시간 + [추천 방위로 이동] [제한 해제까지 중지] */
+function openCorrection(v) {
+  if (!v) return;
+  let m = document.getElementById('cmodal');
+  if (!m) { m = document.createElement('div'); m.id = 'cmodal'; m.className = 'cmodal'; document.body.appendChild(m); }
+  const r = v.best, ok = canCorrect(v);
+  m.innerHTML = `<div class="cm-box" role="dialog" aria-label="시정 명령">
+    <div class="cm-h">⚠ 출입 제한 구역 안 작업 — 시정 명령</div>
+    <div class="cm-b"><b>${esc(coLabel(v.company))} · ${esc(v.title)}</b><br>
+      지금 작업 위치 <b>${esc(v.zoneName)} ${esc(dirsKo(v.dirs))}</b> 중 <span class="kw">${esc(dirsKo(v.hit))}</span>이(가) <span class="t">${esc(v.until)}</span>까지 출입 제한입니다.<br>
+      <small>원인: ${esc(v.cause || '상부 작업')}</small></div>
+    <table class="cm-t"><tr><th>방위</th>${DIRS.map((d) => `<th>${DIR_KO[d]}</th>`).join('')}</tr>
+      <tr><td>남은 작업 중 금지 시간</td>${DIRS.map((d) => `<td class="${d === r.best ? 'good' : r.mins[d] ? 'bad' : ''}">${r.mins[d]}분</td>`).join('')}</tr></table>
+    <div class="cm-a">
+      <button type="button" class="cm-go" data-act="move" ${ok ? '' : 'disabled'}>추천 위치 ${DIR_KO[r.best]}으로 이동 지시 <small>(금지 ${r.bestMin}분)</small></button>
+      <button type="button" class="cm-stop" data-act="stop" ${ok ? '' : 'disabled'}>${esc(v.until)}까지 작업 중지</button>
+      <button type="button" class="cm-x" data-act="close">닫기</button>
+    </div>${ok ? '' : '<div class="cm-n">협력사 파트장 또는 원청 관리자만 시정 명령을 내릴 수 있습니다</div>'}</div>`;
+  m.hidden = false;
+  m.onclick = (e) => {
+    const a = e.target.closest('[data-act]')?.dataset.act;
+    if (e.target === m || a === 'close') { m.hidden = true; return; }
+    if (a === 'move' || a === 'stop') { issueCorrection(v, a); m.hidden = true; }
+  };
+}
+/* 내린 시정 명령은 기억해 두고, 부모가 데이터를 다시 보내도(setData) 같은 작업에 다시 적용 */
+const corrections = [];
+function applyCorrection(task, rec) {
+  if (rec.action === 'move') task.place_override = { dirs: [rec.dir], from: rec.at };
+  else if (!(task.pauses || []).some(([a, b]) => a === rec.at && b === rec.untilIso)) task.pauses = [...(task.pauses || []), [rec.at, rec.untilIso]];
+}
+function issueCorrection(v, action) {
+  const task = TASKS.find((k) => k.id === v.taskId);
+  if (!task) return;
+  const untilIso = `${state.t.slice(0, 11)}${v.until}` > state.t ? `${state.t.slice(0, 11)}${v.until}` : state.t;
+  const rec = { at: state.t, taskId: task.id, action, dir: v.best.best, dirName: DIR_KO[v.best.best], until: v.until, untilIso, where: v.where, by: { id: state.role.id, level: state.role.level } };
+  applyCorrection(task, rec);
+  corrections.unshift(rec);
+  post({ type: 'correction', ...rec });
+  setTime(state.timeIdx);   // 진행 작업·위반을 다시 계산
+  toast(action === 'move' ? `시정 명령 — ${coLabel(task.company_id)} ${task.title}: ${DIR_KO[v.best.best]}으로 이동` : `시정 명령 — ${coLabel(task.company_id)} ${task.title}: ${v.until}까지 작업 중지`);
 }
 
 /* 집중 보기: 고른 구역 + 그 구역과 지금 충돌로 엮인 구역만 남기고 나머지는 투명하게 */
@@ -698,6 +835,7 @@ state.role = session.role || state.role;
 // ---------- 전체 갱신 ----------
 function refresh() {
   applyFocus();
+  updateViolations();
   syncExtras();
   applyZoneStates();
   updateLabels();
@@ -940,7 +1078,10 @@ function setData({ companies, tasks, conflicts, restrictions } = {}) {
   if (Array.isArray(conflicts)) state.externalConflicts = true;
   if (restrictions !== undefined) state.restrictions = Array.isArray(restrictions) ? restrictions : null;
   if (companies) { COMPANIES.splice(0, COMPANIES.length, ...companies); companyById.clear(); COMPANIES.forEach((c) => companyById.set(c.id, c)); }
-  if (tasks) TASKS.splice(0, TASKS.length, ...tasks.map((k) => ({ ...k })));
+  if (tasks) {
+    TASKS.splice(0, TASKS.length, ...tasks.map((k) => ({ ...k })));
+    for (const rec of corrections) { const k = TASKS.find((x) => x.id === rec.taskId); if (k) applyCorrection(k, rec); }
+  }
   if (tasks || conflicts) CONFLICTS.splice(0, CONFLICTS.length, ...(conflicts || []));
   state.taskId = null; state.conflictId = null;
   setTime(state.timeIdx);
@@ -969,4 +1110,4 @@ window.addEventListener('message', (e) => {
 const dataUrl = new URLSearchParams(location.search).get('data');
 if (dataUrl) fetch(dataUrl).then((r) => r.json()).then(setData).catch((e) => console.warn('[scene3d] 데이터 불러오기 실패', e));
 post({ type: 'ready', version: 2 });
-window.scene3d = { barrierList, fromHansotbap, setData, setRole, pushChange, session, selectTask, applyAlt, undoAlt, selectZone, selectLevel, setTime, setMode, selectConflict, state, furnace, extras, camera, controls };
+window.scene3d = { computeViolations, placementGuide, issueCorrection, barrierList, fromHansotbap, setData, setRole, pushChange, session, selectTask, applyAlt, undoAlt, selectZone, selectLevel, setTime, setMode, selectConflict, state, furnace, extras, camera, controls };

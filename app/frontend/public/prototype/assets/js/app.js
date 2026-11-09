@@ -649,21 +649,25 @@ function s3Payload(){const d=S.day,ds=iso(d),at=h=>`${ds}T${hh(h)}:00`;
   const ts=S.tasks.filter(t=>actOn(t,d)&&inScope(t)),ids=new Set(ts.map(t=>t.id));
   const tasks=ts.map(t=>({id:t.id,contractor:s3Contractor(t.p),name:(t.emerg?"[긴급] ":"")+tn(t),trade:own(t)?P(t.p).trade:null,zone_id:S3ZONE[t.zone],
     start:at(t.h0),end:at(t.h1),shift:"day",hazards:t.types.map(k=>S3HZ[k]).filter(Boolean),risk_codes:[],predecessors:t.pre.filter(id=>ids.has(id)),
-    source:own(t)?{file:fileName(t.p),locator:t.id,text:t.src}:null,crew:own(t)?t.crew:null}));
+    source:own(t)?{file:fileName(t.p),locator:t.id,text:t.src}:null,crew:own(t)?t.crew:null,sectors:(t.pos||t.path)?s3Sectors(t,d):null}));
   const conflicts=visC().filter(c=>c.status==="open"&&c.from<=d&&d<=c.to).map(c=>({id:c.key,type:S3TYPE[c.rule]||"same_time_zone",grade:c.level,
     task_ids:[c.a,c.b].filter(x=>x&&ids.has(x)),rule_id:c.rule,legal_basis:RULES[c.rule].law.join(" / "),window_start:at(c.h0),window_end:at(c.h1),
     reason:strip(sentence(c)),suggestion:(proposals(c)[0]||{}).text||null,
     sources:[c.a,c.b].filter(Boolean).map(task).filter(t=>t&&own(t)).map(t=>({file:fileName(t.p),locator:t.id,text:t.src}))}));
   const role=S.role==="HQ"?{kind:"prime"}:{kind:"contractor",contractor:s3Contractor(S.role),level:S.lvl==="worker"?"worker":"lead"};
   return {tasks,conflicts,role,restrictions:s3Restrictions(d)};}
+/* 작업 방위(북·동·남·서)를 30분 단위로 묶음 → scene3d가 작업자를 그 방위에 세우고, 출입 제한 방위와 겹치면 긴급 알림 */
+function s3Sectors(t,d){const at=h=>`${iso(d)}T${hh(h)}:00`,out=[];
+  for(let h=t.h0;h<t.h1;h+=0.5){const dirs=secAt(t,h),k=dirs.join(""),l=out[out.length-1];if(l&&l.k===k){l.end=at(h+0.5);continue;}out.push({k,start:at(h),end:at(h+0.5),dirs});}
+  return out.filter(x=>x.dirs.length).map(({k,...r})=>r);}
 /* 방위별 출입 제한: 구역·30분마다 zoneMap의 위험 방위(북·동·남·서) → scene3d가 허용·금지 방위 경계에 안전띠·러버콘을 세운다
    (경고 문구를 여러 개 띄우는 대신 현장 조치를 3D로 보여 준다). 07~19시, 같은 상태가 이어지면 한 구간으로 묶는다 */
 function s3Restrictions(d){const at=h=>`${iso(d)}T${hh(h)}:00`,out=[];
   Object.keys(ZONES).forEach(z=>{let cur=null;
     for(let h=7;h<19;h+=0.5){const {map,src}=zoneMap(z,d,h),blocked=SEC.filter(k=>map[k]==="danger"),key=blocked.join("");
-      if(cur&&cur.key===key){cur.end=at(h+0.5);continue;}
+      if(cur&&cur.key===key){cur.end=at(h+0.5);src.forEach(i=>cur.source_ids.includes(i.s.id)||cur.source_ids.push(i.s.id));continue;}
       if(cur&&cur.key)out.push(cur);
-      cur={key,zone_id:S3ZONE[z],start:at(h),end:at(h+0.5),blocked,reason:[...new Set(src.map(i=>own(i.s)?`${P(i.s.p).name} ${tn(i.s)}`:tn(i.s)))].join(" · ")};}
+      cur={key,zone_id:S3ZONE[z],start:at(h),end:at(h+0.5),blocked,source_ids:[...new Set(src.map(i=>i.s.id))],reason:[...new Set(src.map(i=>own(i.s)?`${P(i.s.p).name} ${tn(i.s)}`:tn(i.s)))].join(" · ")};}
     if(cur&&cur.key)out.push(cur);});
   return out.map(({key,...r})=>r);}
 function s3Post(msg){const f=$("#s3frame iframe");if(f&&f.contentWindow)f.contentWindow.postMessage({source:"hansotbap",...msg},location.origin);}
@@ -688,6 +692,13 @@ function s3Sync(force){
 addEventListener("message",e=>{const m=e.data;if(e.origin!==location.origin||!m||m.source!=="scene3d")return;
   if(m.type==="ready"){S3.ready=true;clearTimeout(S3.timer);s3Sync(true);}
   else if(m.type==="select"&&m.taskId){const t=task(m.taskId);if(t){const c=visC().find(x=>(x.a===t.id||x.b===t.id)&&x.status==="open"&&x.from<=S.day&&S.day<=x.to);if(c)S.focus=c.key;}}
+  else if(m.type==="violation"){S3.vseen=S3.vseen||new Set();
+    (m.items||[]).forEach(v=>{const t=task(v.taskId);if(!t)return;const k=v.taskId+"|"+v.zone+"|"+v.until;if(S3.vseen.has(k))return;S3.vseen.add(k);
+      note(["HQ",t.p],`긴급 · 출입 제한 구역 안 작업 · ${tn(t)}`,`${v.where} 출입 제한(${v.until}까지, ${v.cause||"상부 작업"}) 구역 안에서 작업 중입니다. 3D·충돌 탭에서 시정 명령을 내려 주세요.`,"긴급");});
+    renderNoti();if(m.items&&m.items.length)toast(`출입 제한 구역 안 작업 ${m.items.length}건 · 책임자·직영관리자에게 알렸습니다`);}
+  else if(m.type==="correction"){const t=task(m.taskId),how=m.action==="move"?`${m.dirName||m.dir}으로 작업 위치 이동`:`${m.until||"제한 해제"}까지 작업 중지`;
+    S.log.unshift({time:clock(),type:"시정 명령",sum:`${t?tn(t):m.taskId} · ${how}`,dec:`출입 제한 구역 안 작업 시정 (${m.where||""} 금지)`,who:m.by&&m.by.id?String(m.by.id).replace(/^가상-/,"")+(m.by.level==="manager"?" 직영관리자":" 파트장"):byWho(),rule:"F3",law:"",parties:t?[t.p]:[]});
+    if(t)note([t.p,"HQ"],`시정 명령 · ${tn(t)}`,how,"시정");renderNoti();renderHistory();toast(`시정 명령을 전달했습니다 · ${how}`);}
   else if(m.type==="decision"){const t=task(m.taskId);S.log.unshift({time:clock(),type:m.decision==="approved"?"착수 승인":"착수 보류",sum:`3D 화면 결정 · ${t?tn(t):m.taskId}`,dec:`scene3d 긴급 변경 ${m.changeId||""} ${m.decision==="approved"?"승인":"반려"}`,who:m.by&&m.by.id?String(m.by.id).replace(/^가상-/,"")+(m.by.level?` ${m.by.level==="manager"?"직영관리자":m.by.level==="worker"?"작업자":"파트장"}`:""):byWho(),rule:"F3",law:"",parties:t?[t.p]:[]});renderHistory();toast(`3D 화면에서 ${m.decision==="approved"?"승인":"반려"}했습니다 · 이력에 남겼습니다`);}
 });
 

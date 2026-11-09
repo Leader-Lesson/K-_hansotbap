@@ -45,6 +45,8 @@ export function taskFrom(t) {
     work_types, systems, shift: t.shift || null, wbs: t.id,
     preconditions: (t.predecessors || []).map((ref) => ({ kind: 'AFTER_TASK', ref, text: `${ref} 완료 후` })),
     source: t.source || null, status: 'active',
+    // 시간대별 작업 방위 [{start, end, dirs:['N',…]}] (시안 pos/path) — 작업자 위치·출입 제한 위반 판정에 씀
+    sectors: Array.isArray(t.sectors) ? t.sectors.map((s) => ({ start: iso16(s.start), end: iso16(s.end), dirs: s.dirs || [] })) : null,
   };
 }
 
@@ -74,7 +76,7 @@ export function fromHansotbap({ tasks = [], conflicts, restrictions } = {}) {
     conflicts: Array.isArray(conflicts) ? conflicts.map((c) => conflictFrom(c, byId)) : undefined,
     // 방위별 출입 제한 [{zone_id, start, end, blocked:['N',…], reason}] → scene3d 구역
     restrictions: Array.isArray(restrictions)
-      ? restrictions.map((r) => ({ zone_ids: ZONE_MAP[r.zone_id] ?? [], start: iso16(r.start), end: iso16(r.end), blocked: r.blocked || [], reason: r.reason || '' }))
+      ? restrictions.map((r) => ({ zone_ids: ZONE_MAP[r.zone_id] ?? [], start: iso16(r.start), end: iso16(r.end), blocked: r.blocked || [], source_ids: r.source_ids || [], reason: r.reason || '' }))
       : undefined,
   };
 }
