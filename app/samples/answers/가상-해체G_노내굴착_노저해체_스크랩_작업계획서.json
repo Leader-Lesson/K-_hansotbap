@@ -7,8 +7,8 @@
       "wbs_id": "P12",
       "name": "노내 장입물·코크스 굴착 배출",
       "zone_id": "STACK",
-      "start": "2026-11-20",
-      "end": "2026-12-02",
+      "start": "2026-11-28",
+      "end": "2026-12-07",
       "shift": "day",
       "headcount": 20,
       "equipment": [
@@ -30,11 +30,30 @@
       ]
     },
     {
+      "wbs_id": "P13-3",
+      "name": "노저 파쇄물 반출",
+      "zone_id": "HEARTH",
+      "start": "2026-12-08",
+      "end": "2026-12-23",
+      "shift": "day",
+      "headcount": 8,
+      "equipment": [
+        "미니 로더 1대",
+        "노내 호이스트(양중C 운영)"
+      ],
+      "hazards": [
+        "heavy_lift"
+      ],
+      "predecessors": [
+        "P12"
+      ]
+    },
+    {
       "wbs_id": "P16",
       "name": "노저 해체·청소",
       "zone_id": "HEARTH",
-      "start": "2026-12-22",
-      "end": "2027-01-01",
+      "start": "2026-12-24",
+      "end": "2027-01-02",
       "shift": "day",
       "headcount": 18,
       "equipment": [
@@ -65,8 +84,8 @@
       "wbs_id": "P32",
       "name": "해체 스크랩 절단·반출",
       "zone_id": "YARD",
-      "start": "2026-11-27",
-      "end": "2027-01-11",
+      "start": "2026-12-24",
+      "end": "2027-01-08",
       "shift": "day",
       "headcount": 10,
       "equipment": [
@@ -93,5 +112,5 @@
     }
   ],
   "expected_conflicts": [],
-  "note": "기준 일정 그대로(P12·P16·P32). Word 양식 예시. 작업별 표준서(SOP-P12·P16·P32)와 공통 표준서(SOP-02 P12 밀폐, SOP-01 P32 화기) 핵심 단계가 절차에 다 적혀 있어 결함 없음. 단독으로는 충돌 없음"
+  "note": "기준 일정 그대로(P12 13~18시, 노저 파쇄물 반출 P13-3 2026-12-08~12-23 13~17시 — 내화H 발파 뒤 이어받음, P16 13~18시, P32 07~12시). 안 겹치는 파일"
 }

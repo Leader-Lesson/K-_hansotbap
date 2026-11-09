@@ -57,7 +57,8 @@ def main() -> None:
         folder = OUT / contractor
         (folder / "작업계획서").mkdir(parents=True)
         (folder / "작업표준서").mkdir(parents=True)
-        task_ids = [t["작업ID"] for t in tasks]
+        # 세부 작업(P13-1~3)은 기준 작업(P13)의 표준서를 쓴다
+        task_ids = list(dict.fromkeys(t["작업ID"].split("-")[0] for t in tasks))
         for f in plans.get(contractor, []):
             shutil.copy2(f, folder / "작업계획서" / f.name)
         applied: list[dict[str, str]] = []
