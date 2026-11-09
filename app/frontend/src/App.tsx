@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/api/client";
 import { AppHeader } from "@/components/AppHeader";
+import { ChatBot } from "@/components/ChatBot";
 import { UploadDialog } from "@/components/UploadDialog";
 import { restrictionsFrom } from "@/lib/restrictions";
-import { ChatBot } from "@/components/ChatBot";
 import { DATE_KEY, ShellProvider, useShell } from "@/lib/shell";
+import { markJumpToLatestConflict } from "@/lib/siteDate";
 import type { AdjustmentResult, ConflictRecord, PlanRecord, PlanSubmitResult, SopInfo, SopMatch, Task, ViewerRole, Zone } from "@/types";
 import { ContractorView } from "@/views/ContractorView";
 import { PrimeView } from "@/views/PrimeView";
@@ -115,8 +116,9 @@ function AppInner() {
       intro.length ? `새로 생긴 공유 충돌 ${intro.length}건: ${intro.map((c) => `${c.id} (${c.grade})`).join(", ")}` : "",
       gone.length ? `해소된 공유 충돌 ${gone.length}건: ${gone.map((c) => c.id).join(", ")}` : "",
     ].filter(Boolean);
-    sessionStorage.removeItem(DATE_KEY); // 원청 화면이 이 제출이 낸 충돌 날짜로 가게
+    sessionStorage.removeItem(DATE_KEY);
     shell.setDate(null);
+    markJumpToLatestConflict(); // 이번 한 번만 이 제출이 낸 충돌 날짜로 간다 (평소 기본은 오늘)
     finishWithRefresh(parts.join(" · "), r.refresh);
   };
 
@@ -166,6 +168,7 @@ function AppInner() {
             restrictions={restrictions}
             onAdjusted={onAdjusted}
             onReload={() => void load()}
+            onViewAs={changeRole}
           />
         ) : (
           <ContractorView
@@ -180,9 +183,8 @@ function AppInner() {
           />
         )}
       </main>
-
       {/* F6 AI 챗봇: 보는 사람이 바뀌면 key 로 새로 만들어 앞 역할의 대화가 남지 않게 한다.
-          '오늘'은 헤더·화면이 같이 쓰는 날짜(ShellProvider) */}
+          '오늘'은 헤더·화면이 같이 쓰는 날짜(ShellProvider). 모델 고르기(#72)는 챗봇 창 위쪽 */}
       <ChatBot key={roleValue} contractor={contractor} today={shell.date} />
     </div>
   );

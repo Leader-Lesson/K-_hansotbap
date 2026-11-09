@@ -4,9 +4,10 @@ import { useMemo, useState } from "react";
 import { ConflictList } from "@/components/ConflictList";
 import { SopMatchPanel } from "@/components/SopMatchPanel";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { GRADE_RANK, HAZARD_LABEL, fmtRange } from "@/lib/format";
+import { HAZARD_LABEL, fmtRange } from "@/lib/format";
 import { groupByZone, restrictionsForContractor, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
 import { useShell, useShellRegister } from "@/lib/shell";
+import { useDefaultBoardDate } from "@/lib/siteDate";
 import type { ConflictRecord, PlanRecord, SopInfo, SopMatch, Task, Zone } from "@/types";
 import { PLAN_STATUS_LABEL, PlanStatusChip } from "@/views/ApprovalPanel";
 import { HistoryView } from "@/views/HistoryView";
@@ -33,13 +34,8 @@ interface Props {
 export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches, sops, plans, restrictions }: Props) {
   const mine = tasks.filter((t) => t.contractor === contractor);
   const myRestrictions = useMemo(() => restrictionsForContractor(restrictions, tasks, contractor), [restrictions, tasks, contractor]);
-  // 3D 기본 날짜: 내 충돌 중 가장 높은 등급(같으면 먼저 시작하는 것)의 시작일 → 없으면 내 첫 작업 시작일
-  const defaultDate = useMemo(() => {
-    const top = [...conflicts].sort(
-      (a, b) => GRADE_RANK[b.conflict.grade] - GRADE_RANK[a.conflict.grade] || a.conflict.window_start.localeCompare(b.conflict.window_start),
-    )[0];
-    return (top?.conflict.window_start ?? [...mine].sort((a, b) => a.start.localeCompare(b.start))[0]?.start ?? "2027-01-21").slice(0, 10);
-  }, [conflicts, mine]);
+  // 기본 날짜는 오늘(일정 기간 밖이면 가장 가까운 공사일). 계획서를 낸 직후 한 번만 그 제출이 낸 충돌 날로 간다
+  const defaultDate = useDefaultBoardDate({ plans, conflicts, tasks });
   // 날짜·탭은 헤더(AppHeader)와 같이 쓴다
   const { date, setDate, tab, setTab } = useShell();
   const zoneName = (id: string) => zones.find((z) => z.id === id)?.name ?? id;
@@ -65,7 +61,7 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
 
   return (
     <div className="grid gap-4">
-      {/* 계획서 올리기는 헤더 버튼(UploadDialog)으로 옮겼다. 여기에는 올린 계획서의 승인 상태만 남긴다 */}
+      {/* F5 원청 승인: 내 최근 제출의 승인 상태 (승인 대기면 3D·현황에 아직 확정으로 들어가지 않는다) */}
       {latestPlan && (
         <div className={`flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm ${latestPlan.status === "rejected" ? "border-red-300 bg-red-50" : latestPlan.status === "approved" ? "border-green-300 bg-green-50" : "border-amber-300 bg-amber-50"}`}>
           <PlanStatusChip status={latestPlan.status} />
@@ -79,7 +75,8 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
         </div>
       )}
 
-      <Tabs value={tab} onValueChange={setTab}>
+      {/* min-w-0: grid 칸이 시간표 최소 폭(860px)만큼 늘어나 좁은 화면 전체가 넓어지지 않게 (시간표는 자기 칸 안에서 가로 스크롤) */}
+      <Tabs value={tab} onValueChange={setTab} className="min-w-0">
 
         <TabsContent value="board">
           <BoardView
@@ -102,7 +99,7 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
         </TabsContent>
 
         <TabsContent value="tbm">
-          <TbmView role={{ kind: "contractor", contractor }} contractors={[contractor]} defaultDate={date} />
+          <TbmView role={{ kind: "contractor", contractor }} contractors={[contractor]} tasks={tasks} />
         </TabsContent>
 
         <TabsContent value="mine" className="rounded-lg bg-white p-4 text-sm shadow-sm">

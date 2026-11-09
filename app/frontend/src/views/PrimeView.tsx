@@ -8,11 +8,11 @@ import { ConflictList } from "@/components/ConflictList";
 import { RiskWindowList } from "@/components/RiskWindowList";
 import { SopMatchPanel } from "@/components/SopMatchPanel";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { GRADE_RANK } from "@/lib/format";
 import { usePerson } from "@/lib/person";
 import { groupByZone, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
 import { useShell, useShellRegister } from "@/lib/shell";
-import type { AdjustmentResult, ConflictRecord, PlanRecord, RiskWindow, SopInfo, SopMatch, Task, Zone } from "@/types";
+import { useDefaultBoardDate } from "@/lib/siteDate";
+import type { AdjustmentResult, ConflictRecord, PlanRecord, RiskWindow, SopInfo, SopMatch, Task, ViewerRole, Zone } from "@/types";
 import { ApprovalPanel } from "@/views/ApprovalPanel";
 import { HistoryView } from "@/views/HistoryView";
 import { RestrictionPanel } from "@/views/RestrictionPanel";
@@ -31,21 +31,12 @@ interface Props {
   restrictions: ZoneRestriction[]; // 금지 판정 → 구역별 출입 제한 (안내 패널·3D 공용)
   onAdjusted: (result: AdjustmentResult) => void;
   onReload: () => void; // 협력사 공유 뒤 다시 불러오기
+  onViewAs?: (role: ViewerRole) => void; // 이력 > 공유 현황의 [그 회사 화면으로 보기]
 }
 
-// 지금 보는 날짜는 ShellProvider 가 들고 있다 (AI 챗봇의 '오늘'도 App 이 거기서 읽는다) — onDateChange 를 더 받지 않는다
-export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onReload }: Props) {
-  // 기본 날짜: 가장 최근 제출한 협력사의 작업이 걸린 충돌 중 가장 높은 등급(같으면 먼저 시작)의 시작일.
-  // 제출 직후 그 협력사가 낸 충돌이 있는 날로 바로 간다. 제출이 없으면 기준 일정의 한 날
-  const defaultDate = useMemo(() => {
-    const latest = [...plans].sort((a, b) => b.id - a.id)[0];
-    if (!latest) return "2027-01-21";
-    const mine = new Set(tasks.filter((t) => t.contractor === latest.contractor).map((t) => t.id));
-    const top = conflicts
-      .filter((r) => r.conflict.task_ids.some((id) => mine.has(id)))
-      .sort((a, b) => GRADE_RANK[b.conflict.grade] - GRADE_RANK[a.conflict.grade] || a.conflict.window_start.localeCompare(b.conflict.window_start))[0];
-    return (top?.conflict.window_start ?? "2027-01-21").slice(0, 10);
-  }, [conflicts, tasks, plans]);
+export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onReload, onViewAs }: Props) {
+  // 기본 날짜는 오늘(일정 기간 밖이면 가장 가까운 공사일). 계획서를 낸 직후 한 번만 그 제출이 낸 충돌 날로 간다
+  const defaultDate = useDefaultBoardDate({ plans, conflicts, tasks });
   // 날짜·탭은 헤더(AppHeader)와 같이 쓴다. 고른 날짜는 새로고침해도 남고, 새 제출이 오면 App 이 지워 새 충돌 날짜로 간다
   const { date, setDate, tab, setTab } = useShell();
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
@@ -105,7 +96,7 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
   // 헤더 탭 (시안처럼 화면 위 머리에 둔다)
   useShellRegister(defaultDate, [
     { value: "board", label: "현재 상황판" },
-    { value: "approval", label: "승인", count: pendingPlans.length },
+    { value: "approval", label: "승인", count: pendingPlans.length }, // F5 원청 승인: 승인 대기 계획서 수
     { value: "scene3d", label: "3D · 충돌" },
     { value: "conflicts", label: "충돌 목록", count: open.length },
     { value: "restrictions", label: "출입 제한", count: blockedZones },
@@ -124,7 +115,8 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
 
   return (
     <div className="grid gap-4">
-      <Tabs value={tab} onValueChange={setTab}>
+      {/* min-w-0: grid 칸이 시간표 최소 폭(860px)만큼 늘어나 좁은 화면 전체가 넓어지지 않게 (시간표는 자기 칸 안에서 가로 스크롤) */}
+      <Tabs value={tab} onValueChange={setTab} className="min-w-0">
 
         <TabsContent value="board" className="grid gap-4">
           {/* 시안 상황판(#board) 레이아웃을 서버 데이터로: 숫자 띠 · 30분 칸 시간표 · 위험 시간대 띠 · 조치 카드 · 충돌 상세 */}
@@ -269,13 +261,13 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
           <TbmView
             role={{ kind: "prime" }}
             contractors={allContractors.filter((c) => c.startsWith("가상-"))}
+            tasks={tasks}
             defaultContractor={latestPlan?.contractor}
-            defaultDate={date}
           />
         </TabsContent>
 
         <TabsContent value="history">
-          <HistoryView plans={plans} tasks={tasks} onAdjusted={onAdjusted} />
+          <HistoryView plans={plans} tasks={tasks} onAdjusted={onAdjusted} onViewAs={onViewAs} />
         </TabsContent>
       </Tabs>
     </div>
