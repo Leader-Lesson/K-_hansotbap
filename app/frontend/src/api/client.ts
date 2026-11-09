@@ -67,6 +67,8 @@ function qs(params: Record<string, string | boolean | undefined>): string {
 export const api = {
   zones: () => get<Zone[]>("/zones"),
   rules: () => get<Rule[]>("/rules"),
+  // '보는 사람'에서 고를 협력사 (일정과 따로 — 기준 일정을 꺼도 고를 수 있게)
+  contractors: () => get<string[]>("/contractors"),
   // 협력사로 보면 자기 작업 + 공유된 충돌의 상대 작업만 (상대 작업의 source 는 null). 원청은 비워 둔다
   tasks: (contractor?: string) => get<Task[]>(`/tasks${qs({ contractor })}`),
   overlaps: (contractor?: string) => get<OverlapCandidate[]>(`/overlaps${qs({ contractor })}`),
