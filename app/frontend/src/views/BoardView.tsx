@@ -85,7 +85,18 @@ export function BoardView({ role, date, setDate, zones, tasks, conflicts, plans,
 
   // 위험 시간대(F9)·적용 중인 조정(점선 막대)·TBM 확인(F7): 판정이 바뀌면(conflicts) 다시 받는다
   useEffect(() => {
-    api.riskWindows({ on: date, contractor: me }).then(setRisk).catch(() => setRisk([]));
+    let stale = false; // 날짜·판정이 바뀌면 늦게 온 이전 응답을 버린다
+    api
+      .riskWindows({ on: date, contractor: me })
+      .then((w) => {
+        if (!stale) setRisk(w);
+      })
+      .catch(() => {
+        if (!stale) setRisk([]);
+      });
+    return () => {
+      stale = true;
+    };
   }, [date, me, conflicts]);
   useEffect(() => {
     api

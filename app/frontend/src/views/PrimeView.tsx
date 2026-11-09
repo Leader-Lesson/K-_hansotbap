@@ -1,7 +1,7 @@
 // 원청 대시보드(현재상황판): 상단 요약 + [현황판: 상황판(BoardView, 시안 #board 레이아웃) + 위험 시간대 공지 + 오늘 출입 제한] / [3D·충돌: scene3d]
 // / [충돌 목록: 규칙·조문·원문·조정안·협력사 공유] / [표준서 매칭] / [TBM 확인] / [이력]
 // TODO: 음성으로 묻기(F6)
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/api/client";
 import { ConflictFilter, useConflictFilter } from "@/components/ConflictFilter";
 import { ConflictList } from "@/components/ConflictList";
@@ -29,12 +29,13 @@ interface Props {
   sops: SopInfo[]; // 원청 작업표준서 목록 (공통 4 + 작업별)
   plans: PlanRecord[]; // 제출 이력 (가장 최근 제출을 찾는 데 쓴다)
   restrictions: ZoneRestriction[]; // 금지 판정 → 구역별 출입 제한 (안내 패널·3D 공용)
+  contractors: string[]; // TBM 탭에서 고를 협력사 (제출 전에도 전체 목록)
   onAdjusted: (result: AdjustmentResult) => void;
   onReload: () => void; // 협력사 공유 뒤 다시 불러오기
   onViewAs?: (role: ViewerRole) => void; // 이력 > 공유 현황의 [그 회사 화면으로 보기]
 }
 
-export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onReload, onViewAs }: Props) {
+export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, restrictions, contractors: contractorOptions, onAdjusted, onReload, onViewAs }: Props) {
   // 기본 날짜는 오늘(일정 기간 밖이면 가장 가까운 공사일). 계획서를 낸 직후 한 번만 그 제출이 낸 충돌 날로 간다
   const defaultDate = useDefaultBoardDate({ plans, conflicts, tasks });
   // 날짜·탭은 헤더(AppHeader)와 같이 쓴다. 고른 날짜는 새로고침해도 남고, 새 제출이 오면 App 이 지워 새 충돌 날짜로 간다
@@ -57,13 +58,24 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
   // F9 그날의 위험 시간대: 판정·조정이 바뀌면(conflicts) 다시 부른다. polish 는 공지 문장만 LLM으로 다듬는다
   const [riskWindows, setRiskWindows] = useState<RiskWindow[]>([]);
   const [polishing, setPolishing] = useState(false);
+  // 날짜·판정이 바뀌면 늦게 온 이전 응답을 버린다
+  const riskRequest = useRef(0);
   useEffect(() => {
-    api.riskWindows({ on: date }).then(setRiskWindows).catch(() => setRiskWindows([]));
+    const id = ++riskRequest.current;
+    api.riskWindows({ on: date })
+      .then((rows) => {
+        if (id === riskRequest.current) setRiskWindows(rows);
+      })
+      .catch(() => {
+        if (id === riskRequest.current) setRiskWindows([]);
+      });
   }, [date, conflicts]);
   const polishNotices = async () => {
+    const id = ++riskRequest.current;
     setPolishing(true);
     try {
-      setRiskWindows(await api.riskWindows({ on: date, polish: true }));
+      const rows = await api.riskWindows({ on: date, polish: true });
+      if (id === riskRequest.current) setRiskWindows(rows);
     } catch {
       // LLM 이 안 되면 규칙 문장 그대로 둔다
     } finally {
@@ -260,7 +272,7 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
         <TabsContent value="tbm">
           <TbmView
             role={{ kind: "prime" }}
-            contractors={allContractors.filter((c) => c.startsWith("가상-"))}
+            contractors={contractorOptions}
             tasks={tasks}
             defaultContractor={latestPlan?.contractor}
           />
