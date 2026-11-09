@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 
-from rules.data_loader import load_wbs_tasks
+from rules.data_loader import load_wbs_tasks, wbs_parent
 from rules.sop_steps import check_steps
 from schemas import SopMatch, SourceLine, Task
 
@@ -32,7 +32,7 @@ _BASIS_LABEL = {"wbs_example": "원청 적용 목록", "name": "작업명", "haz
 
 
 def _wbs_ids() -> set[str]:
-    return {t.id for t in load_wbs_tasks()}
+    return {wbs_parent(t.id) for t in load_wbs_tasks()}  # 세부 작업(P13-1)은 기준 작업 ID(P13)로
 
 
 def _embedding_search(embedder: Embedder | None) -> SopEmbeddingSearch | None:
@@ -46,7 +46,7 @@ def _embedding_search(embedder: Embedder | None) -> SopEmbeddingSearch | None:
 def _score(task: Task, sop: Sop, wbs_ids: set[str], sim: float | None) -> tuple[float, list[str]]:
     basis: list[str] = []
     score = 0.0
-    if task.id in wbs_ids and task.id in sop.wbs_examples:
+    if wbs_parent(task.id) in wbs_ids and wbs_parent(task.id) in sop.wbs_examples:  # 세부 작업(P13-2)은 기준 작업 표준서
         basis.append("wbs_example")
         score += W_EXAMPLE
     if any(k in task.name for k in sop.name_keywords):

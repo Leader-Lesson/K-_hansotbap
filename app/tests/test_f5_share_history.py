@@ -100,6 +100,14 @@ def test_export_marks_synthetic_data_and_never_writes_formulas():
     assert not any("HYPERLINK" in str(c.value) or c.value == TARGET for row in outsider.iter_rows() for c in row)
 
 
+def _submit_wide_scaffold() -> None:
+    """비계N 이 전 구역 비계(P30)를 01-01~03-05 로 길게 잡아 낸다 → 위치 모르는 전 구역 작업 묶음(R17:P30>ALL)이 생긴다.
+    기준 일정은 충돌 0건이라 묶음 충돌을 보려면 이렇게 일정을 바꾼 제출이 있어야 한다."""
+    p30 = next(t for t in _get("/api/tasks") if t["id"] == "P30") | {"start": "2027-01-01T07:00:00", "end": "2027-03-05T19:00:00"}
+    res = client.post("/api/plans/submit", json={"contractor": "가상-비계N", "file": "비계N_전구역.hwpx", "tasks": [p30]})
+    assert res.status_code == 200, res.text
+
+
 def _bundles_with(contractor: str) -> tuple[dict[str, dict], set[str], list[dict]]:
     """현재 일정, 이 업체의 작업, 그 작업이 들어 있는 전 구역 묶음 충돌(…>ALL, 원청이 보는 그대로)."""
     tasks = {t["id"]: t for t in _get("/api/tasks")}
@@ -114,6 +122,7 @@ def _bundles_with(contractor: str) -> tuple[dict[str, dict], set[str], list[dict
 def test_all_zone_bundle_is_scoped_to_contractor():
     """전 구역 작업 묶음을 공유해도 협력사는 '전 구역 작업 + 자기 작업'의 겹침만 받는다 (다른 업체 일정은 비공개)."""
     _submit_s1()
+    _submit_wide_scaffold()
     tasks, mine, bundles = _bundles_with(PIPE)
     assert bundles and max(len(b["task_ids"]) for b in bundles) > 10  # 원청에게는 묶음 전체
     assert _share(*(b["id"] for b in bundles)).status_code == 200
@@ -142,6 +151,7 @@ def test_all_zone_bundle_is_scoped_to_contractor():
 def test_all_zone_owner_keeps_whole_bundle():
     """전 구역 작업을 낸 업체에게는 묶음 전체가 자기 작업의 상대다 (위치를 정하면 작업별로 다시 판정된다)."""
     _submit_s1()
+    _submit_wide_scaffold()
     schedule = current_schedule()
     bundle = next(r.conflict for r in list_conflicts() if r.conflict.id.endswith(">ALL"))
     owner = next(t.contractor for t in schedule if t.id == bundle.task_ids[0])

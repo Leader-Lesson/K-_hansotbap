@@ -54,14 +54,14 @@ def test_submit_replaces_baseline_and_revision_supersedes():
     assert isinstance(out["conflicts"], list)  # 제출한 협력사에게 공유된 충돌만 온다 (원청 공유 전이면 빈 목록)
 
     schedule = {t["id"]: t for t in client.get("/api/tasks").json()}
-    assert len(schedule) == 37
+    assert len(schedule) == 39
     assert schedule["P34"]["start"] == "2027-02-25T08:00:00"  # 앞당긴 계획이 기준 일정을 대체
 
     # 같은 업체가 다시 제출하면 예전 제출분은 빠진다 → P33은 기준 일정으로 돌아간다
     res2 = client.post("/api/plans/submit", json={"contractor": "가상-배관O", "file": "배관O_v2.xlsx", "tasks": tasks[:1]})
     assert res2.json()["plan"]["version"] == 2
     schedule = {t["id"]: t for t in client.get("/api/tasks").json()}
-    assert schedule["P33"]["start"] == "2027-02-20T07:00:00"
+    assert schedule["P33"]["start"] == "2027-02-07T07:00:00"
     assert [p["version"] for p in client.get("/api/plans").json()] == [1, 2]
 
 

@@ -11,12 +11,12 @@ from main import app
 
 client = TestClient(app)
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"
-PIPE_FILE = "가상-배관O_가스라인_복구_작업계획서.hwpx"
+PIPE_FILE = "S1_가상-배관O_가스라인_앞당김_작업계획서.hwpx"  # 겹치는 파일(시연 S1)
 S1 = "R08:P22>P34"
 
 
 def _submit_pipe() -> int:
-    ext = client.post("/api/plans", files={"file": (PIPE_FILE, (SAMPLES / PIPE_FILE).read_bytes(), "application/octet-stream")}).json()
+    ext = client.post("/api/plans", files={"file": (PIPE_FILE, (SAMPLES / "겹침" / PIPE_FILE).read_bytes(), "application/octet-stream")}).json()
     res = client.post(
         "/api/plans/submit",
         json={"contractor": "가상-배관O", "file": PIPE_FILE, "tasks": [t["task"] for t in ext["tasks"]], "draft_id": ext["draft_id"], "submitted_by": "배관O 현장소장"},
@@ -78,7 +78,7 @@ def test_reject_removes_plan_from_schedule_and_resolves_its_conflicts():
     assert plans[pid]["status"] == "rejected"
     # 반려된 제출분의 작업은 일정에서 빠지고(기준 일정 P34로 돌아감) 그 충돌은 해소로 적힌다
     p34 = next(t for t in client.get("/api/tasks").json() if t["id"] == "P34")
-    assert p34["plan_status"] is None and p34["start"].startswith("2027-03-04")
+    assert p34["plan_status"] is None and p34["start"].startswith("2027-03-06")
     assert S1 not in {r["conflict"]["id"] for r in client.get("/api/conflicts").json()}
     kinds = {(e["kind"], e["target_id"]) for e in client.get("/api/history").json()}
     assert ("plan_rejected", f"plan-{pid}") in kinds

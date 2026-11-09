@@ -16,7 +16,7 @@ from datetime import datetime
 
 from config import settings
 from rules.adjust import apply_adjustments, diff_conflicts
-from rules.data_loader import load_rules, load_wbs_tasks, load_zones
+from rules.data_loader import load_rules, load_wbs_tasks, load_zones, wbs_parent
 from rules.engine import detect_conflicts, detect_sequence_violations, is_all_zone_conflict, scope_all_zone_conflict
 from search.sop_match import match_plan
 from schemas import (
@@ -118,7 +118,9 @@ def base_schedule() -> list[Task]:
             for t in conn.execute("SELECT payload FROM tasks WHERE plan_id = ?", (row["plan_id"],)):
                 task = Task.model_validate_json(t["payload"])
                 tasks[task.id] = task.model_copy(update={"plan_status": PlanStatus(status or "pending")})
-    return list(tasks.values())
+    # 세부 작업(P13-1 …)으로 나눠 낸 기준 작업은 기준 한 덩어리(P13) 대신 세부 작업들로 판정한다
+    split = {wbs_parent(i) for i in tasks if wbs_parent(i) != i}
+    return [t for i, t in tasks.items() if i not in split]
 
 
 def _fits(adj: Adjustment, raw: dict[str, Task]) -> bool:

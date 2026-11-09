@@ -12,7 +12,7 @@ XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 # S1 핵심 장면: 앞당긴 질소·가스 라인 연결(P34)이 노 내부 작업 두 건보다 먼저 시작한다
 # P21 풍구 레벨 내화물(2/25 종료) / P22 노복~노흉 축조(3/2 종료) — 둘 다 P34의 선행 작업이다
 # 판정은 일정 전체를 보므로 기본 일정의 다른 충돌(R16·R18 등)도 함께 저장된다. 여기서는 S1 순서 위반만 따라간다
-S1_CONFLICTS = {"R08:P21>P34", "R08:P22>P34"}
+S1_CONFLICTS = {"R08:P22>P34", "R07:P22>P34"}
 P22_CONFLICT = "R08:P22>P34"
 
 
@@ -91,10 +91,10 @@ def test_contractor_sees_only_conflicts_on_own_tasks():
 
 def test_rejudge_marks_vanished_conflicts_resolved():
     submit_s1()
-    # 조정안 적용 = 수정 계획서 재제출. P34를 노 내부 작업 완료(2027-03-02) 뒤로 되돌린다
+    # 조정안 적용 = 수정 계획서 재제출. P34를 노 내부 작업 완료(2027-03-05) 뒤로 되돌린다
     p34 = next(t for t in client.get("/api/tasks").json() if t["id"] == "P34") | {
-        "start": "2027-03-04T07:00:00",
-        "end": "2027-03-12T19:00:00",
+        "start": "2027-03-06T07:00:00",
+        "end": "2027-03-11T12:00:00",
     }
     res = client.post(
         "/api/plans/submit", json={"contractor": "가상-배관O", "file": "배관O_조정판.xlsx", "tasks": [p34]}
@@ -115,7 +115,7 @@ def test_adjusted_status_survives_rejudge():
     submit_s1()  # 같은 계획을 다시 제출 → 같은 충돌이 다시 나온다
     records = client.get("/api/conflicts").json()
     assert one(records, P22_CONFLICT)["status"] == "adjusted"
-    assert one(records, "R08:P21>P34")["status"] == "open"
+    assert one(records, "R07:P22>P34")["status"] == "open"
 
 
 def test_plan_id_is_the_submission_that_revealed_the_conflict():
@@ -123,9 +123,13 @@ def test_plan_id_is_the_submission_that_revealed_the_conflict():
     (상황판 '이 제출로 새로 드러난 충돌'·충돌 목록 '최근 제출' 필터가 이 값을 쓴다)."""
     from db.seed import seed_demo
 
-    seeded = seed_demo()
+    seed_demo()  # 기준 일정과 같은 제출 2건 → 충돌 0건
+    assert client.get("/api/conflicts").json() == []
+    # S2: 기계J 가 노정 설치(P23) 완료를 02-20 으로 늦춰 낸다 → 위아래 충돌을 이 제출이 드러낸다
+    p23 = next(t for t in client.get("/api/tasks").json() if t["id"] == "P23") | {"end": "2027-02-20T19:00:00"}
+    first = client.post("/api/plans/submit", json={"contractor": "가상-기계J", "file": "S2.pdf", "tasks": [p23]}).json()["plan"]["id"]
     before = {r["conflict"]["id"]: r["plan_id"] for r in client.get("/api/conflicts").json()}
-    assert before and set(before.values()) <= {p.id for p in seeded}
+    assert before and set(before.values()) == {first}
 
     plan_id = submit_s1()["plan"]["id"]
     after = {r["conflict"]["id"]: r["plan_id"] for r in client.get("/api/conflicts").json()}

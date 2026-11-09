@@ -7,8 +7,9 @@ from rules.engine import detect_conflicts, detect_sequence_violations, grade_of
 from schemas import ConflictType, Grade, Hazard
 
 # D0 = 2026-11-12(config.project_d0). 작업은 시작일 07시 ~ 종료일 19시로 읽는다(data_loader)
-D105 = datetime(2027, 2, 25, 7)  # S1: P34를 앞당긴 날. P22(~D110), P21(~D105)이 아직 안 끝났다
-D111 = datetime(2027, 3, 3, 7)  # P22(03-02 19시)가 끝난 다음 날. 조정안 적용 뒤
+D106 = datetime(2027, 2, 26, 7)  # S1: P34를 앞당긴 날. P22(~03-05 12시)가 아직 안 끝났다. P21(~02-22)은 끝났다
+D106_END = datetime(2027, 3, 3, 12)  # 앞당긴 계획서의 종료(겹침/S1 파일과 같다)
+D111 = datetime(2027, 3, 6, 7)  # P22(03-05 12시)가 끝난 다음 날 = 기준 시작일. 조정안 적용 뒤
 
 
 def _with_p34(**update):
@@ -22,20 +23,20 @@ def test_baseline_schedule_has_no_sequence_violation():
 
 
 def test_s1_p34_before_p22_done_is_prohibited_sequence_violation():
-    conflicts = detect_sequence_violations(_with_p34(start=D105), load_rules())
+    conflicts = detect_sequence_violations(_with_p34(start=D106, end=D106_END), load_rules())
 
-    # 선행 작업 중 P21(~D105 19시), P22(~D110 19시)가 아직 안 끝났다. P20(~D95)은 끝났다
-    assert [c.task_ids for c in conflicts] == [["P21", "P34"], ["P22", "P34"]]
+    # 선행 작업 중 P22(~03-05 12시)가 아직 안 끝났다. P20(~02-09)·P21(~02-22)은 끝났다
+    assert [c.task_ids for c in conflicts] == [["P22", "P34"]]
 
-    c = conflicts[1]
+    c = conflicts[0]
     assert c.id == "R08:P22>P34"
     assert c.type == ConflictType.SEQUENCE
     assert c.grade == Grade.PROHIBITED
     assert c.rule_id == "R08"
     assert c.legal_basis  # 모든 판정에 근거
     assert "완료" in (c.suggestion or "")  # 조정안: 선행 작업 완료·인원 철수 확인 후 착수
-    assert c.window_start == D105
-    assert c.window_end == datetime(2027, 3, 2, 19)  # P22가 끝날 때까지
+    assert c.window_start == D106
+    assert c.window_end == D106_END  # 겹치는 끝: P22(03-05)보다 앞당긴 P34(03-03)가 먼저 끝난다
     assert [s.locator for s in c.sources] == ["P22", "P34"]  # 원문 위치
 
 
@@ -46,22 +47,22 @@ def test_after_adjustment_conflict_disappears():
 
 def test_non_gas_task_is_not_line_connection():
     # R08 후행 작업은 가스 계통 연결 작업이다. 가스 유형이 아니면 같은 일정이라도 R08에 걸리지 않는다
-    tasks = _with_p34(start=D105, hazards=[Hazard.HOT_WORK])
+    tasks = _with_p34(start=D106, hazards=[Hazard.HOT_WORK])
     assert detect_sequence_violations(tasks, load_rules()) == []
 
 
 def test_detect_conflicts_includes_sequence_violations():
-    tasks = _with_p34(start=D105)
+    tasks = _with_p34(start=D106)
     got = detect_conflicts(tasks, load_zones(), load_rules())
     # 전체 판정에는 다른 규칙(R07 등)도 함께 나온다. R08만 골라 보면 순서 위반 2건이다
-    assert [c.id for c in got if c.rule_id == "R08"] == ["R08:P21>P34", "R08:P22>P34"]
+    assert [c.id for c in got if c.rule_id == "R08"] == ["R08:P22>P34"]
 
 
 def test_detect_sequence_violations_works_without_rules_argument():
     # 제출 판정(db/plans.py judge)이 규칙 인자 없이 detect_sequence_violations(tasks) 로 부른다
-    tasks = _with_p34(start=D105)
+    tasks = _with_p34(start=D106)
     assert detect_sequence_violations(tasks) == detect_sequence_violations(tasks, load_rules())
-    assert [c.id for c in detect_sequence_violations(tasks)] == ["R08:P21>P34", "R08:P22>P34"]
+    assert [c.id for c in detect_sequence_violations(tasks)] == ["R08:P22>P34"]
 
 
 def test_grade_of_maps_csv_judgement_to_three_levels():
