@@ -47,7 +47,7 @@ class Settings(BaseSettings):
 
     # DB·서버
     db_path: Path = BACKEND_DIR / "hansotbap.db"
-    cors_origins: list[str] = ["http://localhost:5173"]
+    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:5174"]
 
     # 시연 기준: 광양 2고로 개수 D0
     project_d0: str = "2026-11-12"
