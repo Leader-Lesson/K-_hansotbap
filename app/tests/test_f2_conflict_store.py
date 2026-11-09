@@ -11,8 +11,13 @@ XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 # S1 핵심 장면: 앞당긴 질소·가스 라인 연결(P34)이 노 내부 작업 두 건보다 먼저 시작한다
 # P21 풍구 레벨 내화물(2/25 종료) / P22 노복~노흉 축조(3/2 종료) — 둘 다 P34의 선행 작업이다
+# 판정은 일정 전체를 보므로 기본 일정의 다른 충돌(R16·R18 등)도 함께 저장된다. 여기서는 S1 순서 위반만 따라간다
 S1_CONFLICTS = {"R08:P21>P34", "R08:P22>P34"}
 P22_CONFLICT = "R08:P22>P34"
+
+
+def s1_ids(records: list[dict]) -> set[str]:
+    return {r["conflict"]["id"] for r in records} & S1_CONFLICTS
 
 
 def ids(records: list[dict]) -> set[str]:
@@ -46,11 +51,11 @@ def test_no_conflicts_before_any_submission():
 
 def test_submit_persists_conflict_so_refresh_keeps_it():
     out = submit_s1()
-    assert {c["id"] for c in out["conflicts"]} == S1_CONFLICTS
+    assert {c["id"] for c in out["conflicts"] if c["rule_id"] == "R08"} == S1_CONFLICTS
 
     # 제출 응답을 버리고 다시 조회해도(= 판정 후 화면 강제 새로고침) 남아 있다
     records = client.get("/api/conflicts").json()
-    assert ids(records) == S1_CONFLICTS
+    assert s1_ids(records) == S1_CONFLICTS
     rec = one(records, P22_CONFLICT)
     assert rec["status"] == "open" and rec["resolved_at"] is None
     assert rec["plan_id"] == out["plan"]["id"] and rec["judged_at"]
@@ -60,10 +65,13 @@ def test_submit_persists_conflict_so_refresh_keeps_it():
 def test_contractor_sees_only_conflicts_on_own_tasks():
     submit_s1()
     # 배관O(P34)와 축로I(P21·P22) 양쪽에 보인다 — 혼재작업 조정에 두 업체가 다 필요하다
-    assert ids(client.get("/api/conflicts", params={"contractor": "가상-배관O"}).json()) == S1_CONFLICTS
-    assert ids(client.get("/api/conflicts", params={"contractor": "가상-축로I"}).json()) == S1_CONFLICTS
-    # 무관한 업체는 못 본다 (권한은 서버에서 거른다)
-    assert client.get("/api/conflicts", params={"contractor": "가상-기계J"}).json() == []
+    assert s1_ids(client.get("/api/conflicts", params={"contractor": "가상-배관O"}).json()) == S1_CONFLICTS
+    assert s1_ids(client.get("/api/conflicts", params={"contractor": "가상-축로I"}).json()) == S1_CONFLICTS
+    # 무관한 업체는 S1 충돌을 못 보고, 자기 작업이 걸린 충돌만 본다 (권한은 서버에서 거른다)
+    others = client.get("/api/conflicts", params={"contractor": "가상-기계J"}).json()
+    assert s1_ids(others) == set()
+    own = {t["id"] for t in client.get("/api/tasks").json() if t["contractor"] == "가상-기계J"}
+    assert all(own & set(r["conflict"]["task_ids"]) for r in others)
 
 
 def test_rejudge_marks_vanished_conflicts_resolved():
@@ -76,12 +84,12 @@ def test_rejudge_marks_vanished_conflicts_resolved():
     res = client.post(
         "/api/plans/submit", json={"contractor": "가상-배관O", "file": "배관O_조정판.xlsx", "tasks": [p34]}
     )
-    assert res.json()["conflicts"] == []
+    assert not {c["id"] for c in res.json()["conflicts"]} & S1_CONFLICTS
 
-    assert client.get("/api/conflicts").json() == []  # 기본 조회에서는 빠진다
+    assert s1_ids(client.get("/api/conflicts").json()) == set()  # 기본 조회에서는 빠진다
     history = client.get("/api/conflicts", params={"include_resolved": "true"}).json()
-    assert ids(history) == S1_CONFLICTS  # 없어졌다는 사실은 F5 이행 기록으로 남는다
-    assert all(r["status"] == "resolved" and r["resolved_at"] for r in history)
+    assert s1_ids(history) == S1_CONFLICTS  # 없어졌다는 사실은 F5 이행 기록으로 남는다
+    assert all(r["status"] == "resolved" and r["resolved_at"] for r in history if r["conflict"]["id"] in S1_CONFLICTS)
 
 
 def test_adjusted_status_survives_rejudge():

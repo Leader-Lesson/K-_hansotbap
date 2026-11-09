@@ -1,7 +1,12 @@
-"""테스트 공통: 임시 DB, 실제 LLM 호출 차단, 합성 계획서 파일 만들기 (모두 '합성 데이터', 협력사명 가상)."""
+"""테스트 공통: 임시 DB, 실제 LLM 호출 차단, 합성 계획서 파일 만들기 (모두 '합성 데이터', 협력사명 가상).
+
+파일 생성 함수는 lru_cache 로 한 번만 만든다. openpyxl·PyMuPDF가 저장 시각을 파일에 넣어서, 호출할 때마다
+바이트가 달라지면(초가 바뀌면) 같은 파일 재업로드 캐시 시험이 가끔 실패한다.
+"""
 
 import datetime as dt
 import zipfile
+from functools import lru_cache
 from io import BytesIO
 
 import pymupdf
@@ -22,6 +27,7 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(llm.extract, "get_provider", no_llm)
 
 
+@lru_cache
 def s1_xlsx() -> bytes:
     """S1 핵심 장면: 가상-배관O가 질소·가스 라인 연결(P34)을 노흉 축조(P22) 완료 전으로 앞당긴 엑셀 계획서."""
     wb = Workbook()
@@ -38,6 +44,7 @@ def s1_xlsx() -> bytes:
     return buf.getvalue()
 
 
+@lru_cache
 def free_text_xlsx() -> bytes:
     """머리글이 없는 줄글 양식 → 표 규칙으로 못 읽고 LLM 경로로 가야 한다."""
     wb = Workbook()
@@ -57,6 +64,7 @@ def _cell(text: str) -> str:
     return f"<hp:tc><hp:subList><hp:p><hp:run><hp:t>{text}</hp:t></hp:run></hp:p></hp:subList></hp:tc>"
 
 
+@lru_cache
 def hwpx_plan() -> bytes:
     rows = [["작업명", "위치", "기간"], ["노복~노흉 내화물 축조", "노흉", "2/5~3/2"]]
     table = "".join("<hp:tr>" + "".join(_cell(c) for c in r) + "</hp:tr>" for r in rows)
@@ -73,6 +81,7 @@ def hwpx_plan() -> bytes:
     return buf.getvalue()
 
 
+@lru_cache
 def pdf_plan() -> bytes:
     doc = pymupdf.open()
     page = doc.new_page()
