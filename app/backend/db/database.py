@@ -52,6 +52,9 @@ _ADDED_COLUMNS = {"plans": {"submitted_by": "TEXT", "draft_id": "TEXT"}}
 def connect(path: Path | None = None) -> sqlite3.Connection:
     conn = sqlite3.connect(path or settings.db_path)
     conn.row_factory = sqlite3.Row
+    # WAL: 읽기가 쓰기를 막지 않는다. 백엔드 한 대를 팀이 같이 쓸 때 "database is locked" 를 줄인다
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")  # 잠겨 있으면 5초 기다린다 [팀 설정값]
     return conn
 
 
