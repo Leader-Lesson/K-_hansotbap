@@ -1,5 +1,5 @@
-// F3 고로 3D·충돌 탭: public/scene3d(three.js 정적 화면)를 iframe으로 넣고 postMessage로 데이터·역할을 넘긴다
-// scene3d 쪽 메시지 규칙은 public/scene3d/src/app.js 의 'iframe 연동' 주석 참고
+// F3 고로 3D·충돌 탭: scene3d(Vite가 함께 빌드하는 /scene3d/index.html, three.js)를 iframe으로 넣고 postMessage로 데이터·역할을 넘긴다
+// scene3d 쪽 메시지 규칙은 app/frontend/scene3d/src/app.js 의 'iframe 연동' 주석 참고
 import { useEffect, useRef, useState } from "react";
 import type { ZoneRestriction } from "@/lib/restrictions";
 import type { Conflict, Task, ViewerRole } from "@/types";

@@ -15,10 +15,10 @@ const SEV_LABEL = { PROHIBITED: '금지', CONDITIONAL: '조건부', DEFECT: '결
 const DIR_KO = { N: '북쪽', E: '동쪽', S: '남쪽', W: '서쪽' };
 const KIND = {
   unfinished: { icon: '⏳', label: '미완료', color: '#8a5a00' },
-  overtime: { icon: '🕘', label: '잔업', color: '#1f5fbf' },
+  overtime: { icon: '🕘', label: '잔업', color: '#2462C8' },
   restriction: { icon: '⛔', label: '출입 제한', color: '#8a1c1c' },
   conflict: { icon: '⚠', label: '겹침 판정', color: '#e67e00' },
-  correction: { icon: '✎', label: '수정 사항', color: '#2f6f5e' },
+  correction: { icon: '✎', label: '수정 사항', color: '#2462C8' },
   next: { icon: '▶', label: '다음 조 착수', color: '#2f3d5c' },
 };
 const ORDER = ['conflict', 'restriction', 'unfinished', 'overtime', 'correction', 'next'];
@@ -96,7 +96,7 @@ const CSS = `
 .sh-acts{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:18px}
 .sh-btn{font-size:16px;font-weight:700;padding:10px 18px;border-radius:10px;border:1px solid #b9c0c8;background:#fff;color:#1f2933;cursor:pointer;min-height:44px}
 .sh-btn:hover{background:#f3f5f7}
-.sh-pri{background:#2f6f5e;border-color:#2f6f5e;color:#fff}
+.sh-pri{background:#2462C8;border-color:#2462C8;color:#fff}
 .sh-pri:hover{background:#255c4b}
 .sh-btn:disabled{background:#e6e9ec;border-color:#d0d5da;color:#8a939c;cursor:not-allowed}
 .sh-note{flex-basis:100%;font-size:15px;color:#5b6672}
@@ -107,11 +107,11 @@ const CSS = `
 .sh-f>label{display:block;font-weight:700;margin-bottom:6px}
 .sh-seg{display:flex;gap:8px}
 .sh-seg button{flex:1;font-size:17px;font-weight:700;padding:10px;border-radius:10px;border:1px solid #b9c0c8;background:#fff;cursor:pointer;min-height:46px}
-.sh-seg button.sh-on{background:#1f5fbf;border-color:#1f5fbf;color:#fff}
+.sh-seg button.sh-on{background:#2462C8;border-color:#2462C8;color:#fff}
 .sh-modal input[type=number],.sh-modal select,.sh-modal textarea{font-size:16px;padding:8px 10px;border:1px solid #b9c0c8;border-radius:8px;font-family:inherit;min-height:42px}
 .sh-modal input[type=number]{width:110px}
 .sh-modal textarea{width:100%;box-sizing:border-box;min-height:64px;margin-top:8px}
-.sh-win{font-size:22px;font-weight:700;color:#1f5fbf}
+.sh-win{font-size:22px;font-weight:700;color:#2462C8}
 .sh-warn{background:#fff8e6;border:1px solid #f0d48a;border-radius:8px;padding:10px 12px;color:#5a4a1a;font-size:15px}
 .sh-banner{position:absolute;left:12px;top:64px;z-index:20;display:flex;align-items:center;gap:12px;background:#fff4dc;border:1px solid #f0b84a;border-left:6px solid #f0b84a;border-radius:10px;padding:8px 10px 8px 14px;font-size:16px;color:#5a3d00;box-shadow:0 4px 14px rgba(0,0,0,.12);max-width:calc(100% - 24px)}
 .sh-banner b{font-weight:700}

@@ -857,10 +857,10 @@ function editTask(id,f,val){const t=task(id);if(!t)return;
   toast(`다시 대조했습니다 · 해소 ${resolved.length}건 · 새 충돌 ${added.length}건`);renderAll();}
 
 /* ================= 2. 3D · 충돌 (F3) ================= */
-/* 3D · 충돌 탭은 scene3d(app/frontend/public/scene3d) 하나만 쓴다. 데이터·역할·시각은 아래 s3Sync가 postMessage로 넘긴다 */
+/* 3D · 충돌 탭은 scene3d(app/frontend/scene3d) 하나만 쓴다. 데이터·역할·시각은 아래 s3Sync가 postMessage로 넘긴다 */
 function renderModel(){$("#s3card").hidden=false;s3Sync();}
 
-/* ================= scene3d 연동 (app/frontend/public/scene3d, 같은 출처 iframe + postMessage) =================
+/* ================= scene3d 연동 (app/frontend/scene3d, 같은 출처 iframe + postMessage) =================
    보내는 것: data{tasks, conflicts} (src/types.ts 모양) · role(ViewerRole + level) · time · selectTask
    받는 것: ready · select{taskId, zoneId} · decision{changeId, taskId, decision, by}
    협력사로 보면 권한 범위(자기 작업 + 영향을 주는 작업) 안의 작업만 넘긴다. 서버 권한 필터를 대신하지 않는다 */
