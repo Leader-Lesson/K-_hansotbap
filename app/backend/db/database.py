@@ -86,6 +86,16 @@ CREATE TABLE IF NOT EXISTS plan_documents (
     lines TEXT NOT NULL,                 -- 파서가 읽은 원문 줄 JSON (F8 필수 단계 확인·근거 표시)
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS history_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recorded_at TEXT NOT NULL,
+    label TEXT NOT NULL,                 -- 교대 인계·착수 승인·잔업 승인 … (F5 이행 기록의 '현장 기록')
+    actor TEXT,                          -- 책임자. 시스템이 남긴 기록은 NULL
+    contractors TEXT NOT NULL,           -- 관련 업체 JSON 목록 (협력사는 자기 업체가 든 기록만 본다)
+    detail TEXT NOT NULL,
+    rule_id TEXT,
+    legal_basis TEXT
+);
 """
 
 # 예전 스키마로 만든 DB 파일에 나중에 생긴 칸을 붙인다 (ALTER 로 붙이므로 NOT NULL 은 기본값을 둔다)

@@ -5,6 +5,7 @@
    왼쪽 목록: 구역마다 첫 줄(구역명 · 작업 n건 · 등급 점 · 출입 금지)만, 작업 줄은 선택한 구역만 펼침 */
 
 import { SEV, SEV_ORDER, TYPE_NAME, WORK_TYPE_NAME, LEVEL_NAME, fmtTime, fmtDateTime, barrierText } from './theme.js';
+import { contactFor, HQ_CONTACTS } from './contacts.js';
 
 // ---------- 공통 도구 ----------
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -16,7 +17,7 @@ const LV = { STOP: { cls: 'stop', label: '멈춤' }, CAUTION: { cls: 'caution', 
 
 /* 업체 이름·색: data.js COMPANIES를 쓰되 없으면 'A사' 식으로 */
 const CO_COLOR = { A: '#2e6fd0', B: '#8a3fa0', C: '#1f8a8a', D: '#b08300', E: '#a0522d', PRIME: '#2f3a44' };
-const coName = (cid) => (cid ? (cid === 'PRIME' ? '원청' : /^[A-Z]$/.test(cid) ? `${cid}사` : String(cid)) : '-');
+const coName = (cid) => (cid ? (cid === 'PRIME' ? '원청' : /^[A-Z]$/.test(cid) ? `${cid}사` : String(cid).replace(/^가상-/, '')) : '-');
 const coChip = (cid) => `<span class="p2-co"><i style="background:${CO_COLOR[cid] || '#8a939c'}"></i>${esc(coName(cid))}</span>`;
 
 const zoneMap = (zones) => new Map((zones || []).map((z) => [z.id, z]));
@@ -168,8 +169,6 @@ function conflictCard(c, ctx) {
   const names = sumNames(c, tasks);
   const when = `${tm(c.start, t)}–${tm(c.end, t)}`;
   const pend = c.pending ? '<span class="p2-pend">승인 시 생길 위험</span>' : '';
-  const srcs = (c.sources || []).map((x) => (typeof x === 'string' ? x : x?.text)).filter(Boolean).slice(0, 3);
-  const more = c.law_ref || c.rule_id || srcs.length;
   return `<details class="p2-card${sel ? ' p2-on' : ''}" data-p2key="${esc(key)}"${sel ? ' open' : openAttr(key, pro)} style="--sev:${s.color}">
     <summary class="p2-sum" data-conflict="${esc(c.id)}" title="${esc(`${s.label} · ${type} · ${names} · ${when}`)}"><span class="p2-sum-row">
       <span class="p2-sum-mark" style="color:${s.color}">${s.mark}</span>
@@ -183,12 +182,8 @@ function conflictCard(c, ctx) {
       <div class="p2-key">${keyLine(c, tasks, zm)}</div>
       ${c.reason ? `<p class="p2-reason">${esc(c.reason)}</p>` : ''}
       ${pro ? altSection(c, alternatives, role) : `<div class="p2-line"><b>알림 · 작업 계속</b>${c.suggestion?.text ? ` — 조치: ${esc(c.suggestion.text)}` : ''}</div>`}
-      ${more ? `<details class="p2-fold" data-p2key="${esc(detKey)}"${openAttr(detKey, false)}>
-        <summary>자세히</summary>
-        ${c.law_ref ? `<p class="p2-law">법 근거 · ${esc(c.law_ref)}</p>` : ''}
-        ${c.rule_id ? `<p class="p2-law">규칙 · ${esc(c.rule_id)}</p>` : ''}
-        ${srcs.length ? `<ul class="p2-src">${srcs.map((x) => `<li>“${esc(x)}”</li>`).join('')}</ul>` : ''}
-      </details>` : ''}
+      ${peopleBlock(c, tasks, role)}
+      ${evidenceFold(c, tasks, detKey)}
     </div>
   </details>`;
 }
@@ -308,17 +303,95 @@ export function renderLeft({ zones, tasks, conflicts, selectedZoneId, selectedTa
   </div>`;
 }
 
-// ---------- 오른쪽: 전체/층 개요 ----------
-export function renderRightIntro({ title, t, conflicts, tasks, allTasks, alternatives, actions, zones, role, selectedConflictId }) {
+// ---------- 담당자 연락처 · 근거 ----------
+const telA = (p) => `<a class="db-tel" href="tel:${esc(p.tel.replace(/-/g, ''))}">${esc(p.tel)}</a>`;
+function peopleBlock(c, tasks, role, hqKey) {
+  const ids = [...new Set([...(c.company_ids || []), ...tasksOf(c, tasks).map((x) => x.company_id)].filter(Boolean))];
+  const rows = ids.map((cid) => {
+    const p = contactFor(cid, role);
+    if (!p) return '';
+    if (p.masked) return `<li><span class="db-co">타사</span><span class="db-mut">담당자 연락은 원청을 통해</span></li>`;
+    return `<li><span class="db-co">${coChip(cid)}<small>${esc(p.trade)}</small></span><span>${esc(p.lead.name)} ${telA(p.lead)}</span><span>${esc(p.part.name)} ${telA(p.part)}</span></li>`;
+  }).join('');
+  const hq = HQ_CONTACTS[hqKey || (c.severity === 'PROHIBITED' ? 'safety' : 'schedule')];
+  return `<div class="db-people"><div class="db-lbl">담당자</div><ul>${rows}<li class="db-hq"><span class="db-co">원청</span><span>${esc(hq.team)} ${esc(hq.name)} ${telA(hq)}</span></li></ul></div>`;
+}
+function evidenceFold(c, tasks, key, open = false) {
+  const src = tasksOf(c, tasks).filter((x) => x.source && x.source.text);
+  if (!c.reason && !c.law_ref && !src.length && !c.rule_id) return '';
+  return `<details class="p2-fold db-ev" data-p2key="${esc(key)}"${openAttr(key, open)}>
+    <summary>근거 보기</summary>
+    ${c.reason ? `<div class="db-ev-row"><span class="db-lbl">왜 문제인가</span><p>${esc(c.reason)}</p></div>` : ''}
+    ${c.rule_id ? `<div class="db-ev-row"><span class="db-lbl">판정 규칙</span><p><code>${esc(c.rule_id)}</code> · ${esc(TYPE_NAME[c.type] || c.type || '')}</p></div>` : ''}
+    ${c.law_ref ? `<div class="db-ev-row"><span class="db-lbl">법 근거</span><p>${esc(c.law_ref)}</p></div>` : ''}
+    ${src.map((x) => `<div class="db-ev-row"><span class="db-lbl">계획서 원문</span><p><small>${esc(x.source.file || coName(x.company_id))}${x.source.locator ? ` · ${esc(x.source.locator)}` : ''}</small><br>“${esc(x.source.text)}”</p></div>`).join('')}
+  </details>`;
+}
+
+// ---------- 오른쪽: 전체 = 위험 대시보드 ----------
+/* 정보 나열 대신: 숫자 타일 → 지금 해결할 문제(담당자·근거) → 나머지는 한 줄씩 */
+function whenTxt(c, t) {
+  if (!t) return range(c.start, c.end, t);
+  if (c.start <= t && t < c.end) return `<b class="db-live">지금 진행 중</b> · ~${esc(tm(c.end, t))}`;
+  if (c.start > t) return `${esc(tm(c.start, t))} 시작 예정`;
+  return `${esc(tm(c.end, t))} 종료`;
+}
+function needTxt(c, alternatives) {
+  if (c.severity === 'PROHIBITED') return alternatives?.[c.id] ? '해야 할 일: 조정안 하나를 골라 겹침 없애기 (모두 멈추지 않음)' : '해야 할 일: 시간·위치를 조정해 겹침 없애기';
+  if (c.severity === 'CONDITIONAL') return `조건 지키고 진행${c.suggestion?.text ? ` — ${c.suggestion.text}` : ''}`;
+  return `계획서 보완${c.suggestion?.text ? ` — ${c.suggestion.text}` : ''}`;
+}
+function probCard(c, ctx, opts = {}) {
+  const { tasks, zm, alternatives, role, t } = ctx, s = sevOf(c.severity);
+  return `<article class="db-prob${opts.on ? ' db-on' : ''}" style="--sev:${s.color}">
+    <div class="db-prob-top"><span class="db-pill">${s.mark} ${esc(s.label)}</span><span class="db-type">${esc(TYPE_NAME[c.type] || '')}</span><span class="db-when">${whenTxt(c, t)}</span></div>
+    <button type="button" class="db-prob-title" data-conflict="${esc(c.id)}">${esc(c.title)}</button>
+    <div class="db-prob-key">${keyLine(c, tasks, zm)}</div>
+    <div class="db-need">${esc(needTxt(c, alternatives))}</div>
+    ${peopleBlock(c, tasks, role)}
+    ${evidenceFold(c, tasks, 'ev:' + c.id, !!opts.on)}
+    ${opts.on && c.severity === 'PROHIBITED' ? altSection(c, alternatives, role) : ''}
+    <div class="db-btns"><button type="button" class="db-btn" data-conflict="${esc(c.id)}">${opts.on ? '3D 강조 끄기' : '3D에서 보기'}</button></div>
+  </article>`;
+}
+function violCard(v, role, t) {
+  const p = contactFor(v.company, role), hq = HQ_CONTACTS.safety;
+  return `<article class="db-prob db-viol" style="--sev:${SEV.PROHIBITED.color}">
+    <div class="db-prob-top"><span class="db-pill">⚠ 출입 제한 위반</span><span class="db-when"><b class="db-live">지금</b></span></div>
+    <button type="button" class="db-prob-title" data-task="${esc(v.taskId)}">${esc(coName(v.company))} ${esc(shortTitle(v.title))}</button>
+    <div class="db-prob-key">${esc(v.zoneName || '')} · 안전띠·러버콘으로 막힌 ${esc((v.hit || v.dirs || []).map((d) => ({ N: '북', E: '동', S: '남', W: '서' }[d] || d)).join('·'))}쪽 안에서 작업</div>
+    <div class="db-need">해야 할 일: 사고 전에 시정 명령 (작업 위치 이동 또는 일시 중지)</div>
+    <div class="db-people"><div class="db-lbl">담당자</div><ul>${p && !p.masked ? `<li><span class="db-co">${coChip(v.company)}</span><span>${esc(p.lead.name)} ${telA(p.lead)}</span><span>${esc(p.part.name)} ${telA(p.part)}</span></li>` : ''}<li class="db-hq"><span class="db-co">원청</span><span>${esc(hq.team)} ${esc(hq.name)} ${telA(hq)}</span></li></ul></div>
+  </article>`;
+}
+export function renderRightIntro({ title, t, conflicts, tasks, allTasks, alternatives, zones, role, selectedConflictId, violations = [], pending = 0 }) {
   const zm = zoneMap(zones);
-  const list = sortConf(conflicts);
-  const acts = actions || deriveActions(list, tasks, alternatives, t);
+  const list = sortConf(conflicts).filter((c) => !t || !c.end || c.end > t);
   const ctx = { tasks, allTasks, zm, alternatives, role, t, selectedConflictId, scope: 'all' };
-  return `<div class="p2">
-    <div class="p2-head"><h2 class="p2-h2">${esc(title || '전체')}</h2><span class="p2-time p2-big">${esc(tm(t, t))} 기준</span></div>
-    ${actionBox(acts, t)}
-    <h3 class="p2-h3">걸린 위험 <b>${list.length}</b>건</h3>
-    ${conflictList(list, ctx, '이 시간에는 걸린 위험이 없습니다.')}
+  const n = (k) => list.filter((c) => c.severity === k).length;
+  const live = (c) => !t || (c.start <= t && t < c.end);
+  // 지금 해결할 문제: 고른 것 → 금지 → 지금 걸린 조건부 (최대 3개)
+  const sel = list.find((c) => c.id === selectedConflictId);
+  const top = [];
+  if (sel) top.push(sel);
+  for (const c of list) { if (top.length >= 3) break; if (top.includes(c)) continue; if (c.severity === 'PROHIBITED' || (c.severity === 'CONDITIONAL' && live(c) && top.length < 2)) top.push(c); }
+  const rest = list.filter((c) => !top.includes(c));
+  const nStop = n('PROHIBITED') + violations.length;
+  const tile = (k, label, v, sub) => `<div class="db-tile${v ? ' db-hot' : ''}" style="--sev:${k}"><b>${v}</b><span>${label}</span>${sub ? `<small>${sub}</small>` : ''}</div>`;
+  return `<div class="p2 db">
+    <div class="p2-head"><h2 class="p2-h2">${esc(title || '전체')} 위험 현황</h2><span class="p2-time p2-big">${esc(tm(t, t))} 기준</span></div>
+    <div class="db-status ${nStop ? 'bad' : list.length ? 'warn' : 'ok'}">${nStop ? `멈추기 전에 풀어야 할 문제 <b>${nStop}</b>건` : list.length ? '멈출 문제는 없음 · 조건 지키며 진행' : '✓ 지금 걸린 위험이 없습니다'}</div>
+    <div class="db-tiles">
+      ${tile(SEV.PROHIBITED.color, '금지', n('PROHIBITED'), '조정 필요')}
+      ${tile('#c62828', '구역 위반', violations.length, '시정 명령')}
+      ${tile(SEV.CONDITIONAL.color, '조건부', n('CONDITIONAL'), '알림만')}
+      ${tile(SEV.DEFECT.color, '결함', n('DEFECT'), '계획 보완')}
+      ${pending ? tile('#2e6fd0', '승인 대기', pending, '착수 전') : ''}
+    </div>
+    ${violations.length || top.length ? `<h3 class="p2-h3">지금 해결할 문제</h3>` : ''}
+    ${violations.slice(0, 2).map((v) => violCard(v, role, t)).join('')}
+    ${top.map((c) => probCard(c, ctx, { on: c.id === selectedConflictId })).join('')}
+    ${rest.length ? `<details class="p2-fold db-rest" data-p2key="db-rest"${openAttr('db-rest', false)}><summary>다른 위험 ${rest.length}건</summary><ul>${rest.map((c) => { const s = sevOf(c.severity); return `<li><button type="button" data-conflict="${esc(c.id)}"><span style="color:${s.color}">${s.mark}</span><span class="p2-time">${esc(tm(c.start, t))}</span><span class="db-rest-t">${esc(c.title)}</span></button></li>`; }).join('')}</ul></details>` : ''}
   </div>`;
 }
 
