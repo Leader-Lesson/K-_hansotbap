@@ -1,0 +1,8 @@
+#!/bin/sh
+# 커밋 메시지에서 도구가 자동으로 붙이는 서명·링크 줄을 지운다 (공개 저장소 규칙)
+msg="$1"
+tmp="$msg.clean"
+grep -viE '^[[:space:]]*(co-authored-by:.*(claude|anthropic)|.*generated with \[?claude|claude-session:|https?://claude\.ai/code)' "$msg" > "$tmp" || true
+# 끝에 남은 빈 줄 정리
+sed -e ':a' -e '/^[[:space:]]*$/{$d;N;ba' -e '}' "$tmp" > "$msg"
+rm -f "$tmp"

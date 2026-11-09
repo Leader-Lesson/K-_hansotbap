@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+:root {
+  font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background: #f6f5f2;
+  color: #1f2328;
+}
