@@ -1,0 +1,64 @@
+{
+  "mode": "rules",
+  "files": [
+    {
+      "file": "가상-기계J_장입설비_설치계획서.pdf",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 24,
+      "correct": 24,
+      "warnings": []
+    },
+    {
+      "file": "가상-배관O_가스라인_복구_작업계획서.hwpx",
+      "method": "table_rules",
+      "tasks_truth": 2,
+      "tasks_got": 2,
+      "cells": 16,
+      "correct": 16,
+      "warnings": []
+    },
+    {
+      "file": "가상-비계N_비계_설치해체_작업계획.hwpx",
+      "method": "table_rules",
+      "tasks_truth": 2,
+      "tasks_got": 2,
+      "cells": 16,
+      "correct": 15,
+      "warnings": []
+    },
+    {
+      "file": "가상-제관F_하강관_가스청정_보수계획.pdf",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 23,
+      "correct": 23,
+      "warnings": []
+    },
+    {
+      "file": "가상-축로I_노체축조_주간계획.xlsx",
+      "method": "table_rules",
+      "tasks_truth": 3,
+      "tasks_got": 3,
+      "cells": 24,
+      "correct": 24,
+      "warnings": []
+    }
+  ],
+  "cells": 103,
+  "correct": 102,
+  "missed_tasks": 0,
+  "extra_tasks": 0,
+  "wrong": [
+    {
+      "file": "가상-비계N_비계_설치해체_작업계획.hwpx",
+      "task": "노흉 내부 작업 비계 해체",
+      "field": "기준 일정 ID",
+      "truth": "P30",
+      "got": null
+    }
+  ],
+  "accuracy": 99.0
+}

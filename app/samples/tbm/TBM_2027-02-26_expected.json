@@ -1,0 +1,39 @@
+{
+  "audio": "TBM_2027-02-26_가상-배관O_합성음성.m4a",
+  "transcript_source": "TBM_대본_2027-02-26_풍구레벨_가상-배관O.md",
+  "date": "2027-02-26",
+  "zone_id": "TUYERE",
+  "contractor": "가상-배관O",
+  "synthetic": true,
+  "shared_items": [
+    {
+      "id": "S1-adjust",
+      "kind": "conflict_adjustment",
+      "text": "질소·가스·송풍 라인 복구 연결은 노흉 축조(P22) 완료·인원 철수 확인 후 2027-03-03 착수 (R08 조정안 적용)",
+      "keywords": ["라인 복구 연결", "3월 3일", "축조 완료", "인원 철수"],
+      "mentioned": true
+    },
+    {
+      "id": "RW-STACK-0226",
+      "kind": "risk_window",
+      "text": "2027-02-26~03-02 노흉 내부 밀폐공간 작업 중 — 같은 계통 가스 투입 금지, 맹판·LOTO 유지",
+      "keywords": ["맹판", "LOTO", "가스 투입 금지", "위험 시간대"],
+      "mentioned": false
+    },
+    {
+      "id": "NOTICE-bigye",
+      "kind": "notice",
+      "text": "가상-비계N 2027-03-01부터 노흉 내부 비계 해체, 풍구 레벨 자재 반입 동선 겹침 주의",
+      "keywords": ["비계 해체", "3월 1일", "반입 동선"],
+      "mentioned": true
+    },
+    {
+      "id": "SOP-04-step4",
+      "kind": "sop_step",
+      "text": "라인 연결 전 작업 전 가스 측정(LEL 10% 미만, O2 18~23.5%) 기록",
+      "keywords": ["가스 측정", "10퍼센트", "산소"],
+      "mentioned": true
+    }
+  ],
+  "expected_missing": ["RW-STACK-0226"]
+}
