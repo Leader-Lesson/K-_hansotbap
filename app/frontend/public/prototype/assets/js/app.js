@@ -88,16 +88,44 @@ const RULES={
  "R-SZ-01":{level:"금지",kind:"같은 시간·구역",title:"인양 반경 안 다른 업체 작업",law:["안전보건규칙 제14조 (낙하물에 의한 위험 방지)",LAW64],tbm:[{label:"인양 반경 출입 통제",all:[/인양|크레인/,/통제|출입\s?금지|접근\s?금지/]}]},
  "R-VT-01":{level:"조건부",kind:"위아래",title:"상부 인양 바로 아래 작업",law:["안전보건규칙 제14조 (낙하물에 의한 위험 방지)",LAW64],mitig:"방호선반을 설치하고, 노정 인양 시간에는 아래층 인원을 노외로 대피시키는 조건으로 동시 작업을 허용합니다.",tbm:[{label:"방호선반 설치 확인",all:[/방호선반|낙하물\s?방지/]},{label:"상부 인양 시 하부 대피",all:[/인양/,/대피|철수|비우/]}]},
  "R-HF-01":{level:"조건부",kind:"화기×가연물",title:"화기 작업 11m 안 가연물",law:["안전보건규칙 제241조 (화재위험작업 시의 준수사항)","안전보건규칙 제241조의2 (화재감시자)",LAW64],mitig:"불티 비산 방지포로 보온재 작업 구역을 막고 화재감시자를 배치하는 조건으로 동시 작업을 허용합니다.",tbm:[{label:"불티 비산 방지포 설치",all:[/불티|방지포|비산/]},{label:"화재감시자 배치",all:[/화재\s?감시자|감시자/]}]},
- "R-HG-01":{level:"금지",kind:"화기×가스",title:"화기 작업 11m 안 가스 작업",law:["안전보건규칙 제241조 (화재위험작업 시의 준수사항)",LAW64],tbm:[{label:"인접 화기작업 중지·가스 차단",all:[/가스|용접|화기/,/차단|중지|없/]}]},
+ "R-HG-01":{level:"금지",kind:"화기×가스",title:"화기 작업 11m 안 가스 작업",law:["안전보건규칙 제241조 (화재위험작업 시의 준수사항)",LAW64],tbm:[{label:"인접 화기작업 중지·가스 차단",all:[/가스|용접|화기/,/차단|중지|없/],confirm:/확인|중지|차단/}]},
  "R-CG-01":{level:"금지",kind:"같은 시간·구역",title:"축조 중 구역에 가스 라인 연결",law:["안전보건규칙 제619조 (밀폐공간 작업 프로그램의 수립·시행)",LAW64],tbm:[{label:"가스 라인 잠금·표지 유지",all:[/밸브|가스\s?라인|질소/,/잠금|태그|차단/]}]},
  "R-SQ-01":{level:"금지",kind:"작업 순서",title:"선행 작업 완료 전 착수",law:[LAW64,"안전보건규칙 제38조 (사전조사 및 작업계획서의 작성 등)"],tbm:[{label:"선행 작업 완료 확인",all:[/축조|선행/,/완료|끝/],confirm:/확인|받았|서명/},{label:"노내 인원 철수 확인",all:[/철수|사람\s?없|인원/],confirm:/확인|서명/}]},
  "R-DF-01":{level:"결함",kind:"계획 결함",title:"화기 작업 화재감시자 미기재",law:["안전보건규칙 제241조의2 (화재감시자)"],tbm:[{label:"화재감시자 배치",all:[/화재\s?감시자/]}]},
  "R-DF-03":{level:"결함",kind:"표준서 누락",title:"작업표준서 필수 단계 누락",law:["안전보건규칙 제38조 (사전조사 및 작업계획서의 작성 등)","원청 작업표준서"],tbm:[]}
 };
+/* 시연 녹음: 녹음 속 작업(tasks)이 그날 모두 진행 중일 때만 고른다 */
 const TBM_SAMPLES={
- C:{A:{file:"TBM_C사_0224_0650.m4a",len:"3분 12초",label:"녹음 A",text:"오늘 작업은 노 내부 중부 질소·가스 라인 연결입니다.\n원청에서 내려온 조정사항부터 전달합니다. 노흉 축조는 어제 완료됐고 A사 반장님께 완료 확인 받았습니다.\n노내 비계 해체도 끝났고, 노내 인원 철수 확인 서명까지 받았습니다.\n질소 밸브는 연결 끝날 때까지 잠금 걸고 태그 붙여둡니다.\n주변 용접 작업은 없는 것 확인했고 가스 차단 상태 유지합니다.\n연결 후 기밀시험까지 하고, 산소농도는 입구에서 한 번 더 재고 들어갑니다."},
-    B:{file:"TBM_C사_0224_0650_B.m4a",len:"1분 48초",label:"녹음 B",text:"오늘 노흉 질소 라인 연결 들어갑니다. 공정 급하니까 빨리 끝냅시다.\n노흉 축조는 끝났다고 들었습니다.\n질소 밸브 잠금 태그는 제가 확인했고요.\n보호구 착용 철저히 하고 안전대 걸고 작업하세요."}}
+ C:[{tasks:["T10","T21"],
+    A:{file:"TBM_C사_0115_0650.m4a",len:"2분 40초",label:"녹음 A",text:"오늘 C사 작업은 풍구 냉각수 배관 용단, 오후에 열풍로 BFG 배관 퍼지·연결입니다.\n원청에서 공유한 사항부터 전달합니다. 풍구 쪽은 오후에 D사가 보온재 교체를 하니까 용단 전에 불티 비산 방지포 먼저 설치합니다.\n화재감시자는 박 반장이 맡고 용단 끝날 때까지 자리 지킵니다.\n용단 자리마다 소화기 비치하고 시작합니다.\n열풍로 쪽 B사 연결관 용접은 퍼지 끝날 때까지 중지, 가스 차단 상태는 제가 확인했습니다.\n13시부터 14시까지는 겹치는 작업이 몰리는 위험 시간대라 서로 위치 알리면서 작업합니다.\n연결 후 기밀시험 하고, 들어가기 전에 산소농도 측정합니다."},
+    B:{file:"TBM_C사_0115_0650_B.m4a",len:"1분 05초",label:"녹음 B",text:"오늘 풍구 배관 용단하고 오후엔 열풍로 배관 연결합니다. 공정 밀렸으니 빨리 끝냅시다.\n소화기는 늘 있던 데 있습니다.\n열풍로 쪽 용접은 없다고 들었습니다.\n보호구 착용 철저히 하고 안전대 걸고 작업하세요."}},
+   {tasks:["T11"],
+    A:{file:"TBM_C사_0224_0650.m4a",len:"3분 12초",label:"녹음 A",text:"오늘 작업은 노 내부 중부 질소·가스 라인 연결입니다.\n원청에서 내려온 조정사항부터 전달합니다. 노흉 축조는 어제 완료됐고 A사 반장님께 완료 확인 받았습니다.\n노내 비계 해체도 끝났고, 노내 인원 철수 확인 서명까지 받았습니다.\n질소 밸브는 연결 끝날 때까지 잠금 걸고 태그 붙여둡니다.\n주변 용접 작업은 없는 것 확인했고 가스 차단 상태 유지합니다.\n연결 후 기밀시험까지 하고, 산소농도는 입구에서 한 번 더 재고 들어갑니다."},
+    B:{file:"TBM_C사_0224_0650_B.m4a",len:"1분 48초",label:"녹음 B",text:"오늘 노흉 질소 라인 연결 들어갑니다. 공정 급하니까 빨리 끝냅시다.\n노흉 축조는 끝났다고 들었습니다.\n질소 밸브 잠금 태그는 제가 확인했고요.\n보호구 착용 철저히 하고 안전대 걸고 작업하세요."}}]
 };
+const tbmSet=(p,d)=>(TBM_SAMPLES[p]||[]).find(x=>x.tasks.every(id=>{const t=task(id);return t&&actOn(t,d);}))||null;
+/* 보충 전달 시연 문장: 각 항목의 대조 조건을 만족하도록 쓴다 */
+const TBM_SAY={
+ "인양 반경 출입 통제":"인양 반경 안은 출입 통제합니다.",
+ "방호선반 설치 확인":"방호선반 설치 상태 확인하고 들어갑니다.",
+ "상부 인양 시 하부 대피":"노정에서 인양하는 동안 아래층 인원은 노외로 대피합니다.",
+ "불티 비산 방지포 설치":"용단 전에 보온재 쪽으로 불티 비산 방지포 설치합니다.",
+ "화재감시자 배치":"화재감시자는 박 반장이 맡아서 용단 끝날 때까지 자리 지킵니다.",
+ "인접 화기작업 중지·가스 차단":"옆 구역 용접은 우리 작업 끝날 때까지 중지, 가스 차단 상태는 제가 직접 확인했습니다.",
+ "가스 라인 잠금·표지 유지":"질소 밸브는 잠금 걸고 태그 붙여 둡니다.",
+ "선행 작업 완료 확인":"노흉 축조 완료는 A사 반장님께 직접 확인 받았습니다.",
+ "노내 인원 철수 확인":"노내 인원 철수는 명부로 확인하고 서명 받았습니다.",
+ "기밀시험 실시":"연결 끝나면 기밀시험 하고 나서 엽니다.",
+ "산소농도 측정":"들어가기 전에 입구에서 산소농도 측정합니다.",
+ "소화기 비치":"용단 자리마다 소화기 비치합니다.",
+ "노내 가스 농도 측정":"노내 가스 농도 측정하고 들어갑니다.",
+ "환기·산소농도 측정":"환기 돌리고 산소농도 재고 들어갑니다.",
+ "하부 출입 통제":"인양 중에는 하부 출입 통제합니다.",
+ "신호수 배치":"인양할 때 신호수 한 명 붙입니다.",
+ "인접 화기작업 확인":"옆에 용접 작업 없는지 확인하고 시작합니다.",
+ "안전대 체결":"높은 데서는 안전대 반드시 체결합니다."
+};
+const tbmSay=it=>TBM_SAY[it.label]||(it.say||`${it.label} 전달합니다.`);
 
 /* ================= 상태 ================= */
 let S, upTimer=null;
@@ -106,7 +134,7 @@ function fresh(){
   return {tasks,ver:{A:1,B:1,C:1,D:1,E:1},fst:{A:"ok",B:"ok",C:"ok",D:"ok",E:"ok"},files:[],role:"HQ",day:65,sel:null,
     conflicts:[],mitig:{},seen:new Set(),newKeys:new Set(),log:[],adjusted:[],shared:new Set(),riskSent:new Set(),banner:null,lastMs:0,lastApply:null,undo:null,
     chat:[],chatOpen:false,heard:null,drawer:null,upOpen:null,mmode:"conf",mview:"3d",mzone:null,
-    tbm:{p:"C",sample:"A",text:"",res:null,rec:false},hfilt:"전체",step:0,focus:null,ptab:"A",tbmLast:{},delays:{},urgent:[],useq:0,dform:{t:null,h1:null,why:""},events:[],holds:[],started:{},eseq:0,xseq:0,lvl:"hq",notes:[],notiOpen:false,mhour:10.5,extOpen:false,
+    tbm:{p:"C",sample:"A",text:"",rec:false,runs:{},key:null},hfilt:"전체",step:0,focus:null,ptab:"A",delays:{},urgent:[],useq:0,dform:{t:null,h1:null,why:""},events:[],holds:[],started:{},eseq:0,xseq:0,lvl:"hq",notes:[],notiOpen:false,mhour:10.5,extOpen:false,
     eform:{tab:"job",p:"C",name:"노 내부 중부 가스 배관 누설 긴급 차단",zone:"Z3",h0:13,h1:15,crew:4,types:["가스"],vk:"wind",vz:"Z3",vh1:15,secs:["N"]},
     review:Object.fromEntries(PARTNERS.map(p=>[p.id,{v:1,st:"반영"}])),
     hist:Object.fromEntries(PARTNERS.map(p=>[p.id,[{v:1,time:UPT[p.id],by:p.lead,st:"반영",note:"첫 제출 · 구조화 완료"}]]))};
@@ -451,7 +479,7 @@ function s5(){if(S.review.C.st!=="반려")s4();S.role="C";S.step=Math.max(S.step
 function s6(){ensureFixed();S.role="C";S.step=Math.max(S.step,6);S.drawer=null;go("board");renderAll();}
 function s7(){ensureFixed();S.role="HQ";S.day=65;S.focus="R-VT-01:T06-T02";S3.pendingSelect="T02";S.mmode="conf";S.mview="3d";S.drawer=null;S.step=Math.max(S.step,7);go("model");renderAll();}
 function s8(){ensureFixed();S.role="C";S.step=Math.max(S.step,8);S.chatOpen=true;renderAll();voiceAsk("내 작업과 겹치는 작업은?");}
-function s9(){ensureFixed();S.role="C";S.step=Math.max(S.step,9);S.day=105;S.tbm.p="C";S.tbm.sample="B";S.tbm.text=TBM_SAMPLES.C.B.text;S.tbm.res=null;S.chatOpen=false;S.drawer=null;go("tbm");runTbm();}
+function s9(){ensureFixed();S.role="C";S.step=Math.max(S.step,9);S.day=105;S.tbm.p="C";S.tbm.sample="B";S.tbm.key=tbmKey("C",105);S.tbm.text=tbmSet("C",105).B.text;S.chatOpen=false;S.drawer=null;go("tbm");renderAll();runTbm();}
 
 /* ================= 1. 현재 상황판 (시안4) ================= */
 function dayTasks(d){return S.tasks.filter(t=>actOn(t,d)&&own(t));}
@@ -478,7 +506,8 @@ function renderBoard(){
     stat("겹침",pair.length,"건",`조건부 ${open.filter(c=>c.level==="조건부").length} · 금지 ${ban}`),
     stat("금지",ban,"건","같이 하면 안 되는 조합",ban>0),
     stat("지금 진행 중 겹침",nowC.length,"건",nowC.length?esc(labelOf(nowC[0].key)):"없음"),
-    `<div class="stat"><span class="k">위험 시간대 <span class="fx">F9</span></span><span class="v"><span class="big t">${pk?hh(pk.h0):"—"}</span><small>${pk?"~"+hh(pk.h1):""}</small></span><span class="d">${pk?`겹침 ${pk.cs.length}건 동시 · `:"없음"}${pk&&S.role==="HQ"?`<button class="link" data-act="risk" style="padding:0">${S.riskSent.has(d)?"공지함":"공지하기"}</button>`:""}</span></div>`
+    `<div class="stat"><span class="k">위험 시간대 <span class="fx">F9</span></span><span class="v"><span class="big t">${pk?hh(pk.h0):"—"}</span><small>${pk?"~"+hh(pk.h1):""}</small></span><span class="d">${pk?`겹침 ${pk.cs.length}건 동시 · `:"없음"}${pk&&S.role==="HQ"?`<button class="link" data-act="risk" style="padding:0">${S.riskSent.has(d)?"공지함":"공지하기"}</button>`:""}</span></div>`,
+    tbmStat(d)
   ].join("");
   const days=[...new Set(visC().filter(c=>c.status==="open").map(c=>c.from))].sort((a,b)=>a-b).slice(0,6);
   $("#bJumps").innerHTML=`<button class="btn sm rej" data-act="openevent">긴급·변수 등록</button><span class="sub">충돌 있는 날</span>`+[...new Set([65,...days])].sort((a,b)=>a-b).map(x=>`<button class="jump" data-act="day" data-d="${x}" aria-pressed="${x===d}">${md(x)}</button>`).join("");
@@ -710,43 +739,77 @@ function tbmItems(p,d){
   const act=S.tasks.filter(t=>t.p===p&&actOn(t,d)),ids=new Set(act.map(t=>t.id)),hit=(a,b)=>ids.has(a)||(b&&ids.has(b));
   S.adjusted.filter(a=>a.parties.includes(p)&&hit(a.a,a.b)).forEach(a=>a.rules.forEach(r=>RULES[r].tbm.forEach(it=>add(it,`원청 조정 · ${a.short}`,r))));
   S.conflicts.filter(c=>c.from<=d&&d<=c.to&&hit(c.a,c.b)).forEach(c=>RULES[c.rule].tbm.forEach(it=>add(it,`${c.status==="met"?"조건부 허용":"충돌"} · ${labelOf(c.key)}`,c.rule)));
-  const pk=riskPeak(d,p);if(pk){const H=Math.floor(pk.h0),pat=new RegExp(`${H}\\s?시|${H}:|오후\\s?${H>12?H-12:H}\\s?시|${H>12?H-12:H}\\s?시`);add({label:`${hr(pk.h0,pk.h1)} 위험 시간대 안내`,all:[pat]},"위험 시간대 예보 F9","F9");}
+  const pk=riskPeak(d,p);if(pk){const H=Math.floor(pk.h0),pat=new RegExp(`${H}\\s?시|${H}:|오후\\s?${H>12?H-12:H}\\s?시|${H>12?H-12:H}\\s?시`);add({label:`${hr(pk.h0,pk.h1)} 위험 시간대 안내`,all:[pat],say:`${H}시부터 ${Math.ceil(pk.h1)}시까지는 겹치는 작업이 몰리는 위험 시간대라 특히 조심합니다.`},"위험 시간대 예보 F9","F9");}
   act.forEach(t=>STD[t.std].tbm.forEach(it=>add(it,`작업표준서 ${t.std} · ${t.name}`,"F8")));
   return {items,act};
 }
-function runTbm(){const {items}=tbmItems(S.tbm.p,S.day);
+const tbmKey=(p,d)=>`${p}|${d}`;
+const tbmRun=(p,d)=>S.tbm.runs[tbmKey(p,d)]||null;
+/* 업체별 오늘 TBM 상태: none 작업 없음 · todo 미실시 · miss 빠짐 있음 · ok 모두 전달 */
+function tbmStatus(p,d){
+  const {items,act}=tbmItems(p,d);if(!act.length)return {k:"none",txt:"작업 없음"};
+  const r=tbmRun(p,d);if(!r)return {k:"todo",txt:items.length?`미실시 · ${items.length}개 전달할 것`:"미실시"};
+  const m=r.res.filter(x=>x.st!=="ok").length;
+  if(m)return {k:"miss",txt:`빠짐 ${m}건${r.notified?" · 알림 보냄":""}`};
+  return {k:"ok",txt:r.sup?`보충 완료 ${r.sup}`:`모두 전달 ${r.time.split(" ")[1]||r.time}`};
+}
+function runTbm(sup){const p=S.tbm.p,d=S.day,{items}=tbmItems(p,d),key=tbmKey(p,d),prev=S.tbm.runs[key],pp=P(p);
   const sents=S.tbm.text.split(/\n+/).flatMap(l=>l.split(/(?<=[.?!])\s+/)).map(s=>s.trim()).filter(Boolean);
-  S.tbm.res=items.map(it=>{const s=sents.find(x=>it.all.every(r=>r.test(x)));if(!s)return {...it,st:"miss"};if(it.confirm&&!it.confirm.test(s))return {...it,st:"weak",q:s};return {...it,st:"ok",q:s};});
-  const ok=S.tbm.res.filter(r=>r.st==="ok").length,ms=S.tbm.res.filter(r=>r.st!=="ok");S.tbmLast[S.tbm.p]={ok,miss:ms.length,time:clock(),day:S.day};
-  S.log.unshift({time:clock(),type:"TBM 확인",sum:`${P(S.tbm.p).name} TBM ${md(S.day)} · 전달 ${ok} / 빠짐·불충분 ${ms.length}`,dec:ms.length?`빠진 항목: ${ms.map(m=>m.label).join(", ")}`:"모두 전달됨",who:`${P(S.tbm.p).name} ${P(S.tbm.p).lead}`,rule:"F7",law:"",parties:[S.tbm.p]});
-  renderTbm();}
+  const was=sup&&prev?Object.fromEntries(prev.res.map(r=>[r.label,r])):{};
+  const res=items.map(it=>{const m=x=>it.all.every(r=>r.test(x)),s=(it.confirm&&sents.find(x=>m(x)&&it.confirm.test(x)))||sents.find(m);const r=!s?{...it,st:"miss"}:it.confirm&&!it.confirm.test(s)?{...it,st:"weak",q:s}:{...it,st:"ok",q:s};
+    const w=was[it.label];if(w&&r.st==="ok"&&(w.st!=="ok"||w.sup))r.sup=true;return r;});
+  const ok=res.filter(r=>r.st==="ok").length,ms=res.filter(r=>r.st!=="ok");
+  S.tbm.runs[key]={res,text:S.tbm.text,sample:S.tbm.sample,time:sup&&prev?prev.time:clock(),notified:sup&&prev?prev.notified:null,sup:sup?clock().split(" ")[1]:null};
+  if(sup){const fixed=res.filter(r=>r.sup).length;
+    S.log.unshift({time:clock(),type:"TBM 확인",sum:`${pp.name} TBM ${md(d)} 보충 전달 · 보충 ${fixed} / 남은 빠짐 ${ms.length}`,dec:ms.length?`아직 빠진 항목: ${ms.map(m=>m.label).join(", ")}`:"빠진 항목 모두 보충 전달됨",who:`${pp.name} ${pp.lead}`,rule:"F7",law:"",parties:[p]});
+    if(!ms.length)note([p,"HQ"],`TBM 보충 전달 완료 · ${pp.name}`,`빠졌던 ${fixed}건을 작업 시작 전에 다시 전달했습니다`,"알림");
+    toast(ms.length?`보충 전달 후에도 ${ms.length}건이 남았습니다`:"빠진 항목을 모두 보충 전달했습니다");}
+  else S.log.unshift({time:clock(),type:"TBM 확인",sum:`${pp.name} TBM ${md(d)} · 전달 ${ok} / 빠짐·불충분 ${ms.length}`,dec:ms.length?`빠진 항목: ${ms.map(m=>m.label).join(", ")}`:"모두 전달됨",who:`${pp.name} ${pp.lead}`,rule:"F7",law:"",parties:[p]});
+  renderTbm();renderBoard();renderHistory();renderNoti();}
 let recT=null;
-function startRec(){const sm=TBM_SAMPLES[S.tbm.p];if(S.tbm.rec){stopRec();return;}
-  if(!sm){toast("시연 녹음은 C사만 준비돼 있습니다. 받아쓰기 칸에 직접 입력하세요");return;}
-  const full=sm[S.tbm.sample].text;S.tbm.rec=true;S.tbm.text="";S.tbm.res=null;renderTbm();let i=0;
-  const step=()=>{i=Math.min(full.length,i+(reduced?full.length:6));S.tbm.text=full.slice(0,i);const ta=$("#tbmText");if(ta)ta.value=S.tbm.text;const lv=document.querySelector(".m1rec .live");if(lv)lv.textContent=S.tbm.text.split(/\n+/).filter(Boolean).pop()||"";if(i<full.length)recT=setTimeout(step,30);else{S.tbm.rec=false;renderTbm();runTbm();}};step();}
+/* 받아쓰기 시연: base 뒤에 full을 조금씩 채우고, 끝나면 done() */
+function typeOut(full,base,done){S.tbm.rec=true;renderTbm();let i=0;
+  const step=()=>{i=Math.min(full.length,i+(reduced?full.length:6));S.tbm.text=base+full.slice(0,i);const ta=$("#tbmText");if(ta)ta.value=S.tbm.text;const lv=document.querySelector(".m1rec .live");if(lv)lv.textContent=full.slice(0,i).split(/\n+/).filter(Boolean).pop()||"";if(i<full.length)recT=setTimeout(step,30);else{S.tbm.rec=false;done();}};step();}
+function startRec(){if(S.tbm.rec){stopRec();return;}const set=tbmSet(S.tbm.p,S.day);
+  if(!set){toast("이 날짜·업체에는 시연 녹음이 없습니다. 받아쓰기 칸에 직접 입력하세요");return;}
+  delete S.tbm.runs[tbmKey(S.tbm.p,S.day)];typeOut(set[S.tbm.sample].text,"",()=>runTbm());}
+function startSup(){if(S.tbm.rec){stopRec();return;}const r=tbmRun(S.tbm.p,S.day),ms=r?r.res.filter(x=>x.st!=="ok"):[];if(!ms.length)return;
+  typeOut(ms.map(tbmSay).join("\n"),S.tbm.text.replace(/\s+$/,"")+`\n\n[보충 전달 ${clock().split(" ")[1]}]\n`,()=>runTbm(true));}
 function stopRec(){clearTimeout(recT);S.tbm.rec=false;renderTbm();}
+/* 상황판 숫자 띠: 본청은 업체별 TBM 완료 수, 협력사는 우리 TBM 상태 */
+function tbmStat(d){const go_=`<button class="link" data-act="tbmpick" style="padding:0">보기</button>`;
+  if(S.role!=="HQ"){const s=tbmStatus(S.role,d);return `<div class="stat"><span class="k">우리 TBM <span class="fx">F7</span></span><span class="v"><span class="big" ${s.k==="miss"?'style="color:var(--red)"':""}>${s.k==="ok"?"완료":s.k==="miss"?"보충":s.k==="todo"?"전":"—"}</span></span><span class="d">${esc(s.txt)} · ${go_}</span></div>`;}
+  const rows=PARTNERS.map(x=>({x,s:tbmStatus(x.id,d)})).filter(o=>o.s.k!=="none"),ok=rows.filter(o=>o.s.k==="ok").length,ms=rows.filter(o=>o.s.k==="miss"),todo=rows.filter(o=>o.s.k==="todo");
+  return `<div class="stat"><span class="k">TBM 확인 <span class="fx">F7</span></span><span class="v"><span class="big" ${ms.length?'style="color:var(--red)"':""}>${ok}</span><small>/${rows.length}곳</small></span><span class="d">${ms.length?`빠짐 ${ms.map(o=>o.x.name).join("·")}`:todo.length?`미실시 ${todo.length}곳`:"모두 전달"} · ${go_}</span></div>`;}
 function renderTbm(){
-  if(S.role!=="HQ")S.tbm.p=S.role;const p=P(S.tbm.p),d=S.day,{items,act}=tbmItems(p.id,d),res=S.tbm.res,sm=TBM_SAMPLES[p.id];
+  if(S.role!=="HQ")S.tbm.p=S.role;const p=P(S.tbm.p),d=S.day,{items,act}=tbmItems(p.id,d),key=tbmKey(p.id,d),run=S.tbm.runs[key],res=run?run.res:null,set=tbmSet(p.id,d);
+  if(S.tbm.key!==key&&!S.tbm.rec){S.tbm.key=key;S.tbm.text=run?run.text:"";S.tbm.sample=run&&run.sample||"A";}
   const rm=res?Object.fromEntries(res.map(r=>[r.label,r])):{};const miss=res?res.filter(r=>r.st!=="ok"):[];
   const lastLine=S.tbm.text.split(/\n+/).filter(Boolean).pop()||"";
-  let h=`<div class="tbm-h"><span class="pn">${p.name} TBM</span><span><span class="t">${ymd(d)}</span> · 작업 시작 전</span>
+  let h="";
+  if(S.role==="HQ"){const rows=PARTNERS.map(x=>({x,s:tbmStatus(x.id,d)})),need=rows.filter(o=>o.s.k!=="none");
+    h+=`<section class="card tbmall"><header><h2>오늘 업체별 TBM</h2><span class="sub">${md(d)} · 작업 있는 ${need.length}곳 중 <b style="color:var(--ink)">${need.filter(o=>o.s.k==="ok").length}곳</b> 모두 전달</span></header><div class="tbmall-row">${rows.map(({x,s})=>`<button class="tst ${s.k}" data-act="tbmpick" data-p="${x.id}" aria-pressed="${x.id===p.id}" ${s.k==="none"?"disabled":""}><span class="dot" style="background:${pc(x.id)}"></span><b>${x.name}</b><span class="tsx">${esc(s.txt)}</span></button>`).join("")}</div></section>`;}
+  h+=`<div class="tbm-h"><span class="pn">${p.name} TBM</span><span><span class="t">${ymd(d)}</span> · 작업 시작 전</span>
     ${S.role==="HQ"?`<label for="tbmP" class="sub">협력사</label><select id="tbmP">${PARTNERS.map(x=>`<option value="${x.id}" ${x.id===p.id?"selected":""}>${x.name}</option>`).join("")}</select>`:""}
     <span class="sub">오늘 작업: ${act.map(t=>`${esc(t.name)} <span class="t">${hr(t.h0,t.h1)}</span> <b>${t.crew}명</b>`).join(" · ")||"없음"}</span><span class="grow"></span>
     ${res?`<span class="sumbox"><span class="big" style="font-size:34px;color:var(--ok)">${res.length-miss.length}</span><span class="sub">전달됨</span><span class="big" style="font-size:34px;${miss.length?"color:var(--red)":""}">${miss.length}</span><span class="sub">빠짐·불충분</span></span>`:`<span class="sumbox"><span class="big" style="font-size:34px">${items.length}</span><span class="sub">개 전달할 것</span></span>`}</div>`;
   const ph=S.tasks.filter(t=>isBase(t)&&t.p===p.id&&actOn(t,d)).flatMap(t=>holdsOf(t.id,d).map(x=>({x,t}))),pw=ph.filter(o=>o.x.st!=="승인");
   if(pw.length)h+=`<div class="banner rejb"><span class="hq">포스코 본청 승인 대기</span><span>${pw.map(o=>esc(o.t.name)).join(", ")}: 승인 전에는 착수할 수 없습니다. TBM에서 대기 사실을 전달하세요.</span></div>`;
   else if(ph.length)h+=`<div class="banner"><span class="pill ok">본청 승인</span><span>승인 조건 ${ph.map(o=>`<b>${esc(mask(o.x.cond))}</b>`).join(" · ")}을 TBM에서 꼭 전달하세요.</span></div>`;
+  if(miss.length)h+=`<div class="banner rejb"><span class="hq">작업 시작 전 보충 전달</span><span>빠진 ${miss.length}건을 작업자에게 다시 전달한 뒤 착수하세요. 항목마다 전달할 문장을 붙여 두었습니다.</span></div>`;
+  else if(run&&run.sup)h+=`<div class="banner"><span class="pill ok">보충 완료</span><span>${run.sup}에 빠졌던 항목을 모두 다시 전달했습니다.</span></div>`;
   h+=`<section class="card"><header><h2>오늘 꼭 전달할 것</h2><span class="sub">포스코 본청이 공유한 충돌·조정 · 위험 시간대 · 작업표준서</span><span class="grow"></span><span class="ai">AI 판단</span></header><div class="m1list">`;
-  h+=items.length?items.map(it=>{const r=rm[it.label],st=r?r.st:"";return `<div class="bck ${st}"><span class="mk">${st==="ok"?"✓":st==="weak"?"!":st==="miss"?"✕":"·"}</span><div><div class="lb">${esc(it.label)}</div><div class="src">${esc(mask(it.src))}</div>
-    ${r&&r.q?`<blockquote>${esc(r.q)}</blockquote>`:""}${st==="weak"?`<div class="why" style="color:var(--amber)">말은 했지만 확인한 사실이 아니라 전해 들은 말입니다</div>`:""}${st==="miss"?`<div class="why"><span class="kw">회의에서 나오지 않았습니다</span></div>`:""}</div></div>`;}).join(""):`<div class="empty">${md(d)}에 ${p.name} 작업과 관련해 전달할 항목이 없습니다.<br><button class="btn" data-act="step" data-n="9" style="margin-top:10px">시연 9단계로 이동</button></div>`;
+  h+=items.length?items.map(it=>{const r=rm[it.label],st=r?r.st:"";return `<div class="bck ${st}"><span class="mk">${st==="ok"?"✓":st==="weak"?"!":st==="miss"?"✕":"·"}</span><div><div class="lb">${esc(it.label)}${r&&r.sup?` <span class="pill ok">보충 전달</span>`:""}</div><div class="src">${esc(mask(it.src))}</div>
+    ${r&&r.q?`<blockquote>${esc(r.q)}</blockquote>`:""}${st==="weak"?`<div class="why" style="color:var(--amber)">말은 했지만 확인한 사실이 아니라 전해 들은 말입니다</div>`:""}${st==="miss"?`<div class="why"><span class="kw">회의에서 나오지 않았습니다</span></div>`:""}
+    ${st==="miss"||st==="weak"?`<div class="say"><span class="sub">이렇게 전달하세요</span> “${esc(tbmSay(it))}”</div>`:""}</div></div>`;}).join(""):`<div class="empty">${md(d)}에 ${p.name} 작업과 관련해 전달할 항목이 없습니다.<br><button class="btn" data-act="step" data-n="9" style="margin-top:10px">시연 9단계로 이동</button></div>`;
   h+=`</div></section>`;
-  h+=`<section class="card m1rec"><button class="recb ${S.tbm.rec?"on":""}" data-act="rec" aria-label="${S.tbm.rec?"녹음 중지":"녹음 시작"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">${S.tbm.rec?'<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>':'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'}</svg></button>
-    <span>${S.tbm.rec?`<span class="kw">듣는 중</span> <span class="live">${esc(lastLine)}</span>`:`팀장 발언 녹음 <span class="sub">· 회의가 끝나면 자동으로 대조합니다</span>`}</span>
-    ${sm?`<span class="row2"><span class="sub">시연 녹음</span>${Object.entries(sm).map(([k,v])=>`<button class="jump" data-act="sample" data-k="${k}" aria-pressed="${S.tbm.sample===k}">${v.label} · ${v.len}</button>`).join("")}</span>`:""}
-    <span class="grow"></span><button class="btn pri" data-act="runtbm" ${items.length?"":"disabled"}>체크리스트와 대조</button>
-    ${miss.length?`<button class="btn rej" data-act="notify">빠진 ${miss.length}건 ${esc(p.lead)}·포스코 본청에 알림</button>`:""}
-    <details ${S.tbm.tx||!sm?"open":""} id="txd"><summary>받아쓴 내용 ${S.tbm.text?"보기·수정":"직접 입력"}</summary><textarea id="tbmText" placeholder="팀장이 말한 내용이 여기에 받아써집니다">${esc(S.tbm.text)}</textarea>
+  const sup=miss.length>0;
+  h+=`<section class="card m1rec"><button class="recb ${S.tbm.rec?"on":""}" data-act="${sup?"suprec":"rec"}" aria-label="${S.tbm.rec?"녹음 중지":sup?"보충 전달 녹음 시작":"녹음 시작"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">${S.tbm.rec?'<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>':'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'}</svg></button>
+    <span>${S.tbm.rec?`<span class="kw">듣는 중</span> <span class="live">${esc(lastLine)}</span>`:sup?`보충 전달 녹음 <span class="sub">· 빠진 ${miss.length}건만 다시 말하면 이어서 대조합니다</span>`:`팀장 발언 녹음 <span class="sub">· 회의가 끝나면 자동으로 대조합니다</span>`}</span>
+    ${set?`<span class="row2"><span class="sub">시연 녹음</span>${["A","B"].map(k=>`<button class="jump" data-act="sample" data-k="${k}" aria-pressed="${S.tbm.sample===k}">${set[k].label} · ${set[k].len}</button>`).join("")}${sup&&!S.tbm.rec?`<button class="link" data-act="rec" style="padding:0 4px">처음부터 다시 녹음</button>`:""}</span>`:""}
+    <span class="grow"></span><button class="btn ${sup?"":"pri"}" data-act="runtbm" ${items.length?"":"disabled"}>체크리스트와 대조</button>
+    ${sup?(run.notified?`<span class="pill mute">알림 보냄 ${esc(run.notified.split(" ")[1]||run.notified)}</span>`:`<button class="btn rej" data-act="notify">빠진 ${miss.length}건 ${esc(p.lead)}·포스코 본청에 알림</button>`):""}
+    <details ${S.tbm.tx||!set?"open":""} id="txd"><summary>받아쓴 내용 ${S.tbm.text?"보기·수정":"직접 입력"}</summary><textarea id="tbmText" placeholder="팀장이 말한 내용이 여기에 받아써집니다">${esc(S.tbm.text)}</textarea>
       <div class="row2" style="margin-top:6px"><label class="link" for="audioIn" style="cursor:pointer">녹음 파일 올리기<input type="file" id="audioIn" accept="audio/*" style="position:absolute;width:1px;height:1px;opacity:0"></label><span class="note">녹음은 동의를 받고, 받아쓴 뒤 원본은 삭제합니다.</span></div></details></section>`;
   $("#tbmBody").innerHTML=h;
   const dt=$("#txd");if(dt)dt.addEventListener("toggle",()=>{S.tbm.tx=dt.open;});
@@ -849,17 +912,22 @@ document.addEventListener("click",e=>{
   if(a==="unmet"){delete S.mitig[el.dataset.key];rejudge();renderAll();return;}
   if(a==="risk"){sendRisk();return;}
   if(a==="closebanner"){S.banner=null;renderBoard();return;}
-  if(a==="dprev"||a==="dnext"){S.day=Math.max(1,Math.min(TOTAL,S.day+(a==="dprev"?-1:1)));S.tbm.res=null;renderAll();return;}
-  if(a==="day"){S.day=+el.dataset.d;S.tbm.res=null;renderAll();return;}
+  if(a==="dprev"||a==="dnext"){S.day=Math.max(1,Math.min(TOTAL,S.day+(a==="dprev"?-1:1)));renderAll();return;}
+  if(a==="day"){S.day=+el.dataset.d;renderAll();return;}
   if(a==="chat"){S.chatOpen=!S.chatOpen;renderChat();if(S.chatOpen)setTimeout(()=>$("#chatIn")&&$("#chatIn").focus(),0);return;}
   if(a==="ask"){ask(el.dataset.q);return;}
   if(a==="mic"){voiceAsk(SUGG[(S.chat.length/2|0)%SUGG.length]);return;}
   if(a==="heardok"){ask(S.heard.q);return;}
   if(a==="heardno"){S.heard=null;renderChat();return;}
   if(a==="rec"){startRec();return;}
-  if(a==="sample"){S.tbm.sample=el.dataset.k;S.tbm.text=TBM_SAMPLES[S.tbm.p][el.dataset.k].text;S.tbm.res=null;renderTbm();return;}
+  if(a==="sample"){const set=tbmSet(S.tbm.p,S.day);if(!set)return;S.tbm.sample=el.dataset.k;S.tbm.text=set[el.dataset.k].text;renderTbm();return;}
+  if(a==="suprec"){startSup();return;}
+  if(a==="tbmpick"){if(S.role==="HQ"&&el.dataset.p)S.tbm.p=el.dataset.p;go("tbm");renderTbm();return;}
   if(a==="runtbm"){S.tbm.text=$("#tbmText").value;runTbm();return;}
-  if(a==="notify"){const p=P(S.tbm.p),m=S.tbm.res.filter(r=>r.st!=="ok");S.log.unshift({time:clock(),type:"알림",sum:`TBM 미전달 ${m.length}건 · ${p.name}`,dec:m.map(x=>x.label).join(", "),who:`${p.lead} · ${HQ[0]}`,rule:"F7",law:LAW64,parties:[p.id]});toast(`${p.lead}와 원청 담당자에게 알렸습니다`);renderHistory();return;}
+  if(a==="notify"){const p=P(S.tbm.p),run=tbmRun(p.id,S.day);if(!run||run.notified)return;const m=run.res.filter(r=>r.st!=="ok");run.notified=clock();
+    S.log.unshift({time:clock(),type:"알림",sum:`TBM 미전달 ${m.length}건 · ${p.name}`,dec:m.map(x=>x.label).join(", "),who:`${p.lead} · ${HQ[0]}`,rule:"F7",law:LAW64,parties:[p.id]});
+    note([p.id,"HQ"],`TBM 빠진 항목 ${m.length}건 · ${p.name}`,`작업 시작 전 보충 전달 필요: ${m.map(x=>x.label).join(", ")}`,"알림");
+    toast(`${p.lead}와 원청 담당자에게 알렸습니다`);renderTbm();renderBoard();renderHistory();renderNoti();return;}
   if(a==="hf"){S.hfilt=el.dataset.t;renderHistory();return;}
   if(a==="roleas"){S.role=el.dataset.p;S.drawer=null;S.sel=null;renderAll();return;}
   if(a==="copycsv"){const t=csv(),box=$("#csvbox"),ta=$("#csvta");ta.value=t;const fb=()=>{box.hidden=false;ta.select();toast("복사가 막혀 있어 내용을 펼쳤습니다");};
@@ -876,15 +944,15 @@ document.addEventListener("change",e=>{const el=e.target;
   if(el.id==="evH1"){ef.vh1=+el.value;renderDrawer();return;}
   if(el.id==="dTask"){S.dform.t=el.value;S.dform.h1=null;renderDrawer();return;}
   if(el.id==="dEnd"){S.dform.h1=+el.value;renderDrawer();return;}
-  if(el.id==="dateIn"){const n=dayOfIso(el.value);if(n){S.day=Math.max(1,Math.min(TOTAL,n));S.tbm.res=null;renderAll();}return;}
-  if(el.id==="role"){const [r,l]=el.value.split(":");S.role=r;S.lvl=l||"hq";S.drawer=S.drawer&&S.drawer.kind==="up"?S.drawer:null;S.sel=null;S.tbm.res=null;S.upOpen=S.role==="HQ"?null:S.role;renderAll();return;}
+  if(el.id==="dateIn"){const n=dayOfIso(el.value);if(n){S.day=Math.max(1,Math.min(TOTAL,n));renderAll();}return;}
+  if(el.id==="role"){const [r,l]=el.value.split(":");S.role=r;S.lvl=l||"hq";S.drawer=S.drawer&&S.drawer.kind==="up"?S.drawer:null;S.sel=null;S.upOpen=S.role==="HQ"?null:S.role;renderAll();return;}
   if(el.dataset&&el.dataset.f){editTask(el.dataset.t,el.dataset.f,el.type==="checkbox"?el.checked:el.value);return;}
   if(el.id==="fileIn"){addFiles(el.files);el.value="";return;}
-  if(el.id==="tbmP"){S.tbm.p=el.value;S.tbm.res=null;S.tbm.text="";renderTbm();return;}
+  if(el.id==="tbmP"){S.tbm.p=el.value;renderTbm();return;}
   if(el.id==="tbmText"){S.tbm.text=el.value;return;}
   if(el.id==="audioIn"&&el.files[0]){toast(`${el.files[0].name} 수신 · 음성 인식은 Whisper 연동 단계에서 붙습니다`);el.value="";return;}
 });
-document.addEventListener("input",e=>{if(e.target.id==="dWhy"){S.dform.why=e.target.value;return;}if(e.target.id==="ejN"){S.eform.name=e.target.value;return;}if(e.target.id==="mday"){S.day=+e.target.value;S.tbm.res=null;renderHeader();renderModel();}});
+document.addEventListener("input",e=>{if(e.target.id==="dWhy"){S.dform.why=e.target.value;return;}if(e.target.id==="ejN"){S.eform.name=e.target.value;return;}if(e.target.id==="mday"){S.day=+e.target.value;renderHeader();renderModel();}});
 function addFiles(fl){[...fl].forEach(f=>S.files.unshift({p:S.role==="HQ"?null:S.role,name:f.name,fmt:(f.name.split(".").pop()||"").toUpperCase().slice(0,4),time:clock(),ver:1,st:"keep"}));toast(`${fl.length}개 파일을 받았습니다`);renderDrawer();}
 document.addEventListener("dragover",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d){e.preventDefault();d.classList.add("over");}});
 document.addEventListener("dragleave",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d)d.classList.remove("over");});

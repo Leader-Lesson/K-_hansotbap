@@ -99,13 +99,14 @@ main{padding-block:14px 90px}
 .note{font-size:12px;color:var(--ink-3);margin:0}
 
 /* board stats */
-.stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--line-2);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px}
+.stats{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--line-2);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px}
 .stat{background:var(--surface);padding:10px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
 .stat .k{font-size:12px;color:var(--ink-3)}
 .stat .v{display:flex;align-items:baseline;gap:4px}
 .stat .v small{font-size:13px;color:var(--ink-2)}
 .stat .d{font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-@media (max-width:900px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:900px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:560px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .banner{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:9px 14px;border:1px solid var(--red);border-radius:8px;background:var(--surface);margin-bottom:12px}
 .jumps{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .jump{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:1px 10px;font-size:12.5px}
@@ -347,6 +348,20 @@ td input[type=date]{width:132px;padding:2px 5px;font-size:12.5px}
 .bck .why{font-size:14px;margin-top:6px}
 .bck.ok .mk{background:var(--ok-soft);color:var(--ok)} .bck.weak .mk{background:var(--amber-soft);color:var(--amber)} .bck.miss .mk{background:var(--red-soft);color:var(--red)}
 .bck.miss{border-color:var(--red)} .bck.weak{border-color:var(--amber)}
+.bck .say{font-size:15px;margin-top:8px;padding:6px 10px;border-radius:6px;background:var(--surface-2);color:var(--ink)}
+.bck .say .sub{display:block;font-size:12px}
+.bck .lb .pill{vertical-align:middle}
+/* TBM 본청: 업체별 상태 */
+.tbmall{margin-bottom:12px}
+.tbmall-row{display:flex;flex-wrap:wrap;gap:8px;padding:12px 14px}
+.tst{appearance:none;display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);padding:6px 12px;font-size:14px;color:var(--ink);cursor:pointer}
+.tst .dot{width:8px;height:8px;border-radius:50%}
+.tst .tsx{font-size:12.5px;color:var(--ink-3)}
+.tst.todo .tsx{color:var(--ink-2)}
+.tst.miss{border-color:var(--red)} .tst.miss .tsx{color:var(--red);font-weight:500}
+.tst.ok{border-color:var(--ok)} .tst.ok .tsx{color:var(--ok)}
+.tst[aria-pressed="true"]{box-shadow:0 0 0 2px var(--blue)}
+.tst:disabled{opacity:.55;cursor:default}
 @media (max-width:640px){.bck{grid-template-columns:40px minmax(0,1fr);gap:10px;padding:12px}.bck .mk{width:36px;height:36px;font-size:18px}.bck .lb{font-size:19px}}
 .m1rec{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:12px 16px;margin-top:12px}
 .m1rec .recb{width:46px;height:46px}
