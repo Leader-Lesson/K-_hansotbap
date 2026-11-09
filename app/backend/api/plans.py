@@ -76,6 +76,9 @@ def _check(sub: PlanSubmission) -> list[str]:
             problems.append(f"{label}: 종료가 시작보다 늦어야 합니다")
         if not t.contractor.strip():
             problems.append(f"{label}: 업체가 비어 있습니다")
+        elif t.contractor != sub.contractor:
+            # 보는 사람(제출 협력사)과 계획서의 업체가 다르면 남의 일정을 대신 내는 것이 된다
+            problems.append(f"{label}: 계획서의 업체는 {t.contractor}인데 {sub.contractor}로 제출하려 합니다 — 보는 사람을 {t.contractor}로 바꿔 제출하세요")
     return problems
 
 
