@@ -50,6 +50,11 @@ CREATE TABLE IF NOT EXISTS adjustments (
     decided_at TEXT NOT NULL,
     closed_at TEXT
 );
+CREATE TABLE IF NOT EXISTS shares (
+    conflict_id TEXT PRIMARY KEY REFERENCES conflicts(id), -- 원청이 확인해 협력사에 내려보낸 충돌
+    shared_by TEXT NOT NULL,                -- 확인한 책임자
+    shared_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS extraction_cache (
     key TEXT PRIMARY KEY,                -- 추출기 버전|파일 sha256|모드|LLM|모델|제출 업체
     payload TEXT NOT NULL,               -- schemas.PlanExtraction JSON

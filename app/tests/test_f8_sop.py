@@ -145,8 +145,16 @@ def test_upload_submit_stores_sop_defect():
         json={"contractor": "가상-배관O", "file": name, "tasks": [t["task"] for t in ext["tasks"]], "draft_id": ext["draft_id"]},
     ).json()
     assert "SOP:P34:SOP-04" in {c["id"] for c in res["conflicts"]}
-    stored = {r["conflict"]["id"]: r for r in client.get("/api/conflicts", params={"contractor": "가상-배관O"}).json()}
+    stored = {r["conflict"]["id"]: r for r in client.get("/api/conflicts").json()}  # 원청 화면
     assert stored["SOP:P34:SOP-04"]["conflict"]["grade"] == "결함"
+
+    # F5: 협력사는 원청이 확인·공유한 뒤에 받는다. 표준서 근거는 어느 업체 원문도 아니라 그대로 남는다
+    mine = lambda: {r["conflict"]["id"]: r for r in client.get("/api/conflicts", params={"contractor": "가상-배관O"}).json()}
+    assert "SOP:P34:SOP-04" not in mine()
+    shared = client.post("/api/shares", json={"conflict_ids": ["SOP:P34:SOP-04"], "shared_by": "원청 담당자"})
+    assert shared.status_code == 200, shared.text
+    sources = mine()["SOP:P34:SOP-04"]["conflict"]["sources"]
+    assert {s["locator"] for s in sources if s["file"] == "SOP-04"} == {"필수 단계 4", "필수 단계 5"}
 
 
 def test_applying_f4_adjustment_keeps_sop_defect_open():

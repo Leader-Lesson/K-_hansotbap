@@ -7,6 +7,7 @@
 
 from fastapi import APIRouter, HTTPException, Query
 
+from api.permissions import require_person, require_prime
 from db.adjust_flow import (
     AdjustmentNotActive,
     AdjustmentNotFound,
@@ -27,15 +28,8 @@ _CONTRACTOR_Q = Query(default=None, description="협력사로 부르면 조정 �
 
 
 def _require_prime(contractor: str | None) -> None:
-    """조정안 조회·적용·되돌리기는 원청 전용. 프론트 숨김만으로 대신하지 않고 서버에서 막는다."""
-    if contractor:
-        raise HTTPException(status_code=403, detail="조정안은 원청만 조회·적용·되돌릴 수 있습니다")
-
-
-def _require_person(name: str) -> None:
-    """이행 기록의 "누가"가 비지 않게 한다."""
-    if not name.strip():
-        raise HTTPException(status_code=422, detail="책임자 이름이 비어 있습니다")
+    """조정안 조회·적용·되돌리기는 원청 전용."""
+    require_prime(contractor, "조정안은 원청만 조회·적용·되돌릴 수 있습니다")
 
 
 def _not_found_conflict(conflict_id: str) -> HTTPException:
@@ -63,7 +57,7 @@ def adjustment_candidates(
 def adjustment_apply(req: AdjustmentApply, contractor: str | None = _CONTRACTOR_Q) -> AdjustmentResult:
     """고른 조정안을 적용하고 재판정한 결과(충돌 목록·전후 비교)를 돌려준다."""
     _require_prime(contractor)
-    _require_person(req.decided_by)
+    require_person(req.decided_by)
     try:
         return apply_adjustment(req)
     except ConflictNotFound:
@@ -83,7 +77,7 @@ def adjustment_revert(
 ) -> AdjustmentResult:
     """적용한 조정을 되돌리고 재판정한 결과를 돌려준다."""
     _require_prime(contractor)
-    _require_person(decided_by)
+    require_person(decided_by)
     try:
         return revert_adjustment(adjustment_id, decided_by)
     except AdjustmentNotFound:
