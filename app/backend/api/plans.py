@@ -4,11 +4,12 @@ import hashlib
 
 from fastapi import APIRouter, Form, HTTPException, Query, UploadFile
 
-from db.plans import cache_get, cache_put, list_plans, submit_plan
+from db.plans import cache_get, cache_put, list_plans, save_plan_document, submit_plan
 from llm.extract import ExtractionFailed, Mode, cache_key, extract_plan, is_degraded
 from parsers import SUPPORTED, parse_document
 from rules.data_loader import load_zones
 from schemas import PlanExtraction, PlanRecord, PlanSubmission, PlanSubmitResult
+from search.sop_match import match_plan
 
 router = APIRouter(tags=["plans"])
 
@@ -31,7 +32,7 @@ def upload_plan(
     sha = hashlib.sha256(data).hexdigest()
     key = cache_key(sha, mode, contractor)
     if not refresh and (hit := cache_get(key)):
-        return hit.model_copy(update={"cached": True, "file": name})
+        return _with_sop(hit.model_copy(update={"cached": True, "file": name}))
 
     try:
         doc = parse_document(name, data)
@@ -48,7 +49,14 @@ def upload_plan(
     result = result.model_copy(update={"draft_id": sha[:16], "file_sha256": sha})
     if not is_degraded(result):
         cache_put(key, result)
-    return result
+    return _with_sop(result)
+
+
+def _with_sop(result: PlanExtraction) -> PlanExtraction:
+    """F8: 원문을 보관하고(제출 판정 때 다시 확인), 작업별 표준서 매칭·필수 단계 확인을 붙인다 (규칙이라 매번 계산)."""
+    save_plan_document(result.draft_id, result.file, result.lines)
+    matches = match_plan([t.task for t in result.tasks], result.lines, result.file)
+    return result.model_copy(update={"sop_matches": matches})
 
 
 def _check(sub: PlanSubmission) -> list[str]:

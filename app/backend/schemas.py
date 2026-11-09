@@ -231,6 +231,16 @@ class RiskWindow(BaseModel):
     weights_note: str = "가중치는 팀 설정값"
 
 
+class SopStepCheck(BaseModel):
+    """F8 표준서 필수 단계 1개가 계획서에 적혀 있는지 (규칙 판정)."""
+
+    no: int
+    text: str
+    critical: bool = Field(description="표준서 '판정에 쓰는 기준'의 핵심 단계 — 빠지면 결함")
+    found: bool
+    evidence: SourceRef | None = Field(default=None, description="이 단계를 찾은 계획서 원문 줄")
+
+
 class SopMatch(BaseModel):
     """F8 작업표준서 매칭."""
 
@@ -239,7 +249,24 @@ class SopMatch(BaseModel):
     title: str
     score: float
     reason: str
-    missing_steps: list[str] = []
+    missing_steps: list[str] = Field(default=[], description="빠진 핵심 단계. 주 표준서(primary)일 때만 채운다 → F2 결함")
+    primary: bool = Field(default=False, description="결함 판정 대상인 주 표준서 (원청 적용 목록 + 작업명 일치)")
+    basis: list[str] = Field(default=[], description="매칭 근거: wbs_example | name | hazard | embedding")
+    steps: list[SopStepCheck] = []
+
+
+class SopInfo(BaseModel):
+    """GET /api/sops: 원청 작업표준서 (합성)."""
+
+    id: str
+    title: str
+    file: str
+    hazards: list[str]
+    wbs_examples: list[str]
+    steps: list[str]
+    critical_steps: list[int] = Field(description="빠지면 결함인 단계 번호 (1부터)")
+    source: str
+    text: str | None = Field(default=None, description="표준서 본문(마크다운). 목록 조회에서는 비운다")
 
 
 # ── F1 계획서 구조화 ──────────────────────────────────────────────────
@@ -280,6 +307,7 @@ class PlanExtraction(BaseModel):
     warnings: list[str] = []
     cached: bool = False
     created_at: datetime
+    sop_matches: list[SopMatch] = Field(default=[], description="F8 작업별 표준서 매칭·필수 단계 확인 (제출 전 확인 화면용)")
 
 
 class PlanSubmission(BaseModel):

@@ -353,8 +353,14 @@ def defects_from_sop(tasks: list[Task], sop_matches: list[SopMatch]) -> list[Con
                 window_start=t.start,
                 window_end=t.end,
                 reason=f"{t.contractor} '{t.name}'({t.id}) 계획서에 작업표준서 '{m.title}'의 필수 단계가 없습니다: {', '.join(m.missing_steps)}.",
-                suggestion="빠진 단계를 계획서에 넣어 다시 제출한다",
-                sources=_sources(t),
+                suggestion="빠진 단계를 계획서 작업 절차에 넣어 다시 제출한다",
+                # 계획서 위치 + 빠진 단계가 적힌 표준서 위치 (무엇이 빠졌는지 원본을 같이 본다)
+                sources=_sources(t)
+                + [
+                    SourceRef(file=m.sop_id, locator=f"필수 단계 {s.no}", text=s.text)
+                    for s in m.steps
+                    if s.critical and not s.found
+                ],
             )
         )
     return out
