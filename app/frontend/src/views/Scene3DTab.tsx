@@ -6,14 +6,15 @@ import type { Conflict, Task, ViewerRole } from "@/types";
 interface Props {
   date: string; // 'YYYY-MM-DD' — 그날 07:00 ~ 다음 날 07:00 을 보여준다
   tasks: Task[];
-  conflicts?: Conflict[]; // 없으면 scene3d 브라우저 규칙 엔진이 계산 (서버 판정이 생기면 넘긴다)
+  conflicts?: Conflict[]; // 서버 판정(GET /api/conflicts). 없으면 scene3d 브라우저 규칙 엔진이 계산한다
   role: ViewerRole;
   now?: string; // 'YYYY-MM-DDTHH:MM' 시작 시각 (기본 그날 10:00)
+  selectTaskId?: string | null; // 충돌 목록의 [3D로 보기]에서 고른 작업
   onSelect?: (sel: { taskId: string | null; zoneId: string | null }) => void;
   onDecision?: (d: { changeId: string; taskId: string; decision: "approved" | "rejected" }) => void;
 }
 
-export function Scene3DTab({ date, tasks, conflicts, role, now, onSelect, onDecision }: Props) {
+export function Scene3DTab({ date, tasks, conflicts, role, now, selectTaskId, onSelect, onDecision }: Props) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   const cb = useRef({ onSelect, onDecision });
@@ -45,6 +46,10 @@ export function Scene3DTab({ date, tasks, conflicts, role, now, onSelect, onDeci
   useEffect(() => {
     if (ready) send({ type: "role", role });
   }, [ready, role]);
+  useEffect(() => {
+    // 데이터·역할을 보낸 뒤에 선택해야 scene3d가 그 작업을 찾는다
+    if (ready && selectTaskId) send({ type: "selectTask", taskId: selectTaskId });
+  }, [ready, selectTaskId, tasks, conflicts]);
 
   const src = `/scene3d/index.html?embed=1&date=${date}${now ? `&now=${now}` : ""}`;
   return (
