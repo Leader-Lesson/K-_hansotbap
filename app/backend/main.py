@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import adjustments, baseline, conflicts, health, plans
+from api import adjustments, baseline, conflicts, health, plans, risk
 from config import settings
 
 app = FastAPI(title="한솥밥 API", version="0.1.0")
@@ -20,3 +20,4 @@ app.include_router(baseline.router, prefix="/api")
 app.include_router(plans.router, prefix="/api")
 app.include_router(conflicts.router, prefix="/api")
 app.include_router(adjustments.router, prefix="/api")
+app.include_router(risk.router, prefix="/api")
