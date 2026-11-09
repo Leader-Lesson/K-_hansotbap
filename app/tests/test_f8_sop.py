@@ -170,3 +170,20 @@ def test_submit_without_document_skips_sop():
     t = task("질소·가스·송풍 라인 복구 연결", "P34", [Hazard.GAS]).model_dump(mode="json") | {"contractor": "가상-배관O"}
     res = client.post("/api/plans/submit", json={"contractor": "가상-배관O", "file": "x.xlsx", "tasks": [t]}).json()
     assert not [c for c in res["conflicts"] if c["type"] == "sop_missing"]
+
+
+def test_sop_matches_api_follows_current_schedule_and_filters_by_contractor():
+    """GET /api/sop-matches: 제출 전에는 빈 목록, 제출 뒤에는 보관된 원문으로 다시 계산한 매칭. 협력사는 자기 작업만."""
+    assert client.get("/api/sop-matches").json() == []
+    name = "가상-배관O_가스라인_복구_작업계획서.hwpx"
+    ext = client.post("/api/plans", files={"file": (name, (SAMPLES / name).read_bytes(), HWPX)}).json()
+    client.post(
+        "/api/plans/submit",
+        json={"contractor": "가상-배관O", "file": name, "tasks": [t["task"] for t in ext["tasks"]], "draft_id": ext["draft_id"]},
+    )
+    all_matches = client.get("/api/sop-matches").json()
+    primary = [m for m in all_matches if m["primary"]]
+    assert [(m["task_id"], m["sop_id"]) for m in primary] == [("P34", "SOP-04")]
+    assert any("가스 측정" in s for s in primary[0]["missing_steps"])
+    assert client.get("/api/sop-matches", params={"contractor": "가상-배관O"}).json() == all_matches
+    assert client.get("/api/sop-matches", params={"contractor": "가상-축로I"}).json() == []
