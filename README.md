@@ -55,6 +55,8 @@ NVIDIA GPU가 없으면 CPU판으로 돈다. 노트북 CPU(i5-10210U, 스레드�
 
 `npm run whisper -- --check` 는 설치·다운로드만 하고 서버는 켜지 않는다. Windows에서 CUDA판이 켜지지 않으면 `.tools` 폴더를 지우고 `npm run whisper -- --cpu` 로 CPU판을 받는다. PowerShell·cmd·Git Bash 모두 된다. winget 으로 ffmpeg 를 처음 깔았으면 터미널을 새로 열어야 잡힌다. `.env` 의 `WHISPER_API_KEY` 는 비워 둔다(키를 검사하는 원격 음성 서버를 쓸 때만).
 
+TBM 녹음은 참석자 동의를 받은 뒤에만 올린다. 원본 녹음은 받아쓰기가 끝나면 지우고, 전사문은 전달 확인 기록과 함께 DB에 남는다. 시연 전에 샘플 공지를 넣으려면 `cd app/backend && uv run python ../samples/seed_tbm_notices.py` 를 한 번 실행한다.
+
 ## 실행
 
 ```bash

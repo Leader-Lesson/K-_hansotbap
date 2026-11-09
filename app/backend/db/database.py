@@ -55,6 +55,26 @@ CREATE TABLE IF NOT EXISTS shares (
     shared_by TEXT NOT NULL,                -- 확인한 책임자
     shared_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS tbm_notices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contractor TEXT NOT NULL,
+    tbm_date TEXT NOT NULL,
+    text TEXT NOT NULL,                     -- 원청이 TBM 전달 항목으로 추가한 공지
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (contractor, tbm_date, text)
+);
+CREATE TABLE IF NOT EXISTS tbm_checks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contractor TEXT NOT NULL,
+    tbm_date TEXT NOT NULL,
+    checked_by TEXT NOT NULL,               -- 책임자 (제64조 이행 기록)
+    checked_at TEXT NOT NULL,
+    transcript TEXT NOT NULL,               -- 전사문만 둔다. 원본 녹음은 받아쓴 뒤 지운다
+    payload TEXT NOT NULL,                  -- schemas.TbmItemResult 목록 JSON
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS extraction_cache (
     key TEXT PRIMARY KEY,                -- 추출기 버전|파일 sha256|모드|LLM|모델|제출 업체
     payload TEXT NOT NULL,               -- schemas.PlanExtraction JSON

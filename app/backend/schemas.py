@@ -3,7 +3,7 @@
 프론트의 app/frontend/src/types.ts 와 같은 모양을 유지한다. 필드를 바꾸면 두 파일을 같이 고친다.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field
@@ -260,6 +260,7 @@ class HistoryEventKind(str, Enum):
     CONFLICT_RESOLVED = "conflict_resolved"  # 재판정에서 사라짐
     ADJUSTMENT_REVERTED = "adjustment_reverted"  # 조정 되돌림
     ADJUSTMENT_STALE = "adjustment_stale"  # 재제출로 조정이 무효가 됨
+    TBM_CHECKED = "tbm_checked"  # TBM 전달 확인
 
 
 class HistoryEvent(BaseModel):
@@ -267,7 +268,7 @@ class HistoryEvent(BaseModel):
 
     at: datetime
     kind: HistoryEventKind
-    target_id: str = Field(description="plan-<번호> 또는 충돌 ID")
+    target_id: str = Field(description="plan-<번호>, tbm-<번호> 또는 충돌 ID")
     actor: str | None = Field(default=None, description="책임자. 시스템이 남긴 기록은 null")
     contractors: list[str] = []
     detail: str
@@ -339,6 +340,100 @@ class SopInfo(BaseModel):
     critical_steps: list[int] = Field(description="빠지면 결함인 단계 번호 (1부터)")
     source: str
     text: str | None = Field(default=None, description="표준서 본문(마크다운). 목록 조회에서는 비운다")
+
+
+# ── F7 TBM 전달 확인 ──────────────────────────────────────────────────
+
+
+class TbmItemKind(str, Enum):
+    ADJUSTMENT = "adjustment"  # 공유된 충돌에 적용 중인 조정
+    RISK_WINDOW = "risk_window"  # 그날의 위험 시간대
+    NOTICE = "notice"  # 원청이 직접 추가한 공지
+
+
+class TbmItem(BaseModel):
+    """TBM에서 작업자에게 전달해야 할 항목 하나. 서버가 규칙으로 만든다."""
+
+    id: str
+    kind: TbmItemKind
+    text: str
+    rule_ids: list[str] = []
+    legal_basis: list[str] = []
+    conflict_ids: list[str] = []
+
+
+class TbmChecklist(BaseModel):
+    contractor: str
+    date: date
+    items: list[TbmItem]
+
+
+class TbmNoticeCreate(BaseModel):
+    """POST /api/tbm/notices 본문: 원청이 업체·날짜를 정해 추가하는 공지."""
+
+    contractor: str = Field(min_length=1)
+    date: date
+    text: str = Field(min_length=1)
+    created_by: str = Field(min_length=1, description="공지를 추가한 책임자")
+
+
+class TbmNotice(BaseModel):
+    id: int
+    contractor: str
+    date: date
+    text: str
+    created_by: str
+    created_at: datetime
+
+
+class TbmTranscript(BaseModel):
+    """POST /api/tbm/transcribe 응답. 원본 녹음은 받아쓴 뒤 지운다."""
+
+    transcript: str
+    model: str = Field(description="받아쓴 음성 모델")
+
+
+class TbmCheckRequest(BaseModel):
+    """POST /api/tbm/checks 본문. 전달 항목은 보내지 않는다 (서버가 만든다)."""
+
+    contractor: str = Field(min_length=1)
+    date: date
+    transcript: str = Field(min_length=1, max_length=50000, description="30분 회의를 넉넉히 담는 길이 [팀 설정값]")
+    checked_by: str = Field(min_length=1, description="확인한 책임자")
+
+
+class TbmItemJudgement(BaseModel):
+    """LLM 응답 한 줄. 그대로 믿지 않고 quote 가 전사문에 있는지 규칙으로 검사한다."""
+
+    item_id: str
+    mentioned: bool
+    quote: str | None
+
+
+class TbmJudgement(BaseModel):
+    items: list[TbmItemJudgement]
+
+
+class TbmItemResult(BaseModel):
+    item: TbmItem
+    mentioned: bool
+    quote: str | None = Field(default=None, description="전달을 뒷받침하는 전사문의 문장")
+    note: str | None = Field(default=None, description="LLM 답을 규칙이 뒤집은 까닭")
+
+
+class TbmCheckRecord(BaseModel):
+    """저장된 TBM 전달 확인 한 건 (F5 이행 기록에도 남는다)."""
+
+    id: int
+    contractor: str
+    date: date
+    checked_by: str
+    checked_at: datetime
+    transcript: str
+    results: list[TbmItemResult]
+    missing_ids: list[str] = Field(description="전달이 확인되지 않은 항목")
+    provider: str
+    model: str
 
 
 # ── F1 계획서 구조화 ──────────────────────────────────────────────────
