@@ -200,6 +200,15 @@ def test_contractor_answer_leak_is_blocked(demo, monkeypatch):
     assert r.tools[0].count == 1 and "R07" in r.answer
 
 
+def test_contractor_answer_may_repeat_name_from_question(demo, monkeypatch):
+    """질문에 나온 업체 이름을 되풀이하는 것은 누출이 아니다 (실제 Claude 점검에서 나온 경우)."""
+    plan = ChatPlan(off_topic=False, calls=[pc("find_tasks")])
+    draft = ChatDraft(answer="가상-축로I 의 일정은 협력사 화면에서 볼 수 없습니다.", refs=[])
+    use(monkeypatch, FakeProvider(plan=plan, draft=draft))
+    r = service.ask(ChatRequest(question="가상-축로I 작업 일정 알려줘", today=TODAY), PIPE)
+    assert r.answer_by == ChatStepBy.LLM and not r.degraded
+
+
 def test_contractor_without_shares_gets_note(monkeypatch):
     seed.reset_db()
     seed.seed_demo()
