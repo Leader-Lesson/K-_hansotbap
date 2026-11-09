@@ -9,21 +9,21 @@ POSCO K-뉴딜 아카데미 해커톤 (2026-11-09 ~ 11-10)
 
 ## 실행
 
-```bash
-# 방법 1: 파일을 바로 열기
-open index.html            # Windows: start index.html
+레포 루트에서:
 
-# 방법 2: 로컬 서버 (3D 모델 불러오기 등에 권장)
-python -m http.server 8000
-# http://localhost:8000
+```bash
+npm run dev
 ```
 
-인터넷 연결이 필요합니다. three.js(r128, cdnjs), GLTFLoader(jsdelivr), 웹폰트(Google Fonts)를 CDN에서 불러옵니다.
+브라우저가 `http://localhost:5173/prototype/index.html`(이 시안)로 자동으로 열립니다. 팀 React 앱은 그대로 `http://localhost:5173/`에 있습니다.
+
+- **3D · 충돌 탭**은 같은 출처의 `/scene3d/index.html`(`app/frontend/public/scene3d`)을 iframe으로 넣고 `postMessage`로 데이터를 넘깁니다. 그래서 `npm run dev`(또는 `npm run build` 뒤 `vite preview`)로 열어야 동작합니다. `index.html` 파일을 직접 열면 3D 탭에 안내가 뜨고, "시안 3D" 버튼으로 기존 클레이 3D를 볼 수 있습니다.
+- 인터넷 연결이 필요합니다. 시안 3D용 three.js(r128, cdnjs), GLTFLoader(jsdelivr), 웹폰트(Google Fonts)를 CDN에서 불러옵니다. scene3d는 `vendor/`에 three.js를 포함하고 있습니다.
 
 ## 폴더 구조
 
 ```
-hansotbap-prototype/
+app/frontend/public/prototype/
 ├── index.html            # 메인 시안 (상황판 / 3D·충돌 / TBM 확인 / 이력)
 ├── assets/
 │   ├── css/styles.css    # 디자인 토큰(라이트·다크), 화면 스타일
@@ -38,7 +38,7 @@ hansotbap-prototype/
 | 탭 | 내용 |
 | --- | --- |
 | 현재 상황판 | 시안4 시간표형 (07:00–19:00, 30분 칸). 위험 시간대 띠(F9), 구역별 업체 막대, 지금 선, 겹침 띠, 조치 카드, 착수 승인 대기, 안전 작업 가이드 |
-| 3D · 충돌 | 클레이 스타일 임시 3D. 작업별/충돌별 색 구분, 겹친 층끼리 곡선 표시, 층 클릭 시 2D 도면(북·동·남·서 위험·안전 구역), 변경 사항 목록 |
+| 3D · 충돌 | 기본은 **scene3d**(팀 3D 화면) 삽입: 시안의 날짜·작업·충돌·역할(직영관리자/파트장/작업자)을 넘기고, 시연 7번·충돌 상세의 "3D로 보기"는 해당 작업을 선택합니다. "시안 3D" 버튼으로 기존 클레이 3D(작업별/충돌별, 2D 도면, 변경 사항)를 볼 수 있습니다 |
 | TBM 확인 | M1 큰 체크리스트. 공유된 충돌·조정, 위험 시간대, 작업표준서 항목을 팀장 발언과 대조 |
 | 이력 | 제64조 이행 기록 (반려·조정·전체 알림·착수 승인·TBM 등), 계획서 버전, 공유 현황, CSV 복사 |
 
@@ -86,7 +86,18 @@ hansotbap-prototype/
 | R-DF-01 | 화재감시자 미기재 | 결함 |
 | R-DF-03 | 작업표준서 필수 단계 누락 | 결함 |
 
-## 외부 3D 연결 규격
+## scene3d 연동 (assets/js/app.js `s3Payload`·`s3Sync`)
+
+| 방향 | 메시지 | 내용 |
+| --- | --- | --- |
+| 시안 → scene3d | `data` | 그날 작업(`src/types.ts`의 `Task` 모양, `crew` 추가)과 충돌(`Conflict` 모양). 협력사로 보면 권한 범위 안의 작업만 |
+| 시안 → scene3d | `role` | `{kind:"prime"}` 또는 `{kind:"contractor", contractor:"가상-C사", level:"lead"\|"worker"}` |
+| 시안 → scene3d | `time` · `selectTask` | 2D 도면 시각 · 시연/충돌 상세에서 고른 작업 |
+| scene3d → 시안 | `ready` · `select` · `decision` | 준비 완료 시 데이터 전송, 선택한 작업의 충돌 포커스, 승인·반려는 이력에 기록 |
+
+구역 매핑: 노정→`TOP`, 노 내부 상부·중부→`STACK`, 노 내부 하부→`BELLY_BOSH`, 풍구 층→`TUYERE`, 노 내부 바닥→`HEARTH`, 외부 작업대→`SHELL`, 주상→`CASTHOUSE`, 열풍로→`STOVE`
+
+## 외부 3D 연결 규격 (시안 3D)
 
 3D 탭의 **3D 결과물 불러오기**로 `.glb`를 바로 넣어 볼 수 있습니다.
 

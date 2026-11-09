@@ -106,7 +106,7 @@ function fresh(){
   return {tasks,ver:{A:1,B:1,C:1,D:1,E:1},fst:{A:"ok",B:"ok",C:"ok",D:"ok",E:"ok"},files:[],role:"HQ",day:65,sel:null,
     conflicts:[],mitig:{},seen:new Set(),newKeys:new Set(),log:[],adjusted:[],shared:new Set(),riskSent:new Set(),banner:null,lastMs:0,lastApply:null,undo:null,
     chat:[],chatOpen:false,heard:null,drawer:null,upOpen:null,mmode:"conf",mview:"3d",mzone:null,
-    tbm:{p:"C",sample:"A",text:"",res:null,rec:false},hfilt:"전체",step:0,focus:null,ptab:"A",tbmLast:{},delays:{},urgent:[],useq:0,dform:{t:null,h1:null,why:""},events:[],holds:[],started:{},eseq:0,xseq:0,lvl:"hq",notes:[],notiOpen:false,mhour:10.5,extOpen:false,
+    tbm:{p:"C",sample:"A",text:"",res:null,rec:false},hfilt:"전체",step:0,focus:null,ptab:"A",tbmLast:{},delays:{},urgent:[],useq:0,dform:{t:null,h1:null,why:""},events:[],holds:[],started:{},eseq:0,xseq:0,lvl:"hq",notes:[],notiOpen:false,mhour:10.5,extOpen:false,m3src:"scene3d",
     eform:{tab:"job",p:"C",name:"노 내부 중부 가스 배관 누설 긴급 차단",zone:"Z3",h0:13,h1:15,crew:4,types:["가스"],vk:"wind",vz:"Z3",vh1:15,secs:["N"]},
     review:Object.fromEntries(PARTNERS.map(p=>[p.id,{v:1,st:"반영"}])),
     hist:Object.fromEntries(PARTNERS.map(p=>[p.id,[{v:1,time:UPT[p.id],by:p.lead,st:"반영",note:"첫 제출 · 구조화 완료"}]]))};
@@ -417,7 +417,7 @@ const VIEWS=["board","model","tbm","history"];let cur="board";
 function go(v){if(location.hash!=="#"+v)location.hash=v;else show(v);}
 function show(v){cur=VIEWS.includes(v)?v:"board";VIEWS.forEach(x=>$("#view-"+x).hidden=x!==cur);
   document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-current",b.dataset.view===cur?"page":"false"));
-  if(cur==="model"){M3.ensure();M3.update();}}
+  if(cur==="model")renderModel();}
 addEventListener("hashchange",()=>show(location.hash.slice(1)));
 let tT;function toast(m){$("#toastHost").innerHTML=`<div class="toast" role="status">${esc(m)}</div>`;clearTimeout(tT);tT=setTimeout(()=>$("#toastHost").innerHTML="",3400);}
 
@@ -449,7 +449,7 @@ function s11(){finishUp();S.role="HQ";S.day=65;S.drawer=null;S.chatOpen=false;S.
 function ensureFixed(){if(S.ver.C<2)s3();if(S.review.C.st==="검토 중")s4();if(S.review.C.st==="반려")resubmit("C");}
 function s5(){if(S.review.C.st!=="반려")s4();S.role="C";S.step=Math.max(S.step,5);S.drawer=null;go("board");resubmit("C");renderAll();}
 function s6(){ensureFixed();S.role="C";S.step=Math.max(S.step,6);S.drawer=null;go("board");renderAll();}
-function s7(){ensureFixed();S.role="HQ";S.day=65;S.focus="R-VT-01:T06-T02";S.mmode="conf";S.mview="3d";S.drawer=null;S.step=Math.max(S.step,7);go("model");renderAll();}
+function s7(){ensureFixed();S.role="HQ";S.day=65;S.focus="R-VT-01:T06-T02";S3.pendingSelect="T02";S.mmode="conf";S.mview="3d";S.drawer=null;S.step=Math.max(S.step,7);go("model");renderAll();}
 function s8(){ensureFixed();S.role="C";S.step=Math.max(S.step,8);S.chatOpen=true;renderAll();voiceAsk("내 작업과 겹치는 작업은?");}
 function s9(){ensureFixed();S.role="C";S.step=Math.max(S.step,9);S.day=105;S.tbm.p="C";S.tbm.sample="B";S.tbm.text=TBM_SAMPLES.C.B.text;S.tbm.res=null;S.chatOpen=false;S.drawer=null;go("tbm");runTbm();}
 
@@ -744,6 +744,10 @@ function plan2d(z){
 }
 function svgVars(s){return s.replace(/<([a-z]+)([^>]*?)(\/?)>/g,(m,tag,attrs,sl)=>{const st=[];attrs=attrs.replace(/\s(fill|stroke)="(var\([^)]*\))"/g,(mm,k,v)=>{st.push(k+":"+v);return "";});return `<${tag}${attrs}${st.length?` style="${st.join(";")}"`:""}${sl}>`;});}
 function renderModel(){
+  const useS3=S.m3src==="scene3d";$("#s3card").hidden=!useS3;$("#m3legacy").hidden=useS3;
+  document.querySelectorAll('[data-act="m3src"]').forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===S.m3src));
+  if(useS3){s3Sync();return;}
+  if(cur==="model")M3.ensure();
   document.querySelectorAll('[data-act="mmode"]').forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===S.mmode));
   document.querySelectorAll('[data-act="mview"]').forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===S.mview));
   const stage=$("#stage");let p=$("#plan2d");if(!p){p=document.createElement("div");p.id="plan2d";p.className="plan2d";stage.appendChild(p);}
@@ -801,6 +805,51 @@ function extInfoHtml(){const e=M3.extInfo;return `<div class="row2"><b>외부 3D
   update(snap)  { /* 날짜·시각·모드가 바뀔 때마다 호출. snap.zones.Z3.level, .sectors, .tasks, snap.conflicts */ }
 };</pre>
   <div class="sub">지금 상태 예시: 구역 ${Object.keys(ZONES).length}개 · 오늘 겹침 ${snapshot().conflicts.length}건 · <code>window.hansotbap.snapshot()</code>으로 확인할 수 있습니다.</div>`;}
+
+/* ================= scene3d 연동 (app/frontend/public/scene3d, 같은 출처 iframe + postMessage) =================
+   보내는 것: data{tasks, conflicts} (src/types.ts 모양) · role(ViewerRole + level) · time · selectTask
+   받는 것: ready · select{taskId, zoneId} · decision{changeId, taskId, decision, by}
+   협력사로 보면 권한 범위(자기 작업 + 영향을 주는 작업) 안의 작업만 넘긴다. 서버 권한 필터를 대신하지 않는다 */
+const S3={ready:false,sig:"",src:"",hour:null,pendingSelect:null,timer:null};
+const S3ZONE={Z1:"TOP",Z2:"STACK",Z3:"STACK",Z4:"BELLY_BOSH",Z5:"TUYERE",Z6:"HEARTH",Z7:"SHELL",Z8:"CASTHOUSE",Z9:"STOVE"};
+const S3HZ={"화기":"hot_work","밀폐":"confined","고소":"height","중량물":"heavy_lift","가스":"gas"};
+const S3TYPE={"R-SZ-01":"same_time_zone","R-CG-01":"same_time_zone","R-VT-01":"vertical","R-HF-01":"hot_gas","R-HG-01":"hot_gas","R-SQ-01":"sequence","R-DF-01":"sop_missing","R-DF-03":"sop_missing"};
+const s3Contractor=p=>`가상-${P(p).name}`;
+function s3Payload(){const d=S.day,ds=iso(d),at=h=>`${ds}T${hh(h)}:00`;
+  const ts=S.tasks.filter(t=>actOn(t,d)&&inScope(t)),ids=new Set(ts.map(t=>t.id));
+  const tasks=ts.map(t=>({id:t.id,contractor:s3Contractor(t.p),name:(t.emerg?"[긴급] ":"")+tn(t),trade:own(t)?P(t.p).trade:null,zone_id:S3ZONE[t.zone],
+    start:at(t.h0),end:at(t.h1),shift:"day",hazards:t.types.map(k=>S3HZ[k]).filter(Boolean),risk_codes:[],predecessors:t.pre.filter(id=>ids.has(id)),
+    source:own(t)?{file:fileName(t.p),locator:t.id,text:t.src}:null,crew:own(t)?t.crew:null}));
+  const conflicts=visC().filter(c=>c.status==="open"&&c.from<=d&&d<=c.to).map(c=>({id:c.key,type:S3TYPE[c.rule]||"same_time_zone",grade:c.level,
+    task_ids:[c.a,c.b].filter(x=>x&&ids.has(x)),rule_id:c.rule,legal_basis:RULES[c.rule].law.join(" / "),window_start:at(c.h0),window_end:at(c.h1),
+    reason:strip(sentence(c)),suggestion:(proposals(c)[0]||{}).text||null,
+    sources:[c.a,c.b].filter(Boolean).map(task).filter(t=>t&&own(t)).map(t=>({file:fileName(t.p),locator:t.id,text:t.src}))}));
+  const role=S.role==="HQ"?{kind:"prime"}:{kind:"contractor",contractor:s3Contractor(S.role),level:S.lvl==="worker"?"worker":"lead"};
+  return {tasks,conflicts,role};}
+function s3Post(msg){const f=$("#s3frame iframe");if(f&&f.contentWindow)f.contentWindow.postMessage({source:"hansotbap",...msg},location.origin);}
+function s3Fail(why){$("#s3info").textContent="연결 안 됨";$("#s3frame").innerHTML=`<div class="empty"><div>scene3d 화면을 불러오지 못했습니다.</div><div class="sub">${why}</div><div class="row2"><button class="btn sm" data-act="s3retry">다시 불러오기</button><button class="btn sm" data-act="m3src" data-s="legacy">시안 3D로 보기</button></div></div>`;}
+// 3D 준비가 늦어도 iframe은 지우지 않는다 (GPU 없는 PC에서는 첫 표시가 수십 초 걸릴 수 있음). 늦어지면 안내만 띄운다 [팀 설정값: 20초]
+function s3Slow(){$("#s3info").innerHTML=`3D 준비가 늦어지고 있습니다 · <button class="link" data-act="s3retry" style="padding:0">다시 불러오기</button> · <button class="link" data-act="m3src" data-s="legacy" style="padding:0">시안 3D로 보기</button>`;}
+function s3Sync(force){
+  if(cur!=="model"&&!$("#s3frame iframe"))return;
+  const ds=iso(S.day),host=$("#s3frame");
+  if(location.protocol==="file:"){s3Fail("파일을 직접 열면 scene3d와 통신할 수 없습니다. 레포 루트에서 npm run dev로 열어 주세요.");return;}
+  if(S3.src!==ds||!host.querySelector("iframe")){
+    S3.ready=false;S3.sig="";S3.hour=S.mhour;S3.src=ds;$("#s3info").textContent="불러오는 중…";
+    host.innerHTML=`<iframe src="/scene3d/index.html?embed=1&date=${ds}&now=${ds}T${hh(S.mhour)}" title="고로 3D · 충돌 (scene3d)"></iframe>`;
+    clearTimeout(S3.timer);S3.timer=setTimeout(()=>{if(!S3.ready)s3Slow();},20000);return;}
+  if(!S3.ready)return;
+  const p=s3Payload(),sig=JSON.stringify(p);
+  if(force||sig!==S3.sig){S3.sig=sig;s3Post({type:"data",tasks:p.tasks,conflicts:p.conflicts});s3Post({type:"role",role:p.role});}
+  if(S3.hour!==S.mhour){S3.hour=S.mhour;s3Post({type:"time",iso:`${ds}T${hh(S.mhour)}`});}
+  if(S3.pendingSelect&&p.tasks.some(t=>t.id===S3.pendingSelect)){s3Post({type:"selectTask",taskId:S3.pendingSelect});S3.pendingSelect=null;}
+  $("#s3info").textContent=`${ymd(S.day)} · ${S.role==="HQ"?"포스코 직영관리자":`${P(S.role).name} ${S.lvl==="worker"?"작업자":"파트장"}`} · 작업 ${p.tasks.length}건 · 충돌 ${p.conflicts.length}건`;
+}
+addEventListener("message",e=>{const m=e.data;if(e.origin!==location.origin||!m||m.source!=="scene3d")return;
+  if(m.type==="ready"){S3.ready=true;clearTimeout(S3.timer);s3Sync(true);}
+  else if(m.type==="select"&&m.taskId){const t=task(m.taskId);if(t){const c=visC().find(x=>(x.a===t.id||x.b===t.id)&&x.status==="open"&&x.from<=S.day&&S.day<=x.to);if(c)S.focus=c.key;}}
+  else if(m.type==="decision"){const t=task(m.taskId);S.log.unshift({time:clock(),type:m.decision==="approved"?"착수 승인":"착수 보류",sum:`3D 화면 결정 · ${t?tn(t):m.taskId}`,dec:`scene3d 긴급 변경 ${m.changeId||""} ${m.decision==="approved"?"승인":"반려"}`,who:m.by&&m.by.id?String(m.by.id).replace(/^가상-/,"")+(m.by.level?` ${m.by.level==="manager"?"직영관리자":m.by.level==="worker"?"작업자":"파트장"}`:""):byWho(),rule:"F3",law:"",parties:t?[t.p]:[]});renderHistory();toast(`3D 화면에서 ${m.decision==="approved"?"승인":"반려"}했습니다 · 이력에 남겼습니다`);}
+});
 
 /* ================= 3. TBM 확인 (F7) ================= */
 function tbmItems(p,d){
@@ -923,6 +972,8 @@ document.addEventListener("click",e=>{
   if(a==="nall"){myNotes().forEach(n=>n.read.add(S.role));renderNoti();return;}
   if(a==="nperm"){try{if(typeof Notification==="undefined")throw 0;Notification.requestPermission().then(r=>{toast(r==="granted"?"브라우저 알림을 켰습니다":"브라우저 알림이 허용되지 않았습니다. 화면 안 알림은 계속 표시됩니다");renderNoti();}).catch(()=>toast("이 화면에서는 브라우저 알림을 켤 수 없습니다. 화면 안 알림은 계속 표시됩니다"));}catch(e){toast("이 화면에서는 브라우저 알림을 켤 수 없습니다. 화면 안 알림은 계속 표시됩니다");}return;}
   if(a==="mhour"){S.mhour=+el.dataset.h;renderModel();return;}
+  if(a==="m3src"){S.m3src=el.dataset.s;renderModel();return;}
+  if(a==="s3retry"){S3.src="";renderModel();return;}
   if(a==="extspec"){S.extOpen=!S.extOpen;renderModel();return;}
   if(a==="extreset"){M3.resetModel();return;}
   if(a==="openevent"){S.eform.tab="job";S.drawer={kind:"event",anim:true};renderDrawer();return;}
@@ -941,7 +992,7 @@ document.addEventListener("click",e=>{
   if(a==="dsubmit"){const f=S.dform;if(!f.t)return;const t=task(f.t);reportDelay(f.t,f.h1,f.why||"사유 미기재",S.role==="HQ"?`${HQ[0]} (대리 보고)`:`${P(t.p).name} ${P(t.p).lead}`);S.drawer=null;renderAll();return;}
   if(a==="uack"){const u=S.urgent.find(x=>x.id===el.dataset.id);if(u){u.ack.add(S.role);S.log.unshift({time:clock(),type:"알림",sum:`긴급 알림 수신 확인 · ${labelOf(u.key)}`,dec:"",who:S.role==="HQ"?HQ[0]:`${P(S.role).name} ${P(S.role).lead}`,rule:"",law:"",parties:S.role==="HQ"?[]:[S.role]});}renderUrgent();renderHistory();return;}
   if(a==="resubmit"){resubmit(el.dataset.p);return;}
-  if(a==="to3d"){S.focus=el.dataset.key;const c=S.conflicts.find(x=>x.key===S.focus);if(c&&(S.day<c.from||S.day>c.to))S.day=c.from;S.mmode="conf";S.mview="3d";S.drawer=null;go("model");renderAll();return;}
+  if(a==="to3d"){S.focus=el.dataset.key;const c=S.conflicts.find(x=>x.key===S.focus);if(c)S3.pendingSelect=c.b||c.a;if(c&&(S.day<c.from||S.day>c.to))S.day=c.from;S.mmode="conf";S.mview="3d";S.drawer=null;go("model");renderAll();return;}
   if(a==="focus"){S.focus=S.focus===el.dataset.key?null:el.dataset.key;const c=S.conflicts.find(x=>x.key===S.focus);if(c&&(S.day<c.from||S.day>c.to))S.day=c.from;S.mview="3d";renderHeader();renderModel();return;}
   if(a==="unfocus"){S.focus=null;renderModel();return;}
   if(a==="undo"){undoLast();return;}
