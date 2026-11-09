@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/api/client";
 import { AppHeader } from "@/components/AppHeader";
+import { ChatDock } from "@/components/ChatDock";
 import { UploadDialog } from "@/components/UploadDialog";
 import { restrictionsFrom } from "@/lib/restrictions";
 import { DATE_KEY, ShellProvider, useShell } from "@/lib/shell";
@@ -161,6 +162,7 @@ function AppInner() {
             restrictions={restrictions}
             onAdjusted={onAdjusted}
             onReload={() => void load()}
+            onViewAs={changeRole}
           />
         ) : (
           <ContractorView
@@ -175,6 +177,7 @@ function AppInner() {
           />
         )}
       </main>
+      <ChatDock role={role} tasks={tasks} conflicts={conflicts} />
     </div>
   );
 }

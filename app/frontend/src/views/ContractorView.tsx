@@ -83,7 +83,7 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
         </TabsContent>
 
         <TabsContent value="tbm">
-          <TbmView role={{ kind: "contractor", contractor }} contractors={[contractor]} defaultDate={date} />
+          <TbmView role={{ kind: "contractor", contractor }} contractors={[contractor]} tasks={tasks} />
         </TabsContent>
 
         <TabsContent value="mine" className="rounded-lg bg-white p-4 text-sm shadow-sm">

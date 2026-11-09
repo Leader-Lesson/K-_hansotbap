@@ -12,7 +12,7 @@ import { GRADE_RANK } from "@/lib/format";
 import { usePerson } from "@/lib/person";
 import { groupByZone, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
 import { useShell, useShellRegister } from "@/lib/shell";
-import type { AdjustmentResult, ConflictRecord, PlanRecord, RiskWindow, SopInfo, SopMatch, Task, Zone } from "@/types";
+import type { AdjustmentResult, ConflictRecord, PlanRecord, RiskWindow, SopInfo, SopMatch, Task, ViewerRole, Zone } from "@/types";
 import { HistoryView } from "@/views/HistoryView";
 import { RestrictionPanel } from "@/views/RestrictionPanel";
 import { Scene3DTab } from "@/views/Scene3DTab";
@@ -30,9 +30,10 @@ interface Props {
   restrictions: ZoneRestriction[]; // 금지 판정 → 구역별 출입 제한 (안내 패널·3D 공용)
   onAdjusted: (result: AdjustmentResult) => void;
   onReload: () => void; // 협력사 공유 뒤 다시 불러오기
+  onViewAs?: (role: ViewerRole) => void; // 이력 > 공유 현황의 [그 회사 화면으로 보기]
 }
 
-export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onReload }: Props) {
+export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onReload, onViewAs }: Props) {
   // 기본 날짜: 가장 최근 제출한 협력사의 작업이 걸린 충돌 중 가장 높은 등급(같으면 먼저 시작)의 시작일.
   // 제출 직후 그 협력사가 낸 충돌이 있는 날로 바로 간다. 제출이 없으면 기준 일정의 한 날
   const defaultDate = useMemo(() => {
@@ -252,13 +253,13 @@ export function PrimeView({ zones, tasks, conflicts, sopMatches, sops, plans, re
           <TbmView
             role={{ kind: "prime" }}
             contractors={allContractors.filter((c) => c.startsWith("가상-"))}
+            tasks={tasks}
             defaultContractor={latestPlan?.contractor}
-            defaultDate={date}
           />
         </TabsContent>
 
         <TabsContent value="history">
-          <HistoryView plans={plans} tasks={tasks} onAdjusted={onAdjusted} />
+          <HistoryView plans={plans} tasks={tasks} onAdjusted={onAdjusted} onViewAs={onViewAs} />
         </TabsContent>
       </Tabs>
     </div>
