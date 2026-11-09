@@ -112,7 +112,7 @@ export default function App() {
     <div className="mx-auto max-w-7xl p-4">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">🍲 한솥밥</h1>
+          <h1 className="text-xl font-bold">🍚 한솥밥</h1>
           <p className="text-sm text-stone-600">고로 개수 협력사 동시작업 간섭 감지·예보</p>
         </div>
         <div className="flex items-center gap-3">
