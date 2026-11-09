@@ -24,6 +24,7 @@ _LABELS = {
     Kind.ADJUSTMENT_REVERTED: "조정 되돌림",
     Kind.ADJUSTMENT_STALE: "조정 무효",
     Kind.TBM_CHECKED: "TBM 전달 확인",
+    Kind.FIELD_RECORD: "현장 기록",
 }
 
 
@@ -39,7 +40,7 @@ def _workbook(events: list[HistoryEvent], contractor: str | None) -> bytes:
         ws.append(
             [
                 f"{e.at:%Y-%m-%d %H:%M:%S}",
-                _LABELS[e.kind],
+                e.label or _LABELS[e.kind],  # 현장 기록은 원래 구분 이름 (교대 인계·착수 승인 …)
                 e.target_id,
                 ", ".join(e.contractors),
                 e.actor or "시스템",

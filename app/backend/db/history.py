@@ -1,10 +1,13 @@
-"""F5 이행 기록: 제출·판정·공유·조정 기록을 시각순 한 줄 목록으로 모은다 (읽기만 한다).
+"""F5 이행 기록: 제출·판정·공유·조정 기록을 시각순 한 줄 목록으로 모은다.
 
 저장은 각 기능의 표가 이미 하고 있다. 되돌린 사람처럼 decisions 표에만 있는 정보는 거기서 읽는다.
+교대 인계·착수 승인처럼 이 시스템 밖에서 사람이 남긴 기록은 history_records 표(현장 기록)에 둔다.
 """
 
 from __future__ import annotations
 
+import json
+from dataclasses import dataclass
 from datetime import datetime
 
 from schemas import AdjustmentStatus, Conflict, HistoryEvent, HistoryEventKind as Kind
@@ -19,6 +22,51 @@ _ORDER = {kind: i for i, kind in enumerate(Kind)}
 
 # decisions.decision 은 앞머리로 종류를 나눈다 (db/adjust_flow.py 가 적는 형식)
 _REVERTED, _REPLACED = "되돌림: ", "대체: "
+
+
+@dataclass(frozen=True)
+class FieldRecord:
+    """현장 기록 한 건 (교대 인계·착수 승인·잔업 등). 판정·조정 표에는 들어가지 않고 이력에만 보인다."""
+
+    at: datetime
+    label: str
+    detail: str
+    contractors: tuple[str, ...] = ()
+    actor: str | None = None
+    rule_id: str | None = None
+    legal_basis: str | None = None
+
+
+def add_field_records(records: list[FieldRecord]) -> None:
+    with session() as conn:
+        conn.executemany(
+            "INSERT INTO history_records (recorded_at, label, actor, contractors, detail, rule_id, legal_basis)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+                (r.at.isoformat(timespec="seconds"), r.label, r.actor, json.dumps(list(r.contractors), ensure_ascii=False),
+                 r.detail, r.rule_id, r.legal_basis)
+                for r in records
+            ],
+        )
+
+
+def _field_events(contractor: str | None) -> list[HistoryEvent]:
+    """현장 기록. 협력사로 부르면 자기 업체가 관련 업체에 든 기록만 (관련 업체가 비어 있으면 원청만 본다)."""
+    with session() as conn:
+        rows = conn.execute("SELECT * FROM history_records ORDER BY id").fetchall()
+    events = []
+    for row in rows:
+        contractors = json.loads(row["contractors"])
+        if contractor and contractor not in contractors:
+            continue
+        events.append(
+            HistoryEvent(
+                at=datetime.fromisoformat(row["recorded_at"]), kind=Kind.FIELD_RECORD, label=row["label"],
+                target_id=f"rec-{row['id']}", actor=row["actor"], contractors=contractors, detail=row["detail"],
+                rule_id=row["rule_id"], legal_basis=row["legal_basis"],
+            )
+        )
+    return events
 
 
 def _decision_kind(decision: str) -> Kind:
@@ -85,4 +133,5 @@ def list_history(contractor: str | None = None) -> list[HistoryEvent]:
             )
         )
 
+    events.extend(_field_events(contractor))
     return sorted(events, key=lambda e: (e.at, _ORDER[e.kind]))

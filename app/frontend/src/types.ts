@@ -198,13 +198,16 @@ export type HistoryEventKind =
   | "adjustment_applied"
   | "conflict_resolved"
   | "adjustment_reverted"
-  | "adjustment_stale";
+  | "adjustment_stale"
+  | "tbm_checked" // TBM 전달 확인
+  | "field_record"; // 현장 기록: 교대 인계·착수 승인·잔업 등 사람이 남긴 기록 (구분 이름은 label)
 
 /** GET /api/history: 이행 기록 한 줄 (제64조) */
 export interface HistoryEvent {
   at: string;
   kind: HistoryEventKind;
-  target_id: string; // plan-<번호> 또는 충돌 ID
+  label: string | null; // 현장 기록의 구분 이름 (교대 인계, 착수 승인 …). 다른 기록은 null
+  target_id: string; // plan-<번호>, tbm-<번호>, rec-<번호>(현장 기록) 또는 충돌 ID
   actor: string | null; // 책임자 (시스템이 남긴 기록은 null)
   contractors: string[];
   detail: string;
