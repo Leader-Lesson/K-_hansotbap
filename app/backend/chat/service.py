@@ -171,7 +171,7 @@ def ask(req: ChatRequest, contractor: str | None) -> ChatResponse:
     provider = None
     provider_name, model = settings.chat_provider or settings.llm_provider, ""
     try:
-        provider = llm_chat.chat_provider()
+        provider = llm_chat.chat_provider(req.choice)
         provider_name, model = provider.name, provider.model
     except Exception as e:  # 키·주소가 비어 있는 등 설정 오류
         log.warning("chat provider 설정 오류: %s", e)
@@ -267,8 +267,8 @@ def ask(req: ChatRequest, contractor: str | None) -> ChatResponse:
     return done(template_answer(results), ChatStepBy.RULES, results, [])
 
 
-def status():
-    """연결 확인용: 짧은 질문 하나를 보내 걸린 시간을 잰다."""
+def status(choice=None):
+    """연결 확인용: 짧은 질문 하나를 보내 걸린 시간을 잰다. choice 는 화면에서 고른 모델 (없으면 .env 설정)."""
     from schemas import ChatStatus
 
     common = dict(
@@ -277,7 +277,7 @@ def status():
         total_timeout=settings.chat_total_timeout,
     )
     try:
-        provider = llm_chat.chat_provider()
+        provider = llm_chat.chat_provider(choice)
     except Exception as e:
         return ChatStatus(provider=settings.chat_provider or settings.llm_provider, model="", ok=False, error=str(e), **common)
     budget = min(10.0, settings.chat_plan_timeout)  # [팀 설정값]

@@ -2,6 +2,8 @@ import type {
   AdjustmentApply,
   ApprovalCheck,
   ApprovalDecision,
+  ChatChoiceId,
+  ChatChoices,
   ChatRequest,
   ChatResponse,
   ChatStatus,
@@ -156,7 +158,10 @@ export const api = {
       clearTimeout(timer);
     }
   },
-  chatStatus: () => get<ChatStatus>("/chat/status"),
+  // 고른 모델로 짧은 질문을 보내 연결을 확인한다 (비우면 .env 설정)
+  chatStatus: (choice?: ChatChoiceId) => get<ChatStatus>(`/chat/status${qs({ choice })}`),
+  // 화면에서 고를 수 있는 모델 (로컬 LLM + Claude 3개)과 기본값
+  chatModels: () => get<ChatChoices>("/chat/models"),
 
   // ── F7 TBM 전달 확인 ───────────────────────────────────────────────
   // 그 업체·날짜에 전달할 항목. 서버가 공유된 조정·위험 시간대·원청 공지로 만든다 (contractor 는 항상 필수)
