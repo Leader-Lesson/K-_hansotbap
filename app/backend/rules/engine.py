@@ -229,6 +229,39 @@ def _all_zone_conflict(rule: Rule, pr: PairRule, a: Task, hits: list[tuple[Task,
     )
 
 
+def is_all_zone_conflict(conflict: Conflict) -> bool:
+    return conflict.id.endswith(f">{ALL_ZONE}")
+
+
+def scope_all_zone_conflict(conflict: Conflict, tasks: list[Task], viewer: str) -> Conflict:
+    """협력사 화면용: 전 구역 묶음 충돌(…>ALL)을 '전 구역 작업 + 이 협력사의 작업'으로 좁혀 다시 만든다.
+
+    묶음에는 전 구역 작업과 겹칠 수 있는 모든 업체의 작업이 들어 있다. 그대로 공유하면 협력사 한 곳이 전체 일정을
+    받게 되므로, 협력사에게는 자기 작업과의 겹침만 준다(이유 문장·기간·근거도 그 범위로 다시 만든다).
+    전 구역 작업을 낸 협력사에게는 묶음 전체가 자기 작업의 상대이므로 그대로 둔다.
+    """
+    if not is_all_zone_conflict(conflict):
+        return conflict
+    by_id = {t.id: t for t in tasks}
+    a = by_id.get(conflict.task_ids[0])
+    if a is None or a.contractor == viewer:
+        return conflict
+    mine = [by_id[t] for t in conflict.task_ids[1:] if t in by_id and by_id[t].contractor == viewer]
+    rule = next((r for r in load_rules() if r.id == conflict.rule_id), None)
+    pr = next((p for p in PAIR_RULES if p.id == conflict.rule_id), None)
+    if not mine or rule is None or pr is None:  # 정상 판정 결과에서는 생기지 않는다. 생겨도 묶음 목록은 내보내지 않는다
+        return conflict.model_copy(update={
+            "task_ids": [a.id] + [t.id for t in mine],
+            "reason": f"{a.contractor} '{a.name}'({a.id})은(는) 전 구역 작업이라 이 업체 작업과 겹칠 수 있습니다.",
+            "sources": _sources(a, *mine),
+        })
+    # 판정 뒤 일정이 바뀌어 겹침이 사라졌으면 저장된 묶음 기간을 쓴다 (전체 묶음을 내보내지 않는다)
+    fallback = (conflict.window_start, conflict.window_end)
+    hits = [(m, _window(pr, a, m) or fallback) for m in mine]
+    scoped = _all_zone_conflict(rule, pr, a, hits)
+    return scoped.model_copy(update={"grade": conflict.grade, "type": conflict.type})
+
+
 def detect_pair_rules(tasks: list[Task], rules: list[Rule]) -> list[Conflict]:
     """2·3단계: 작업 쌍에 R01~R25(R08 제외)를 적용한다. 기본은 서로 다른 협력사, 치명적 조합은 같은 협력사도."""
     by_id = {r.id: r for r in rules}

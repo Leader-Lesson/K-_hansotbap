@@ -16,7 +16,7 @@ from datetime import datetime
 
 from rules.adjust import apply_adjustments, diff_conflicts
 from rules.data_loader import load_rules, load_wbs_tasks, load_zones
-from rules.engine import detect_conflicts, detect_sequence_violations
+from rules.engine import detect_conflicts, detect_sequence_violations, is_all_zone_conflict, scope_all_zone_conflict
 from search.sop_match import match_plan
 from schemas import (
     Adjustment,
@@ -238,6 +238,13 @@ def _without_others_sources(record: ConflictRecord, others: list[SourceRef]) -> 
     return record.model_copy(update={"conflict": conflict})
 
 
+def _scoped(record: ConflictRecord, schedule: list[Task], contractor: str) -> ConflictRecord:
+    """전 구역 묶음 충돌은 이 협력사의 작업과 겹친 부분만 남긴다. 작업 목록·공유·위험 시간대·TBM·이력이 모두 이걸 거친다."""
+    if not is_all_zone_conflict(record.conflict):
+        return record
+    return record.model_copy(update={"conflict": scope_all_zone_conflict(record.conflict, schedule, contractor)})
+
+
 def list_conflicts(contractor: str | None = None, include_resolved: bool = False) -> list[ConflictRecord]:
     """저장된 판정 결과.
 
@@ -255,7 +262,7 @@ def list_conflicts(contractor: str | None = None, include_resolved: bool = False
         mine = {t.id for t in schedule if t.contractor == contractor}
         others = [t.source for t in schedule if t.contractor != contractor and t.source]
         records = [
-            _without_others_sources(r, others)
+            _without_others_sources(_scoped(r, schedule, contractor), others)
             for r in records
             if r.shared_at and mine & set(r.conflict.task_ids)
         ]
