@@ -41,6 +41,15 @@ CREATE TABLE IF NOT EXISTS decisions (
     decision TEXT NOT NULL,              -- 적용한 조정안
     decided_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS adjustments (
+    id TEXT PRIMARY KEY,
+    conflict_id TEXT NOT NULL,
+    task_id TEXT NOT NULL,
+    payload TEXT NOT NULL,                  -- schemas.Adjustment JSON
+    status TEXT NOT NULL DEFAULT 'active',  -- active | reverted | stale
+    decided_at TEXT NOT NULL,
+    closed_at TEXT
+);
 CREATE TABLE IF NOT EXISTS extraction_cache (
     key TEXT PRIMARY KEY,                -- 추출기 버전|파일 sha256|모드|LLM|모델|제출 업체
     payload TEXT NOT NULL,               -- schemas.PlanExtraction JSON

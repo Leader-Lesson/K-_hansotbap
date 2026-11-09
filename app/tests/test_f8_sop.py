@@ -149,6 +149,22 @@ def test_upload_submit_stores_sop_defect():
     assert stored["SOP:P34:SOP-04"]["conflict"]["grade"] == "결함"
 
 
+def test_applying_f4_adjustment_keeps_sop_defect_open():
+    """조정안(F4)을 적용해 순서 위반을 풀어도, 계획서에 빠진 표준서 단계는 그대로 결함으로 남아야 한다."""
+    name = "가상-배관O_가스라인_복구_작업계획서.hwpx"
+    ext = client.post("/api/plans", files={"file": (name, (SAMPLES / name).read_bytes(), HWPX)}).json()
+    client.post(
+        "/api/plans/submit",
+        json={"contractor": "가상-배관O", "file": name, "tasks": [t["task"] for t in ext["tasks"]], "draft_id": ext["draft_id"]},
+    )
+    cand = client.get("/api/conflicts/R08:P22>P34/adjustments").json()[0]
+    res = client.post("/api/adjustments", json={"conflict_id": "R08:P22>P34", "candidate_id": cand["id"], "decided_by": "원청 담당자"})
+    assert res.status_code == 200, res.text
+    assert "SOP:P34:SOP-04" not in {c["id"] for c in res.json()["diff"]["resolved"]}
+    stored = {r["conflict"]["id"]: r["status"] for r in client.get("/api/conflicts").json()}
+    assert stored["SOP:P34:SOP-04"] == "open"
+
+
 def test_submit_without_document_skips_sop():
     """원문 없이(draft_id 없이) 낸 계획은 표준서 결함을 판정하지 않는다 — 없는 단계를 추측하지 않는다."""
     t = task("질소·가스·송풍 라인 복구 연결", "P34", [Hazard.GAS]).model_dump(mode="json") | {"contractor": "가상-배관O"}

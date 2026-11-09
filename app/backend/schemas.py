@@ -54,6 +54,14 @@ class AdjustmentKind(str, Enum):
     RESCHEDULE = "reschedule"  # 일정 이동 (기간 유지)
 
 
+class AdjustmentStatus(str, Enum):
+    """조정 기록의 상태. 판정에는 active 인 기록만 얹는다."""
+
+    ACTIVE = "active"  # 적용 중
+    REVERTED = "reverted"  # 원청이 되돌렸거나, 같은 작업의 새 조정으로 대체됨
+    STALE = "stale"  # 협력사가 재제출해 조정의 기준이던 원본 일정이 달라짐
+
+
 class Role(str, Enum):
     PRIME = "prime"  # 원청
     CONTRACTOR = "contractor"  # 협력사
@@ -142,6 +150,7 @@ class AdjustmentCandidate(BaseModel):
     affected_successors: list[str] = Field(
         default=[], description="옮긴 뒤 시작이 이 작업의 새 종료보다 이른 후행 작업"
     )
+    recommended: bool = Field(default=False, description="후보 중 새 충돌·영향 받는 후행 작업이 가장 적은 안")
 
 
 class Adjustment(BaseModel):
@@ -172,6 +181,32 @@ class ConflictDiff(BaseModel):
     resolved: list[Conflict] = Field(default=[], description="사라진 충돌")
     introduced: list[Conflict] = Field(default=[], description="새로 생긴 충돌")
     grade_changed: list[ConflictGradeChange] = []
+
+
+class AdjustmentRecord(BaseModel):
+    """저장된 조정 기록 하나 (F4 적용·되돌리기, F5 이행 기록)."""
+
+    adjustment: Adjustment
+    status: AdjustmentStatus
+    closed_at: datetime | None = Field(default=None, description="되돌렸거나 무효가 된 시각")
+
+
+class AdjustmentApply(BaseModel):
+    """POST /api/adjustments 본문: 원청 담당자가 고른 조정안."""
+
+    conflict_id: str
+    candidate_id: str
+    decided_by: str = Field(min_length=1, description="적용한 책임자")
+
+
+class AdjustmentResult(BaseModel):
+    """조정 적용·되돌리기 결과: 재판정한 충돌과 전후 비교."""
+
+    record: AdjustmentRecord
+    conflicts: list[Conflict]
+    diff: ConflictDiff
+    recheck_ms: float = Field(description="재판정에 걸린 시간(밀리초)")
+    refresh: bool = Field(default=True, description="판정 후 화면을 한 번 강제 새로고침한다")
 
 
 class OverlapCandidate(BaseModel):
@@ -299,3 +334,5 @@ class PlanSubmitResult(BaseModel):
     plan: PlanRecord
     conflicts: list[Conflict]
     refresh: bool = Field(default=True, description="판정 후 화면을 한 번 강제 새로고침한다")
+    diff: ConflictDiff | None = Field(default=None, description="이 제출로 사라지거나 새로 생긴 충돌 (새 충돌 알림)")
+    recheck_ms: float | None = Field(default=None, description="재판정에 걸린 시간(밀리초)")
