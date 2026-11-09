@@ -386,7 +386,7 @@ export function renderRightIntro({ title, t, conflicts, tasks, allTasks, alterna
       ${tile('#c62828', '구역 위반', violations.length, '시정 명령')}
       ${tile(SEV.CONDITIONAL.color, '조건부', n('CONDITIONAL'), '알림만')}
       ${tile(SEV.DEFECT.color, '결함', n('DEFECT'), '계획 보완')}
-      ${pending ? tile('#2e6fd0', '승인 대기', pending, '착수 전') : ''}
+      ${pending ? tile('#2462C8', '승인 대기', pending, '착수 전') : ''}
     </div>
     ${violations.length || top.length ? `<h3 class="p2-h3">지금 해결할 문제</h3>` : ''}
     ${violations.slice(0, 2).map((v) => violCard(v, role, t)).join('')}

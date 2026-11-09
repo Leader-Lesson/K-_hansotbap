@@ -17,7 +17,7 @@ npm run dev
 
 브라우저가 `http://localhost:5173/prototype/index.html`(이 시안)로 자동으로 열립니다. 팀 React 앱은 그대로 `http://localhost:5173/`에 있습니다.
 
-- **3D · 충돌 탭**은 같은 출처의 `/scene3d/index.html`(`app/frontend/public/scene3d`)을 iframe으로 넣고 `postMessage`로 데이터를 넘깁니다. 그래서 `npm run dev`(또는 `npm run build` 뒤 `vite preview`)로 열어야 동작합니다. `index.html` 파일을 직접 열면 3D 탭에 안내만 뜹니다.
+- **3D · 충돌 탭**은 같은 출처의 `/scene3d/index.html`(`app/frontend/scene3d`, Vite가 함께 빌드)을 iframe으로 넣고 `postMessage`로 데이터를 넘깁니다. 그래서 `npm run dev`(또는 `npm run build` 뒤 `vite preview`)로 열어야 동작합니다. `index.html` 파일을 직접 열면 3D 탭에 안내만 뜹니다.
 - 인터넷 연결이 필요합니다. 웹폰트(Google Fonts)를 CDN에서 불러옵니다. 3D(scene3d)는 `vendor/`에 three.js를 포함하고 있어 인터넷이 없어도 됩니다.
 
 ## 폴더 구조

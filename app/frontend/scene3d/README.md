@@ -1,6 +1,10 @@
 # scene3d — 고로 3D·충돌 화면 (F3)
 
-three.js(r160, `vendor/`에 포함) 정적 화면. React 번들과 따로 `public/scene3d/`에서 서빙되고, `src/views/Scene3DTab.tsx`가 iframe으로 띄운 뒤 `postMessage`로 데이터·역할을 넘긴다. 화면에 "합성 데이터" 표시.
+three.js(npm `three`) 화면. Vite가 React 앱과 함께 빌드하는 두 번째 페이지다(`vite.config.ts`의 `build.rollupOptions.input`, 주소 `/scene3d/index.html`). 화면에 "합성 데이터" 표시.
+
+- **단독 실행**(`npm run dev` 후 `http://localhost:5173/scene3d/index.html`): `src/api.ts`가 백엔드(`/api`)의 작업·서버 판정(R01~R30)·금지 판정 출입 제한을 불러와 그린다. React 앱과 같은 API 클라이언트(`src/api/client.ts`)·데이터 계약(`src/types.ts`)을 쓰고, 경계 타입은 `src/adapter.d.ts`. 보는 사람을 협력사로 바꾸면 그 업체 범위로 서버에서 다시 받고(주소 `?role=`), 10초마다 바뀐 판정을 반영한다. `?date=YYYY-MM-DD`가 없으면 가장 최근 제출 업체의 가장 높은 등급 충돌이 있는 날로 연다. `?source=sample`이거나 서버가 꺼져 있으면 합성 시안 데이터(`src/data.js`)
+- **삽입**(`?embed=1`): React 앱(`src/views/Scene3DTab.tsx`)과 시안이 iframe으로 띄운 뒤 `postMessage`로 데이터·역할을 넘긴다 (서버를 직접 부르지 않는다)
+- 3D 본체는 JS(ES 모듈)이고 서버 경계(`api.ts`, `adapter.d.ts`)만 TS다. 파일을 직접 열면 동작하지 않으니 `npm run dev`로 연다
 
 ## 기능
 - 고로 12구역 3D(구조물·배관·장비·작업자·낮/밤), 층 펼치기, 2D 도면 전환, 시간 슬라이더(그날 07:00~다음 날 07:00)

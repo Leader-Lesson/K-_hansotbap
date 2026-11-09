@@ -5,9 +5,10 @@
   --line: #d6dadf;
   --text: #1f2933;
   --muted: #5b6672;
-  --blue: #1f5fbf;
+  --blue: #2462C8;          /* 브랜드 파랑 = 시안 상황판(prototype styles.css --blue) */
   --red: #c62828;
-  --accent: #2f6f5e;
+  --accent: #2462C8;        /* 강조색도 브랜드 파랑 */
+  --accent-soft: #E3ECFA;
   --radius: 10px;
 }
 * { box-sizing: border-box; }
@@ -84,7 +85,7 @@ body.full .full-exit { display: block; }
   text-align: left;
 }
 .floor-btn:hover { background: #eef2f5; }
-.floor-btn.active { background: #e3efe9; border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.floor-btn.active { background: var(--accent-soft); border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
 .floor-name { display: flex; flex-direction: column; line-height: 1.3; }
 .floor-name small { color: var(--muted); font-size: 12px; }
 .badge {
@@ -395,7 +396,7 @@ body.full .full-exit { display: block; }
 .p2-left { display: flex; flex-direction: column; gap: 8px; }
 .p2-left-title { font-size: 13px; font-weight: 700; color: var(--muted); margin: 2px 4px 0; }
 .p2-all { display: flex; flex-direction: column; width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: #f7f8f9; }
-.p2-all.p2-on { background: #e3efe9; border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+.p2-all.p2-on { background: var(--accent-soft); border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
 .p2-all-name { font-size: 15px; font-weight: 700; }
 .p2-all-sub { font-size: 13px; color: var(--muted); }
 .p2-all-sub b { color: var(--text); }
@@ -410,7 +411,7 @@ body.full .full-exit { display: block; }
 .p2-ban { display: flex; align-items: center; gap: 5px; margin-top: 2px; font-size: 13px; font-weight: 700; color: var(--red); line-height: 1.3; }
 .p2-ban i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
 .p2-row-empty { padding: 6px 12px 8px; border-top: 1px solid #eef0f2; font-size: 13px; color: var(--muted); }
-.p2-grp-head.p2-on { background: #e3efe9; box-shadow: inset 4px 0 0 var(--accent); }
+.p2-grp-head.p2-on { background: var(--accent-soft); box-shadow: inset 4px 0 0 var(--accent); }
 .p2-dot { flex: none; width: 12px; height: 12px; border-radius: 50%; }
 .p2-grp-name { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; line-height: 1.3; }
 .p2-grp-name small { display: block; font-size: 13px; font-weight: 400; color: var(--muted); }

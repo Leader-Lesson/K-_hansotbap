@@ -14,6 +14,7 @@ import { renderLeft, renderRightIntro, renderRightZone, renderRightTask } from '
 import { buildSession } from './session.js';
 import { fromHansotbap, roleFrom } from './adapter.js';
 import { ALTERNATIVES, ALT_GROUP_NOTE, applyAlternative } from './alternatives.js';
+import { POLL_MS, bootFromApi, loadView } from './api.ts';
 
 // ---------- 공통 유틸 ----------
 const $ = (id) => document.getElementById(id);
@@ -25,15 +26,26 @@ const hhmm = (iso) => (fmtTime ? fmtTime(iso) : String(iso).slice(11, 16));
 const SEV_ORDER = ['PROHIBITED', 'CONDITIONAL', 'DEFECT'];
 const sevScore = (s) => SEV[s]?.score ?? 0;
 
+// 삽입(embed) 모드 · 날짜 지정: ?embed=1&date=2027-01-21 (hansotbap 프론트 탭 안 iframe)
+const QS = new URLSearchParams(location.search);
+const EMBED = QS.get('embed') === '1';
+
+// 단독 실행(/scene3d/index.html): 백엔드의 작업·서버 판정으로 시작한다 (api.js). ?source=sample 이거나 서버가 꺼져 있으면 합성 시안 데이터
+const BOOT = !EMBED && QS.get('source') !== 'sample' ? await bootFromApi(QS) : null;
+const API_MODE = !!BOOT?.data;
+if (API_MODE) {
+  COMPANIES.splice(0, COMPANIES.length, ...BOOT.data.companies);
+  TASKS.splice(0, TASKS.length, ...BOOT.data.tasks);
+  CONFLICTS.splice(0, CONFLICTS.length, ...BOOT.data.conflicts);
+}
+
 const zoneById = new Map(ZONES.map((z) => [z.id, z]));
 const companyById = new Map(COMPANIES.map((c) => [c.id, c]));
 const taskById = new Map(TASKS.map((t) => [t.id, t]));
 
-// 삽입(embed) 모드 · 날짜 지정: ?embed=1&date=2027-01-21 (hansotbap 프론트 탭 안 iframe)
-const QS = new URLSearchParams(location.search);
-const EMBED = QS.get('embed') === '1';
-if (/^\d{4}-\d{2}-\d{2}$/.test(QS.get('date') || '')) {
-  const d = QS.get('date'), n = new Date(d + 'T00:00');
+const DATE_Q = QS.get('date') || BOOT?.date || '';
+if (/^\d{4}-\d{2}-\d{2}$/.test(DATE_Q)) {
+  const d = DATE_Q, n = new Date(d + 'T00:00');
   n.setDate(n.getDate() + 1);
   Object.assign(DEMO, { date: d, windowStart: d + 'T07:00', windowEnd: toIso(n).slice(0, 10) + 'T07:00', now: QS.get('now') || d + 'T10:00' });
 }
@@ -42,6 +54,11 @@ if (EMBED) document.body.classList.add('embed');
   const dd = new Date(DEMO.date + 'T00:00'), day = Math.round((dd - new Date('2026-11-12T00:00')) / 86400000) + 1;
   const el = document.querySelector('.top-mid .date');
   if (el) el.innerHTML = `${DEMO.date} (${'일월화수목금토'[dd.getDay()]}) <b>D${day}</b>`;
+  const tag = document.querySelector('.top-mid .tag-synth');
+  if (tag && !EMBED) {
+    tag.textContent = API_MODE ? '합성 데이터 · 서버 판정' : BOOT?.error ? '합성 시안 데이터 · 서버 연결 안 됨' : '합성 시안 데이터';
+    tag.title = API_MODE ? '백엔드(/api)의 작업·판정(R01~R30)을 보여 줍니다. 다른 화면에서 제출·조정·공유하면 잠시 뒤 반영됩니다' : (BOOT?.error || '?source=sample');
+  }
 }
 
 // 시간 축: windowStart ~ windowEnd, 30분 간격
@@ -72,6 +89,7 @@ const state = {
   barriers: null,             // 그 시각 출입 제한 barrierList(t) — refresh()에서 한 번 계산해 안전띠·배너·라벨·왼쪽 목록이 같이 씀
   violations: [],             // 출입 제한 구역 안 작업 (긴급 알림 대상)         // 부모가 넘긴 방위별 출입 제한 (없으면 위험 영역에서 계산)
 };
+if (API_MODE) { state.externalConflicts = true; state.restrictions = BOOT.data.restrictions; }   // 서버 판정만 쓴다 (브라우저 규칙이 경고를 더 만들지 않게)
 
 // ---------- 시간별 활성 데이터 ----------
 /* pauses: 대안 적용으로 잠시 멈추는(다른 일로 돌리는) 시간대 */
@@ -997,6 +1015,14 @@ const session = buildSession({
     state.role = role; state.taskId = null; state.conflictId = null; state.zoneId = null;
     setTime(state.timeIdx);
     toast(`보는 사람: ${role.name} — 권한 안의 데이터만 보입니다`);
+    if (API_MODE) {
+      // 새로고침해도 같은 사람으로 열리게 주소에 남기고, 그 사람의 권한으로 서버에서 다시 받는다
+      const q = new URLSearchParams(location.search);
+      if (role.id === 'PRIME') { q.delete('role'); q.delete('level'); } else { q.set('role', role.id); q.set('level', role.level); }
+      q.set('date', DEMO.date);
+      history.replaceState(null, '', `${location.pathname}?${q}`);
+      void syncFromApi(true);
+    }
   },
   onSimulate: () => {
     simN += 1;
@@ -1272,6 +1298,25 @@ setTime(NOW_IDX);
 requestAnimationFrame(animate);
 loadExtras();
 
+/* ---------- 단독 실행 + 서버: 보는 사람의 권한으로 다시 받기 ----------
+   역할을 바꿀 때(force)와 POLL_MS 마다. 다른 화면에서 계획서 제출·조정·공유가 일어나면 바뀐 경우에만 다시 그린다 */
+let apiSig = BOOT?.sig || '', apiBusy = false;
+async function syncFromApi(force = false) {
+  if (!API_MODE || apiBusy || (!force && document.hidden)) return;
+  apiBusy = true;
+  try {
+    const contractor = state.role?.id && state.role.id !== 'PRIME' ? state.role.id : null;
+    const { data, sig } = await loadView(contractor, BOOT.companies);
+    if (force || sig !== apiSig) { apiSig = sig; setData(data); }
+  } catch (e) {
+    console.warn('[scene3d] 서버 데이터 다시 받기 실패', e);
+  } finally {
+    apiBusy = false;
+  }
+}
+// 주소의 ?role= 로 열면 bootFromApi 가 처음부터 그 사람 범위로 받았다
+if (API_MODE) setInterval(() => void syncFromApi(), POLL_MS);
+
 // 통합/테스트용
 /* 프론트 웹페이지 연동: 작업 데이터를 넘기면 위치별 목록·판정·3D가 다시 그려짐 */
 function setData({ companies, tasks, conflicts, restrictions } = {}) {
@@ -1297,7 +1342,7 @@ function setRole(role) { session.setRole(role); state.role = session.role || rol
 function post(msg) { try { if (window.parent !== window) window.parent.postMessage({ source: 'scene3d', ...msg }, location.origin); } catch (e) { /* 단독 실행이면 무시 */ } }
 window.addEventListener('message', (e) => {
   const m = e.data;
-  if (e.origin !== location.origin || !m || m.source !== 'hansotbap') return;   // 같은 사이트(public/scene3d)에서 띄운 경우만
+  if (e.origin !== location.origin || !m || m.source !== 'hansotbap') return;   // 같은 사이트(/scene3d)에서 띄운 경우만
   try {
     if (m.type === 'data') setData(fromHansotbap(m));
     else if (m.type === 'scene3dData') setData(m);
