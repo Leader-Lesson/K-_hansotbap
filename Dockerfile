@@ -1,4 +1,4 @@
-# 배포용 단일 컨테이너: 프론트를 빌드해 FastAPI가 같이 내준다 (Hugging Face Spaces, 포트 7860)
+# 배포용 단일 컨테이너: 프론트를 빌드해 FastAPI가 같이 내준다 (Render 무료 플랜. 포트는 PORT 환경변수, 없으면 7860)
 FROM node:24-slim AS web
 WORKDIR /src/app/frontend
 COPY app/frontend/package.json app/frontend/package-lock.json ./
@@ -22,4 +22,4 @@ ENV PATH="/home/user/repo/app/backend/.venv/bin:$PATH" \
     CORS_ORIGINS='["*"]'
 EXPOSE 7860
 # 컨테이너가 켜질 때마다 시연 시작 상태로 시드한다
-CMD ["sh", "-c", "python -m db.seed && uvicorn main:app --host 0.0.0.0 --port 7860"]
+CMD ["sh", "-c", "python -m db.seed && uvicorn main:app --host 0.0.0.0 --port ${PORT:-7860}"]
